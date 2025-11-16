@@ -263,6 +263,80 @@ When modifying this project:
 - ❌ Don't use `delay()` in FreeRTOS tasks (use `vTaskDelay`)
 - ❌ Don't forget to release mutexes before returning
 
+## MCP Tools Integration
+
+This project uses Model Context Protocol (MCP) tools to enhance AI-assisted development.
+
+### ⚠️ CRITICAL: shadcn MCP
+
+**ALWAYS check shadcn MCP before creating ANY React component!**
+
+**Workflow:**
+1. **Query shadcn MCP first** to see if the component exists
+2. **Check if the component can be composed** from existing shadcn primitives
+3. **Only create custom components** if no shadcn solution exists
+
+**Examples:**
+- Need a card layout? → Check shadcn MCP for `card` component
+- Need a chart? → Check shadcn MCP for `chart` component (NOT recharts!)
+- Need a table? → Check shadcn MCP for `table` component
+- Need a gauge/progress? → Check shadcn MCP for `progress` or radial components
+
+**Chart Components:**
+- ✅ **Use shadcn charts** (built-in chart components)
+- ❌ **Do NOT use recharts** directly
+- shadcn charts are pre-styled and integrated with the design system
+
+### Next.js MCP
+
+**Use Next.js MCP for:**
+- App Router patterns and best practices
+- API routes implementation
+- Server vs Client components decisions
+- Next.js-specific configurations
+- Routing and navigation patterns
+
+### Package Management
+
+**ALWAYS use pnpm for this project:**
+
+```bash
+# Installing Next.js
+pnpm create next-app@latest
+
+# Installing shadcn
+pnpm dlx shadcn@latest init
+
+# Adding shadcn components
+pnpm dlx shadcn@latest add [component-name]
+
+# Installing other packages
+pnpm add [package-name]
+pnpm add -D [dev-package-name]
+```
+
+**Never use:**
+- ❌ `npm install`
+- ❌ `yarn add`
+- ❌ `npx create-next-app`
+
+### MCP Best Practices
+
+1. **Before creating components:**
+   - Query shadcn MCP for available components
+   - Check component variants and compositions
+   - Review usage examples from MCP
+
+2. **For Next.js questions:**
+   - Consult Next.js MCP for modern patterns
+   - Verify App Router vs Pages Router approaches
+   - Check server/client component guidelines
+
+3. **Component installation:**
+   - Always use `pnpm dlx shadcn@latest add [component]`
+   - Install all needed components before building
+   - Check MCP documentation for component props and variants
+
 ---
 
 **Last Updated:** 2025-01-16
