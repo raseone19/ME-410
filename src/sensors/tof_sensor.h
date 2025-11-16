@@ -1,0 +1,147 @@
+/**
+ * @file tof_sensor.h
+ * @brief TOF (Time-of-Flight) distance sensor with servo sweep
+ *
+ * Provides TOF sensor reading functionality with servo sweep to find
+ * minimum distance. Includes dynamic setpoint calculation based on
+ * distance ranges and state machine for out-of-range handling.
+ */
+
+#ifndef TOF_SENSOR_H
+#define TOF_SENSOR_H
+
+#include <Arduino.h>
+#include <ESP32Servo.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
+
+// ============================================================================
+// Distance Ranges and Setpoints
+// ============================================================================
+
+// Distance range definitions (in cm)
+constexpr float DISTANCE_FAR_MIN = 200.0f;      // Far range start (cm)
+constexpr float DISTANCE_FAR_MAX = 300.0f;      // Far range end (cm)
+constexpr float DISTANCE_MEDIUM_MIN = 100.0f;   // Medium range start (cm)
+constexpr float DISTANCE_MEDIUM_MAX = 200.0f;   // Medium range end (cm)
+constexpr float DISTANCE_CLOSE_MIN = 50.0f;     // Close range start (cm)
+constexpr float DISTANCE_CLOSE_MAX = 100.0f;    // Close range end (cm)
+
+// Setpoint values for each range (in mV)
+constexpr float SECURITY_OFFSET_MV = 50.0f;     // Offset added to PP reading in FAR range
+constexpr float SETPOINT_MEDIUM_MV = 800.0f;    // Setpoint for medium range
+constexpr float SETPOINT_CLOSE_MV = 1150.0f;    // Setpoint for close range
+
+// Reverse motor parameters (when out of range)
+constexpr uint32_t REVERSE_TIME_MS = 500;       // Reverse duration (ms)
+constexpr float REVERSE_DUTY_PCT = 60.0f;       // Reverse duty cycle (%)
+
+// ============================================================================
+// Enumerations
+// ============================================================================
+
+/**
+ * @brief Distance range classification
+ */
+enum DistanceRange {
+    RANGE_UNKNOWN,           // Invalid or error reading
+    RANGE_FAR,               // 200-300 cm
+    RANGE_MEDIUM,            // 100-200 cm
+    RANGE_CLOSE,             // 50-100 cm
+    RANGE_OUT_OF_BOUNDS      // Outside valid ranges
+};
+
+/**
+ * @brief System state for out-of-range handling
+ */
+enum SystemState {
+    NORMAL_OPERATION,        // Normal PI control active
+    OUT_OF_RANGE_REVERSING,  // Reversing due to out of bounds
+    WAITING_FOR_VALID_READING // Waiting for sensor to return to valid range
+};
+
+// ============================================================================
+// Shared Variables (Protected by Mutex)
+// ============================================================================
+
+extern SemaphoreHandle_t distanceMutex;
+extern volatile float shared_min_distance;
+extern volatile int shared_best_angle;
+extern volatile bool sweep_active;
+
+// ============================================================================
+// Public Functions
+// ============================================================================
+
+/**
+ * @brief Initialize TOF sensor and servo system
+ *
+ * Configures serial communication with TOF sensor and initializes servo.
+ * Creates mutex for thread-safe access to shared variables.
+ * Must be called once during setup.
+ */
+void initTOFSensor();
+
+/**
+ * @brief Read distance from TOF sensor
+ *
+ * Reads a single distance measurement from the TOF sensor.
+ * Handles serial communication protocol and checksum verification.
+ *
+ * @return Distance in centimeters, or -1.0 on error
+ */
+float tofGetDistance();
+
+/**
+ * @brief Classify distance into range category
+ *
+ * @param distance Distance in centimeters
+ * @return DistanceRange category
+ */
+DistanceRange getDistanceRange(float distance);
+
+/**
+ * @brief Calculate setpoint based on distance range
+ *
+ * Computes the target pressure setpoint based on the current distance range
+ * and pressure pad reading. Uses dynamic calculation for FAR range.
+ *
+ * @param range Current distance range
+ * @param current_pressure_mv Current pressure pad reading (mV)
+ * @return Setpoint in millivolts, or -1.0 if invalid
+ */
+float calculateSetpoint(DistanceRange range, float current_pressure_mv);
+
+/**
+ * @brief Get minimum distance from last servo sweep (thread-safe)
+ *
+ * Retrieves the minimum distance found in the most recent servo sweep.
+ * Uses mutex protection for thread-safe access.
+ *
+ * @return Minimum distance in centimeters
+ */
+float getMinDistance();
+
+/**
+ * @brief Get optimal angle from last servo sweep (thread-safe)
+ *
+ * Retrieves the servo angle where minimum distance was found.
+ * Uses mutex protection for thread-safe access.
+ *
+ * @return Optimal servo angle in degrees
+ */
+int getBestAngle();
+
+/**
+ * @brief Servo sweep task (runs on Core 0)
+ *
+ * FreeRTOS task that continuously sweeps the servo from min to max angle,
+ * reading TOF distance at each step. Updates shared_min_distance and
+ * shared_best_angle variables with mutex protection.
+ *
+ * @param parameter Task parameter (unused)
+ */
+void servoSweepTask(void* parameter);
+
+#endif // TOF_SENSOR_H

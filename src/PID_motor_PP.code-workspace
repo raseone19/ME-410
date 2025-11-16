@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"name": "PI_datalog",
+			"path": "../../PI_datalog"
+		}
+	],
+	"settings": {}
+}
