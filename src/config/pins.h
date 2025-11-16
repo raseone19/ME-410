@@ -57,7 +57,7 @@ constexpr uint8_t TOF_TX_PIN = 18;        // Serial TX (changed from 17)
 constexpr uint32_t TOF_BAUDRATE = 921600; // TOF sensor baud rate
 
 // Servo for TOF scanning
-constexpr uint8_t SERVO_PIN = 2;          // Servo PWM pin
+constexpr uint8_t SERVO_PIN = 22;          // Servo PWM pin
 constexpr int SERVO_MIN_ANGLE = 30;       // Minimum sweep angle (degrees)
 constexpr int SERVO_MAX_ANGLE = 90;       // Maximum sweep angle (degrees)
 constexpr int SERVO_STEP = 2;             // Angle increment per step
