@@ -10,6 +10,7 @@ import {
   MotorData,
   ConnectionStatus,
   WebSocketMessage,
+  RadarScanPoint,
 } from './types';
 
 interface WebSocketStore {
@@ -22,8 +23,16 @@ interface WebSocketStore {
 
   // Data state
   currentData: MotorData | null;
-  dataHistory: MotorData[];
+  dataHistory: MotorData[]; // Shared history for backward compatibility
+  motorHistory: {
+    motor1: MotorData[];
+    motor2: MotorData[];
+    motor3: MotorData[];
+    motor4: MotorData[];
+  }; // Per-motor history (25 points each)
+  scanHistory: RadarScanPoint[]; // Angle+distance pairs for radar visualization
   maxHistorySize: number;
+  maxScanHistorySize: number;
 
   // WebSocket instance
   ws: WebSocket | null;
@@ -41,6 +50,7 @@ interface WebSocketStore {
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
 const DEFAULT_MAX_HISTORY = 25; // Keep last 25 data points (0.5 seconds at 50Hz, 2.5 seconds at 10Hz)
+const DEFAULT_MAX_SCAN_HISTORY = 180; // Keep 180 scan points (one for each degree from 0-180)
 
 export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
   // Initial state
@@ -51,7 +61,15 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
   shouldReconnect: true, // Auto-reconnect enabled by default
   currentData: null,
   dataHistory: [],
+  motorHistory: {
+    motor1: [],
+    motor2: [],
+    motor3: [],
+    motor4: [],
+  },
+  scanHistory: [],
   maxHistorySize: DEFAULT_MAX_HISTORY,
+  maxScanHistorySize: DEFAULT_MAX_SCAN_HISTORY,
   ws: null,
 
   // Connect to WebSocket server
@@ -96,19 +114,70 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
               }
 
               const newData = message.payload;
-              const { dataHistory, maxHistorySize } = get();
+              const { dataHistory, motorHistory, scanHistory, maxHistorySize, maxScanHistorySize } = get();
 
-              // Add to history and maintain max size
+              // Add to shared history and maintain max size
               const updatedHistory = [...dataHistory, newData];
               if (updatedHistory.length > maxHistorySize) {
                 updatedHistory.shift(); // Remove oldest
               }
 
-              set({
-                currentData: newData,
-                dataHistory: updatedHistory,
-                isRecording: message.isRecording,
-              });
+              // Add to per-motor history and maintain max size
+              const updatedMotorHistory = {
+                motor1: [...motorHistory.motor1, newData],
+                motor2: [...motorHistory.motor2, newData],
+                motor3: [...motorHistory.motor3, newData],
+                motor4: [...motorHistory.motor4, newData],
+              };
+
+              // Trim each motor history to max size
+              if (updatedMotorHistory.motor1.length > maxHistorySize) {
+                updatedMotorHistory.motor1.shift();
+              }
+              if (updatedMotorHistory.motor2.length > maxHistorySize) {
+                updatedMotorHistory.motor2.shift();
+              }
+              if (updatedMotorHistory.motor3.length > maxHistorySize) {
+                updatedMotorHistory.motor3.shift();
+              }
+              if (updatedMotorHistory.motor4.length > maxHistorySize) {
+                updatedMotorHistory.motor4.shift();
+              }
+
+              // Add to scan history for radar visualization using live servo data
+              const angle = newData.servo_angle;
+              const currentDistance = newData.tof_current_cm;
+
+              // Only add valid readings
+              if (currentDistance > 0 && currentDistance <= 300 && angle >= 0 && angle <= 180) {
+                const scanPoint: RadarScanPoint = {
+                  angle: angle,
+                  distance: currentDistance,
+                  timestamp: newData.time_ms,
+                };
+
+                const updatedScanHistory = [...scanHistory, scanPoint];
+
+                // Trim scan history to max size
+                if (updatedScanHistory.length > maxScanHistorySize) {
+                  updatedScanHistory.shift();
+                }
+
+                set({
+                  currentData: newData,
+                  dataHistory: updatedHistory,
+                  motorHistory: updatedMotorHistory,
+                  scanHistory: updatedScanHistory,
+                  isRecording: message.isRecording,
+                });
+              } else {
+                set({
+                  currentData: newData,
+                  dataHistory: updatedHistory,
+                  motorHistory: updatedMotorHistory,
+                  isRecording: message.isRecording,
+                });
+              }
               break;
 
             case 'recording_status':
@@ -120,7 +189,17 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
 
             case 'reset_complete':
               console.log('🔄 Simulation reset');
-              set({ dataHistory: [], currentData: null });
+              set({
+                dataHistory: [],
+                motorHistory: {
+                  motor1: [],
+                  motor2: [],
+                  motor3: [],
+                  motor4: [],
+                },
+                scanHistory: [],
+                currentData: null,
+              });
               break;
 
             case 'pong':
@@ -219,7 +298,17 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
 
   // Clear data history
   clearHistory: () => {
-    set({ dataHistory: [], currentData: null });
+    set({
+      dataHistory: [],
+      motorHistory: {
+        motor1: [],
+        motor2: [],
+        motor3: [],
+        motor4: [],
+      },
+      scanHistory: [],
+      currentData: null,
+    });
   },
 
   // Set maximum history size

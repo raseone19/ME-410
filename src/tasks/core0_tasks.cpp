@@ -16,10 +16,12 @@
 // Shared Variables (Extern declarations in header)
 // ============================================================================
 
-volatile float shared_setpoint_mv = 0.0f;
+volatile float shared_setpoints_mv[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 volatile uint16_t shared_pressure_pads_mv[4] = {0};
 volatile float shared_duty_cycles[4] = {0.0f};
-volatile float shared_tof_distance = 0.0f;
+volatile float shared_tof_distances[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+volatile int shared_servo_angle = 0;
+volatile float shared_tof_current = 0.0f;
 
 // ============================================================================
 // Task Implementations
@@ -28,7 +30,7 @@ volatile float shared_tof_distance = 0.0f;
 void serialPrintTask(void* parameter) {
 #ifdef PROTOCOL_CSV
     // Print CSV header once at startup
-    Serial.println("time_ms,setpoint_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,tof_dist_cm");
+    Serial.println("time_ms,sp1_mv,sp2_mv,sp3_mv,sp4_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,tof1_cm,tof2_cm,tof3_cm,tof4_cm,servo_angle");
 #endif
 
     TickType_t lastWakeTime = xTaskGetTickCount();
@@ -38,18 +40,22 @@ void serialPrintTask(void* parameter) {
         // Get current time
         uint32_t time_ms = millis();
 
-        // Read shared variables (volatile reads are atomic on ESP32 for 32-bit values)
-        float setpoint = shared_setpoint_mv;
-        float tof_dist = shared_tof_distance;
-
         // Local copies of arrays
+        float setpoints[NUM_MOTORS];
         uint16_t pp_mv[NUM_MOTORS];
         float duty[NUM_MOTORS];
+        float tof_dist[NUM_MOTORS];
+        int servo_angle;
+        float tof_current;
 
         for (int i = 0; i < NUM_MOTORS; ++i) {
+            setpoints[i] = shared_setpoints_mv[i];
             pp_mv[i] = shared_pressure_pads_mv[i];
             duty[i] = shared_duty_cycles[i];
+            tof_dist[i] = shared_tof_distances[i];
         }
+        servo_angle = shared_servo_angle;
+        tof_current = shared_tof_current;
 
 #ifdef PROTOCOL_CSV
         // ====================================================================
@@ -57,8 +63,12 @@ void serialPrintTask(void* parameter) {
         // ====================================================================
         Serial.print(time_ms);
         Serial.print(",");
-        Serial.print(setpoint, CSV_DECIMAL_PLACES);
-        Serial.print(",");
+
+        // Print all 4 setpoints
+        for (int i = 0; i < NUM_MOTORS; ++i) {
+            Serial.print(setpoints[i], CSV_DECIMAL_PLACES);
+            Serial.print(",");
+        }
 
         // Print all 4 pressure pad values
         for (int i = 0; i < NUM_MOTORS; ++i) {
@@ -69,20 +79,26 @@ void serialPrintTask(void* parameter) {
         // Print all 4 duty cycles
         for (int i = 0; i < NUM_MOTORS; ++i) {
             Serial.print(duty[i], CSV_DECIMAL_PLACES);
-            if (i < NUM_MOTORS - 1) {
-                Serial.print(",");
-            }
+            Serial.print(",");
         }
 
-        Serial.print(",");
-        Serial.println(tof_dist, CSV_DECIMAL_PLACES);
+        // Print all 4 TOF distances
+        for (int i = 0; i < NUM_MOTORS; ++i) {
+            Serial.print(tof_dist[i], CSV_DECIMAL_PLACES);
+            Serial.print(",");
+        }
+
+        // Print servo angle
+        Serial.print(servo_angle);
+
+        Serial.println();
 
 #else
         // ====================================================================
         // Binary Protocol Output
         // ====================================================================
         DataPacket packet;
-        buildDataPacket(&packet, time_ms, setpoint, pp_mv, duty, tof_dist);
+        buildDataPacket(&packet, time_ms, setpoints, pp_mv, duty, tof_dist, (uint8_t)servo_angle, tof_current);
         sendBinaryPacket(&packet);
 #endif
 

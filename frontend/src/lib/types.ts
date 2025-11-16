@@ -4,11 +4,14 @@
 
 /**
  * Motor control data point from ESP32
- * Matches the CSV format: time_ms,setpoint_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,tof_dist_cm
+ * Binary protocol: 70 bytes including servo_angle and tof_current_cm for real-time radar
  */
 export interface MotorData {
   time_ms: number;
-  setpoint_mv: number;
+  sp1_mv: number;  // Motor 1 setpoint in millivolts
+  sp2_mv: number;  // Motor 2 setpoint in millivolts
+  sp3_mv: number;  // Motor 3 setpoint in millivolts
+  sp4_mv: number;  // Motor 4 setpoint in millivolts
   pp1_mv: number;
   pp2_mv: number;
   pp3_mv: number;
@@ -17,7 +20,21 @@ export interface MotorData {
   duty2_pct: number;
   duty3_pct: number;
   duty4_pct: number;
-  tof_dist_cm: number;
+  tof1_cm: number;  // Motor 1 sector distance (0°-30° in MODE_B)
+  tof2_cm: number;  // Motor 2 sector distance (31°-60° in MODE_B)
+  tof3_cm: number;  // Motor 3 sector distance (61°-90° in MODE_B)
+  tof4_cm: number;  // Motor 4 sector distance (91°-120° in MODE_B)
+  servo_angle: number;  // Current servo position in degrees (0-120°)
+  tof_current_cm: number;  // TOF distance at current servo angle (real-time)
+}
+
+/**
+ * Radar scan point - angle and distance pair
+ */
+export interface RadarScanPoint {
+  angle: number;      // Servo angle in degrees (0-120°)
+  distance: number;   // TOF distance in cm
+  timestamp: number;  // Time when reading was taken
 }
 
 /**

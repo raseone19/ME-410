@@ -12,7 +12,7 @@ const WS_PORT = 3001;
 const BAUD_RATE = 115200;
 
 // Binary protocol constants
-const PACKET_SIZE = 40;
+const PACKET_SIZE = 70;  // Updated to include servo_angle and tof_current_cm
 const HEADER_WORD = 0xAA55;  // Combined 16-bit header
 
 // Serial port path - you'll need to update this
@@ -52,20 +52,29 @@ function calculateCRC16(data: Buffer): number {
 
 /**
  * Parse binary packet from ESP32
- * Packet structure (40 bytes):
+ * Packet structure (70 bytes):
  *   [0-1]:   Header (0xAA55 as uint16)
  *   [2-5]:   timestamp_ms (uint32)
- *   [6-9]:   setpoint_mv (float)
- *   [10-11]: pp1_mv (uint16)
- *   [12-13]: pp2_mv (uint16)
- *   [14-15]: pp3_mv (uint16)
- *   [16-17]: pp4_mv (uint16)
- *   [18-21]: duty1_pct (float)
- *   [22-25]: duty2_pct (float)
- *   [26-29]: duty3_pct (float)
- *   [30-33]: duty4_pct (float)
- *   [34-37]: tof_dist_cm (float)
- *   [38-39]: crc (uint16)
+ *   [6-9]:   setpoint1_mv (float)
+ *   [10-13]: setpoint2_mv (float)
+ *   [14-17]: setpoint3_mv (float)
+ *   [18-21]: setpoint4_mv (float)
+ *   [22-23]: pp1_mv (uint16)
+ *   [24-25]: pp2_mv (uint16)
+ *   [26-27]: pp3_mv (uint16)
+ *   [28-29]: pp4_mv (uint16)
+ *   [30-33]: duty1_pct (float)
+ *   [34-37]: duty2_pct (float)
+ *   [38-41]: duty3_pct (float)
+ *   [42-45]: duty4_pct (float)
+ *   [46-49]: tof1_cm (float)
+ *   [50-53]: tof2_cm (float)
+ *   [54-57]: tof3_cm (float)
+ *   [58-61]: tof4_cm (float)
+ *   [62]:    servo_angle (uint8)
+ *   [63-66]: tof_current_cm (float)
+ *   [67]:    padding (uint8)
+ *   [68-69]: crc (uint16)
  */
 function parseBinaryPacket(packet: Buffer): MotorData | null {
   if (packet.length !== PACKET_SIZE) {
@@ -93,16 +102,24 @@ function parseBinaryPacket(packet: Buffer): MotorData | null {
   try {
     return {
       time_ms: packet.readUInt32LE(2),
-      setpoint_mv: packet.readFloatLE(6),
-      pp1_mv: packet.readUInt16LE(10),
-      pp2_mv: packet.readUInt16LE(12),
-      pp3_mv: packet.readUInt16LE(14),
-      pp4_mv: packet.readUInt16LE(16),
-      duty1_pct: packet.readFloatLE(18),
-      duty2_pct: packet.readFloatLE(22),
-      duty3_pct: packet.readFloatLE(26),
-      duty4_pct: packet.readFloatLE(30),
-      tof_dist_cm: packet.readFloatLE(34),
+      sp1_mv: packet.readFloatLE(6),
+      sp2_mv: packet.readFloatLE(10),
+      sp3_mv: packet.readFloatLE(14),
+      sp4_mv: packet.readFloatLE(18),
+      pp1_mv: packet.readUInt16LE(22),
+      pp2_mv: packet.readUInt16LE(24),
+      pp3_mv: packet.readUInt16LE(26),
+      pp4_mv: packet.readUInt16LE(28),
+      duty1_pct: packet.readFloatLE(30),
+      duty2_pct: packet.readFloatLE(34),
+      duty3_pct: packet.readFloatLE(38),
+      duty4_pct: packet.readFloatLE(42),
+      tof1_cm: packet.readFloatLE(46),
+      tof2_cm: packet.readFloatLE(50),
+      tof3_cm: packet.readFloatLE(54),
+      tof4_cm: packet.readFloatLE(58),
+      servo_angle: packet.readUInt8(62),
+      tof_current_cm: packet.readFloatLE(63),
     };
   } catch (error) {
     console.error('❌ Error parsing binary packet:', error);
@@ -254,29 +271,39 @@ function initSerial() {
 
 /**
  * Parse CSV line from ESP32
- * Format: time_ms,setpoint_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,tof_dist_cm
+ * Format: time_ms,sp1_mv,sp2_mv,sp3_mv,sp4_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,tof1_cm,tof2_cm,tof3_cm,tof4_cm,servo_angle
+ *
+ * NOTE: CSV mode is deprecated. Binary protocol is the primary communication method.
  */
 function parseCSVLine(line: string): MotorData | null {
   const parts = line.split(',').map((s) => s.trim());
 
-  if (parts.length !== 11) {
-    console.warn('⚠️  Invalid CSV line (expected 11 fields, got', parts.length, '):', line);
+  if (parts.length !== 18) {
+    console.warn('⚠️  Invalid CSV line (expected 18 fields, got', parts.length, '):', line);
     return null;
   }
 
   try {
     return {
       time_ms: parseInt(parts[0]),
-      setpoint_mv: parseFloat(parts[1]),
-      pp1_mv: parseFloat(parts[2]),
-      pp2_mv: parseFloat(parts[3]),
-      pp3_mv: parseFloat(parts[4]),
-      pp4_mv: parseFloat(parts[5]),
-      duty1_pct: parseFloat(parts[6]),
-      duty2_pct: parseFloat(parts[7]),
-      duty3_pct: parseFloat(parts[8]),
-      duty4_pct: parseFloat(parts[9]),
-      tof_dist_cm: parseFloat(parts[10]),
+      sp1_mv: parseFloat(parts[1]),
+      sp2_mv: parseFloat(parts[2]),
+      sp3_mv: parseFloat(parts[3]),
+      sp4_mv: parseFloat(parts[4]),
+      pp1_mv: parseFloat(parts[5]),
+      pp2_mv: parseFloat(parts[6]),
+      pp3_mv: parseFloat(parts[7]),
+      pp4_mv: parseFloat(parts[8]),
+      duty1_pct: parseFloat(parts[9]),
+      duty2_pct: parseFloat(parts[10]),
+      duty3_pct: parseFloat(parts[11]),
+      duty4_pct: parseFloat(parts[12]),
+      tof1_cm: parseFloat(parts[13]),
+      tof2_cm: parseFloat(parts[14]),
+      tof3_cm: parseFloat(parts[15]),
+      tof4_cm: parseFloat(parts[16]),
+      servo_angle: parseFloat(parts[17]),
+      tof_current_cm: 0,  // Not available in CSV mode
     };
   } catch (error) {
     console.error('❌ Failed to parse numbers from:', line);

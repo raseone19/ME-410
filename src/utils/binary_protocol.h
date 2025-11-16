@@ -41,8 +41,13 @@ struct __attribute__((packed)) DataPacket {
     // Timestamp (4 bytes)
     uint32_t timestamp_ms;       // Milliseconds since system start
 
-    // Setpoint (4 bytes)
-    float setpoint_mv;           // Target pressure in millivolts
+    // Setpoints (16 bytes total: 4x float)
+    // MODE_A: All motors use setpoint1_mv (others same)
+    // MODE_B: Each motor uses its own setpoint
+    float setpoint1_mv;          // Motor 1 setpoint in millivolts
+    float setpoint2_mv;          // Motor 2 setpoint in millivolts
+    float setpoint3_mv;          // Motor 3 setpoint in millivolts
+    float setpoint4_mv;          // Motor 4 setpoint in millivolts
 
     // Pressure pad readings (8 bytes total: 4x uint16_t)
     uint16_t pp1_mv;             // Pressure pad 1 in millivolts
@@ -56,15 +61,27 @@ struct __attribute__((packed)) DataPacket {
     float duty3_pct;             // Motor 3 duty cycle (0-100%)
     float duty4_pct;             // Motor 4 duty cycle (0-100%)
 
-    // TOF distance (4 bytes)
-    float tof_dist_cm;           // Distance in centimeters
+    // TOF distances (16 bytes total: 4x float)
+    // MODE_A: All motors use tof1_cm (others unused)
+    // MODE_B: Each motor uses its own sector's minimum distance
+    float tof1_cm;               // Motor 1 sector distance (0°-30° in MODE_B)
+    float tof2_cm;               // Motor 2 sector distance (31°-60° in MODE_B)
+    float tof3_cm;               // Motor 3 sector distance (61°-90° in MODE_B)
+    float tof4_cm;               // Motor 4 sector distance (91°-120° in MODE_B)
+
+    // Live radar scan data (5 bytes)
+    uint8_t servo_angle;         // Current servo position in degrees (0-120°)
+    float tof_current_cm;        // TOF distance at current servo angle (real-time)
+
+    // Padding for alignment (1 byte)
+    uint8_t padding;             // Reserved for future use
 
     // Error detection (2 bytes)
     uint16_t crc;                // CRC-16 checksum
 };
 
 // Compile-time size verification
-static_assert(sizeof(DataPacket) == 40, "DataPacket must be exactly 40 bytes");
+static_assert(sizeof(DataPacket) == 70, "DataPacket must be exactly 70 bytes");
 
 // ============================================================================
 // CRC-16 Calculation
@@ -109,25 +126,33 @@ inline uint16_t calculateCRC16(const uint8_t* data, size_t length) {
  *
  * @param packet Pointer to DataPacket structure to fill
  * @param timestamp_ms Timestamp in milliseconds
- * @param setpoint_mv Setpoint in millivolts
+ * @param setpoints_mv Array of 4 setpoints in millivolts (one per motor)
  * @param pp_mv Array of 4 pressure pad readings in millivolts
  * @param duty_pct Array of 4 duty cycle percentages
- * @param tof_dist_cm TOF distance in centimeters
+ * @param tof_dist_cm Array of 4 TOF distances in centimeters (one per motor/sector)
+ * @param servo_angle Current servo position in degrees (0-120)
+ * @param tof_current_cm TOF distance at current servo angle
  */
 inline void buildDataPacket(
     DataPacket* packet,
     uint32_t timestamp_ms,
-    float setpoint_mv,
+    const float setpoints_mv[4],
     const uint16_t pp_mv[4],
     const float duty_pct[4],
-    float tof_dist_cm
+    const float tof_dist_cm[4],
+    uint8_t servo_angle,
+    float tof_current_cm
 ) {
     // Set header
     packet->header = PACKET_HEADER;
 
     // Set data fields
     packet->timestamp_ms = timestamp_ms;
-    packet->setpoint_mv = setpoint_mv;
+
+    packet->setpoint1_mv = setpoints_mv[0];
+    packet->setpoint2_mv = setpoints_mv[1];
+    packet->setpoint3_mv = setpoints_mv[2];
+    packet->setpoint4_mv = setpoints_mv[3];
 
     packet->pp1_mv = pp_mv[0];
     packet->pp2_mv = pp_mv[1];
@@ -139,7 +164,15 @@ inline void buildDataPacket(
     packet->duty3_pct = duty_pct[2];
     packet->duty4_pct = duty_pct[3];
 
-    packet->tof_dist_cm = tof_dist_cm;
+    packet->tof1_cm = tof_dist_cm[0];
+    packet->tof2_cm = tof_dist_cm[1];
+    packet->tof3_cm = tof_dist_cm[2];
+    packet->tof4_cm = tof_dist_cm[3];
+
+    // Set live radar data
+    packet->servo_angle = servo_angle;
+    packet->tof_current_cm = tof_current_cm;
+    packet->padding = 0;
 
     // Calculate CRC (exclude header and CRC field itself)
     const uint8_t* data_start = (const uint8_t*)packet + 2;  // Skip header (2 bytes)
