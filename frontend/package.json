@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "dev:mock": "tsx dev/mock-ws-server.ts & next dev",
+    "dev:serial": "tsx dev/serial-ws-bridge.ts & next dev",
     "mock-server": "tsx dev/mock-ws-server.ts",
+    "serial-bridge": "tsx dev/serial-ws-bridge.ts",
+    "list-ports": "tsx dev/list-serial-ports.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -20,6 +23,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
+    "@serialport/parser-readline": "^13.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.553.0",
@@ -27,6 +31,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "recharts": "2.15.4",
+    "serialport": "^13.0.0",
     "tailwind-merge": "^3.4.0",
     "ws": "^8.18.3",
     "zustand": "^5.0.8"

@@ -55,10 +55,22 @@ Replace `<ESP32_IP>` with your ESP32's IP address (e.g., `ws://192.168.1.100:81`
 ```bash
 pnpm run dev:mock
 ```
+Starts both Next.js dev server and mock WebSocket server.
 
-This starts both the Next.js dev server and mock WebSocket server.
+**With Real ESP32 via USB Serial** (recommended):
+```bash
+# First, find your serial port
+pnpm run list-ports
 
-**With Real ESP32**:
+# Add to .env.local:
+# SERIAL_PORT=/dev/cu.usbserial-0001  # (use your port from list-ports)
+
+# Start serial bridge + dev server
+pnpm run dev:serial
+```
+See **[USB_SERIAL_SETUP.md](./USB_SERIAL_SETUP.md)** for detailed instructions.
+
+**With Real ESP32 via WiFi** (alternative):
 ```bash
 # Make sure .env.local points to your ESP32 IP
 pnpm run dev

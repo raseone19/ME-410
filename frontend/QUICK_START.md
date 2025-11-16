@@ -5,15 +5,68 @@ Get your ESP32 Motor Control Dashboard running in 3 minutes!
 ## 🎯 Goal
 Connect your Next.js dashboard to your ESP32 motor control system.
 
+## 🔌 Connection Methods
+
+Choose one:
+- **USB Serial** (Recommended) - Simple, fast, reliable
+- **WiFi** (Alternative) - Wireless but requires network setup
+
 ## 📋 Before You Start
 
 Make sure you have:
 - ✅ ESP32 with motor control code uploaded
-- ✅ ESP32 connected to WiFi (same network as your computer)
+- ✅ USB cable (for USB method) OR WiFi connection (for WiFi method)
 - ✅ Node.js and pnpm installed
 - ✅ This frontend project downloaded
 
-## 🚀 3-Minute Setup
+---
+
+# 🚀 Option 1: USB Serial Setup (Recommended)
+
+## 3-Minute Setup
+
+### Step 1: Find Your Serial Port (30 seconds)
+
+```bash
+cd frontend
+pnpm run list-ports
+```
+
+**Output example:**
+```
+✅ Found 2 serial port(s):
+
+1. /dev/cu.usbserial-0001
+   🎯 ← LIKELY ESP32!
+
+✅ Recommended port for ESP32:
+   SERIAL_PORT=/dev/cu.usbserial-0001
+```
+
+### Step 2: Configure (30 seconds)
+
+```bash
+# Add to .env.local
+echo "SERIAL_PORT=/dev/cu.usbserial-0001" >> .env.local
+```
+
+### Step 3: Start (30 seconds)
+
+```bash
+pnpm run dev:serial
+```
+
+**Open browser:** http://localhost:3000
+
+✅ **Done!** Your dashboard should show live data.
+
+📚 **Detailed USB guide:** See [USB_SERIAL_SETUP.md](./USB_SERIAL_SETUP.md)
+
+---
+
+# 🚀 Option 2: WiFi Setup (Alternative)
+
+## 3-Minute Setup
 
 ### Step 1: Find Your ESP32 IP Address (30 seconds)
 
