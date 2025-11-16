@@ -29,9 +29,6 @@ static Servo tofServo;
 // Motors use channels 0-3, so servo will use channel 8+
 static bool servo_channels_allocated = false;
 
-// Dynamic setpoint for FAR range
-static float setpoint_far_dynamic = 0.0f;
-
 // ============================================================================
 // Shared Variables (Extern declarations in header)
 // ============================================================================
@@ -189,12 +186,12 @@ DistanceRange getDistanceRange(float distance) {
     }
 }
 
-float calculateSetpoint(DistanceRange range, float current_pressure_mv) {
+float calculateSetpoint(DistanceRange range, float baseline_pressure_mv) {
     switch (range) {
         case RANGE_FAR:
-            // Dynamic setpoint: current pressure + security offset
-            setpoint_far_dynamic = current_pressure_mv + SECURITY_OFFSET_MV;
-            return setpoint_far_dynamic;
+            // Dynamic setpoint: baseline pressure (captured when entering FAR range) + security offset
+            // This accounts for friction variations between different motors and over time
+            return baseline_pressure_mv + SECURITY_OFFSET_MV;
 
         case RANGE_MEDIUM:
             return SETPOINT_MEDIUM_MV;

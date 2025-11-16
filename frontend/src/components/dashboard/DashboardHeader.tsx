@@ -5,7 +5,7 @@
 
 'use client';
 
-import { Wifi, WifiOff, Radio, Circle, Pause, Play } from 'lucide-react';
+import { Wifi, WifiOff, Radio, Circle, Pause, Play, Camera } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -28,6 +28,7 @@ interface DashboardHeaderProps {
   onConnect: () => void;
   onDisconnect: () => void;
   onReset: () => void;
+  onSnapshot: () => void;
 }
 
 export function DashboardHeader({
@@ -40,6 +41,7 @@ export function DashboardHeader({
   onConnect,
   onDisconnect,
   onReset,
+  onSnapshot,
 }: DashboardHeaderProps) {
   const distanceRange = getDistanceRange(tofDistance);
   const rangeColor = getDistanceRangeColor(distanceRange);
@@ -141,6 +143,18 @@ export function DashboardHeader({
               disabled={!isConnected}
             />
           </div>
+
+          {/* Snapshot Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onSnapshot}
+            disabled={!isConnected}
+            title="Save debug snapshot"
+          >
+            <Camera className="mr-2 h-4 w-4" />
+            Snapshot
+          </Button>
 
           {/* Reset Button */}
           <Button

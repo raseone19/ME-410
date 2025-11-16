@@ -58,14 +58,14 @@ void getPIGains(float* kp, float* ki) {
     if (ki) *ki = Ki;
 }
 
-void controlStep(float setpoint_mv, const uint16_t pressure_pads_mv[NUM_MOTORS], float duty_out[NUM_MOTORS]) {
+void controlStep(const float setpoints_mv[NUM_MOTORS], const uint16_t pressure_pads_mv[NUM_MOTORS], float duty_out[NUM_MOTORS]) {
     // Process each motor independently
     for (int i = 0; i < NUM_MOTORS; ++i) {
         // Get current pressure reading
         float current_pressure_mv = (float)pressure_pads_mv[i];
 
         // Calculate error (positive error means pressure too low, need to push harder)
-        float error = setpoint_mv - current_pressure_mv;
+        float error = setpoints_mv[i] - current_pressure_mv;
 
         // Update integrator
         integrators[i] += error * CTRL_DT_S;

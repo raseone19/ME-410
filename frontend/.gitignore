@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# debug snapshots (keep folder structure but ignore JSON files)
+/snapshots/*.json

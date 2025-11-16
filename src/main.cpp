@@ -53,13 +53,17 @@ static uint32_t reverse_start_time = 0;
 static DistanceRange current_range = RANGE_UNKNOWN;
 static DistanceRange previous_range = RANGE_UNKNOWN;
 
+// Baseline pressure captured when entering FAR range (per motor, for dynamic setpoint calculation)
+static float far_range_baseline_mv[NUM_MOTORS] = {0.0f, 0.0f, 0.0f, 0.0f};
+
 // ============================================================================
 // Local Variables (Core 1)
 // ============================================================================
 
 static uint16_t pressure_pads_mv[NUM_MOTORS] = {0};
 static float duty_cycles[NUM_MOTORS] = {0.0f};
-static float current_setpoint_mv = 0.0f;
+static float setpoints_mv[NUM_MOTORS] = {0.0f};  // Individual setpoints per motor
+static float current_setpoint_mv = 0.0f;  // For logging (average or first motor)
 static uint32_t last_control_ms = 0;
 
 // ============================================================================
@@ -155,21 +159,42 @@ void loop() {
 
         readAllPadsMilliVolts(pressure_pads_mv, PP_SAMPLES);
 
-        // Calculate average pressure for setpoint calculation (FAR range)
-        float avg_pressure_mv = 0.0f;
-        for (int i = 0; i < NUM_MOTORS; ++i) {
-            avg_pressure_mv += pressure_pads_mv[i];
+        // ====================================================================
+        // Step 4: Detect range transitions and capture baseline for FAR range
+        // ====================================================================
+
+        // When entering FAR range, capture current pressure of each motor as baseline
+        // This accounts for friction variations between motors and over time
+        if (current_range != previous_range && current_range == RANGE_FAR) {
+            for (int i = 0; i < NUM_MOTORS; ++i) {
+                far_range_baseline_mv[i] = pressure_pads_mv[i];
+            }
         }
-        avg_pressure_mv /= NUM_MOTORS;
 
         // ====================================================================
-        // Step 4: Calculate dynamic setpoint based on distance range
+        // Step 5: Calculate dynamic setpoints based on distance range
         // ====================================================================
 
-        current_setpoint_mv = calculateSetpoint(current_range, avg_pressure_mv);
+        // For FAR range, each motor uses its own baseline (captured when entering FAR)
+        // For MEDIUM and CLOSE ranges, all motors share the same fixed setpoint
+        if (current_range == RANGE_FAR && far_range_baseline_mv[0] > 0.0f) {
+            // FAR range: Individual setpoints per motor (baseline + offset)
+            for (int i = 0; i < NUM_MOTORS; ++i) {
+                setpoints_mv[i] = calculateSetpoint(current_range, far_range_baseline_mv[i]);
+            }
+            // For logging, use first motor's setpoint
+            current_setpoint_mv = setpoints_mv[0];
+        } else {
+            // MEDIUM/CLOSE/UNKNOWN: Shared setpoint (baseline not used)
+            float shared_setpoint = calculateSetpoint(current_range, 0.0f);
+            for (int i = 0; i < NUM_MOTORS; ++i) {
+                setpoints_mv[i] = shared_setpoint;
+            }
+            current_setpoint_mv = shared_setpoint;
+        }
 
         // ====================================================================
-        // Step 5: State machine for out-of-range handling
+        // Step 6: State machine for out-of-range handling
         // ====================================================================
 
         switch (current_state) {
@@ -189,8 +214,8 @@ void loop() {
                     resetIntegrators();
                 }
                 else {
-                    // Normal PI control for all 4 motors
-                    controlStep(current_setpoint_mv, pressure_pads_mv, duty_cycles);
+                    // Normal PI control for all 4 motors with individual setpoints
+                    controlStep(setpoints_mv, pressure_pads_mv, duty_cycles);
                 }
                 break;
 
@@ -219,7 +244,7 @@ void loop() {
         }
 
         // ====================================================================
-        // Step 6: Update shared variables for logging (Core 0 task)
+        // Step 7: Update shared variables for logging (Core 0 task)
         // ====================================================================
 
         shared_setpoint_mv = current_setpoint_mv;

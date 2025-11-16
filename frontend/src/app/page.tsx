@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useWebSocketStore } from '@/lib/websocket-store';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { MotorCard } from '@/components/dashboard/MotorCard';
@@ -25,6 +25,8 @@ export default function DashboardPage() {
     resetSimulation,
   } = useWebSocketStore();
 
+  const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
+
   // Auto-connect on mount
   useEffect(() => {
     connect();
@@ -32,6 +34,49 @@ export default function DashboardPage() {
 
   // Get TOF distance (default to 0 if no data)
   const tofDistance = currentData?.tof_dist_cm ?? 0;
+
+  // Snapshot handler
+  const handleSnapshot = async () => {
+    try {
+      setSnapshotStatus('Saving snapshot...');
+
+      const snapshot = {
+        timestamp: new Date().toISOString(),
+        connectionStatus: status,
+        isRecording,
+        isPaused,
+        currentData,
+        dataHistory,
+        stats: {
+          dataPoints: dataHistory.length,
+          runtime_ms: currentData?.time_ms ?? 0,
+          tofDistance,
+        },
+      };
+
+      const response = await fetch('/api/snapshot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(snapshot),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSnapshotStatus(`✅ Saved: ${result.filename}`);
+        setTimeout(() => setSnapshotStatus(null), 3000);
+      } else {
+        setSnapshotStatus(`❌ Error: ${result.error}`);
+        setTimeout(() => setSnapshotStatus(null), 5000);
+      }
+    } catch (error) {
+      console.error('Snapshot error:', error);
+      setSnapshotStatus('❌ Failed to save snapshot');
+      setTimeout(() => setSnapshotStatus(null), 5000);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -46,6 +91,15 @@ export default function DashboardPage() {
           </p>
         </div>
 
+        {/* Snapshot Status Notification */}
+        {snapshotStatus && (
+          <Card className="bg-primary/10 border-primary">
+            <CardContent className="p-4">
+              <p className="text-sm font-medium">{snapshotStatus}</p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Header with TOF and Controls */}
         <DashboardHeader
           tofDistance={tofDistance}
@@ -57,6 +111,7 @@ export default function DashboardPage() {
           onConnect={() => connect()}
           onDisconnect={disconnect}
           onReset={resetSimulation}
+          onSnapshot={handleSnapshot}
         />
 
         {/* Motor Grid (2x2) */}
@@ -100,7 +155,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="text-2xl font-bold">{dataHistory.length}</div>
                   <div className="text-xs text-muted-foreground">
-                    / {500} max
+                    / 25 max (0.5s at 50Hz)
                   </div>
                 </div>
                 <div className="space-y-1">

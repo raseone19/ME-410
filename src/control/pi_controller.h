@@ -28,11 +28,11 @@ void initPIController();
  *
  * This function should be called at a fixed frequency (default: 50 Hz).
  *
- * @param setpoint_mv Target pressure setpoint in millivolts (same for all motors)
+ * @param setpoints_mv Array of 4 target pressure setpoints in millivolts (one per motor)
  * @param pressure_pads_mv Array of 4 current pressure pad readings in millivolts
  * @param duty_out Output array of 4 duty cycles (will be updated, range: -100 to 100)
  */
-void controlStep(float setpoint_mv, const uint16_t pressure_pads_mv[NUM_MOTORS], float duty_out[NUM_MOTORS]);
+void controlStep(const float setpoints_mv[NUM_MOTORS], const uint16_t pressure_pads_mv[NUM_MOTORS], float duty_out[NUM_MOTORS]);
 
 /**
  * @brief Reset all integrators to zero

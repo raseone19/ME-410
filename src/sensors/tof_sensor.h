@@ -30,9 +30,11 @@ constexpr float DISTANCE_CLOSE_MIN = 50.0f;     // Close range start (cm)
 constexpr float DISTANCE_CLOSE_MAX = 100.0f;    // Close range end (cm)
 
 // Setpoint values for each range (in mV)
-constexpr float SECURITY_OFFSET_MV = 50.0f;     // Offset added to PP reading in FAR range
-constexpr float SETPOINT_MEDIUM_MV = 800.0f;    // Setpoint for medium range
-constexpr float SETPOINT_CLOSE_MV = 1150.0f;    // Setpoint for close range
+// Note: FAR range setpoint is calculated dynamically (baseline + offset)
+// where baseline is captured when entering FAR range to account for friction variations
+constexpr float SECURITY_OFFSET_MV = 50.0f;     // Offset added to baseline in FAR range
+constexpr float SETPOINT_MEDIUM_MV = 780.0f;    // Setpoint for medium range (100-200cm)
+constexpr float SETPOINT_CLOSE_MV = 1100.0f;    // Setpoint for close range (50-100cm)
 
 // Reverse motor parameters (when out of range)
 constexpr uint32_t REVERSE_TIME_MS = 500;       // Reverse duration (ms)
@@ -105,14 +107,14 @@ DistanceRange getDistanceRange(float distance);
 /**
  * @brief Calculate setpoint based on distance range
  *
- * Computes the target pressure setpoint based on the current distance range
- * and pressure pad reading. Uses dynamic calculation for FAR range.
+ * Computes the target pressure setpoint based on the current distance range.
+ * For FAR range, uses baseline pressure captured when entering FAR range.
  *
  * @param range Current distance range
- * @param current_pressure_mv Current pressure pad reading (mV)
+ * @param baseline_pressure_mv Baseline pressure captured when entering FAR range (mV)
  * @return Setpoint in millivolts, or -1.0 if invalid
  */
-float calculateSetpoint(DistanceRange range, float current_pressure_mv);
+float calculateSetpoint(DistanceRange range, float baseline_pressure_mv);
 
 /**
  * @brief Get minimum distance from last servo sweep (thread-safe)
