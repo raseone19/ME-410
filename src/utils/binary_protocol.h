@@ -73,8 +73,8 @@ struct __attribute__((packed)) DataPacket {
     uint8_t servo_angle;         // Current servo position in degrees (0-120°)
     float tof_current_cm;        // TOF distance at current servo angle (real-time)
 
-    // Padding for alignment (1 byte)
-    uint8_t padding;             // Reserved for future use
+    // Operation mode (1 byte)
+    uint8_t current_mode;        // Current mode: 0=MODE_A, 1=MODE_B
 
     // Error detection (2 bytes)
     uint16_t crc;                // CRC-16 checksum
@@ -132,6 +132,7 @@ inline uint16_t calculateCRC16(const uint8_t* data, size_t length) {
  * @param tof_dist_cm Array of 4 TOF distances in centimeters (one per motor/sector)
  * @param servo_angle Current servo position in degrees (0-120)
  * @param tof_current_cm TOF distance at current servo angle
+ * @param current_mode Current operation mode (0=MODE_A, 1=MODE_B)
  */
 inline void buildDataPacket(
     DataPacket* packet,
@@ -141,7 +142,8 @@ inline void buildDataPacket(
     const float duty_pct[4],
     const float tof_dist_cm[4],
     uint8_t servo_angle,
-    float tof_current_cm
+    float tof_current_cm,
+    uint8_t current_mode
 ) {
     // Set header
     packet->header = PACKET_HEADER;
@@ -169,10 +171,10 @@ inline void buildDataPacket(
     packet->tof3_cm = tof_dist_cm[2];
     packet->tof4_cm = tof_dist_cm[3];
 
-    // Set live radar data
+    // Set live radar data and current mode
     packet->servo_angle = servo_angle;
     packet->tof_current_cm = tof_current_cm;
-    packet->padding = 0;
+    packet->current_mode = current_mode;
 
     // Calculate CRC (exclude header and CRC field itself)
     const uint8_t* data_start = (const uint8_t*)packet + 2;  // Skip header (2 bytes)

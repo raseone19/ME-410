@@ -26,10 +26,12 @@ constexpr uint32_t PRINT_DT_MS = 1000 / PRINT_FREQ_HZ;
 // Shared Variables for Logging (Written by Core 1, Read by Core 0)
 // ============================================================================
 
-extern volatile float shared_setpoint_mv;
+extern volatile float shared_setpoints_mv[4];  // 4 independent setpoints (one per motor)
 extern volatile uint16_t shared_pressure_pads_mv[4];
 extern volatile float shared_duty_cycles[4];
-extern volatile float shared_tof_distance;
+extern volatile float shared_tof_distances[4];  // 4 independent distances (one per motor/sector)
+extern volatile int shared_servo_angle;  // Current servo position in degrees (0-120)
+extern volatile float shared_tof_current;  // Live TOF distance at current servo angle
 
 // ============================================================================
 // Public Functions

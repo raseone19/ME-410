@@ -55,10 +55,20 @@ constexpr uint32_t TOF_BAUDRATE = 921600; // TOF sensor baud rate
 
 // Servo for TOF scanning
 constexpr uint8_t SERVO_PIN = 22;          // Servo PWM pin
-constexpr int SERVO_MIN_ANGLE = 30;       // Minimum sweep angle (degrees)
-constexpr int SERVO_MAX_ANGLE = 90;       // Maximum sweep angle (degrees)
+constexpr int SERVO_MIN_ANGLE = 0;        // Minimum sweep angle (degrees)
+constexpr int SERVO_MAX_ANGLE = 120;      // Maximum sweep angle (degrees)
 constexpr int SERVO_STEP = 2;             // Angle increment per step
 constexpr uint32_t SERVO_SETTLE_MS = 80;  // Settling time per step (ms)
+
+// MODE_B: Sector assignments per motor (4 sectors of 30° each)
+constexpr int SECTOR_MOTOR_1_MIN = 0;     // Motor 1 sector: 0° - 30°
+constexpr int SECTOR_MOTOR_1_MAX = 30;
+constexpr int SECTOR_MOTOR_2_MIN = 31;    // Motor 2 sector: 31° - 60°
+constexpr int SECTOR_MOTOR_2_MAX = 60;
+constexpr int SECTOR_MOTOR_3_MIN = 61;    // Motor 3 sector: 61° - 90°
+constexpr int SECTOR_MOTOR_3_MAX = 90;
+constexpr int SECTOR_MOTOR_4_MIN = 91;    // Motor 4 sector: 91° - 120°
+constexpr int SECTOR_MOTOR_4_MAX = 120;
 
 // ============================================================================
 // MULTIPLEXER PINS (CD74HC4067 16-Channel Analog Multiplexer)

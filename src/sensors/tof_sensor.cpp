@@ -85,15 +85,7 @@ void initTOFSensor() {
     // Initialize servo using ESP32Servo library
     tofServo.setPeriodHertz(50);    // Standard 50Hz servo
     tofServo.attach(SERVO_PIN);
-
-#ifdef MODE_A
-    // Mode A: Position servo at fixed angle (90°)
-    tofServo.write(FIXED_SERVO_ANGLE);
-#else
-    // Mode B: Position servo at sweep starting position
-    tofServo.write(SERVO_MIN_ANGLE);
-#endif
-
+    tofServo.write(SERVO_MIN_ANGLE);  // Start at minimum sweep angle
     delay(500);
 
     // Create mutex for thread-safe access to shared variables
@@ -235,39 +227,15 @@ int getBestAngle(int motor_index) {
 }
 
 void servoSweepTask(void* parameter) {
-    // Note: Debug prints removed to avoid interfering with CSV data stream
-
-#ifdef MODE_A
-    // ========================================================================
-    // MODE A: Fixed servo position, direct distance reading
-    // ========================================================================
     for (;;) {
-        // Read TOF distance at fixed angle (90°)
-        float distance = tofGetDistance();
-
-        // Update shared variable with current distance (all motors use index 0 in MODE_A)
-        if (distance > 0) {
-            if (xSemaphoreTake(distanceMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
-                shared_min_distance[0] = distance;
-                shared_best_angle[0] = FIXED_SERVO_ANGLE;
-                xSemaphoreGive(distanceMutex);
-            }
-        }
-
-        // Read at ~20Hz (50ms delay)
-        vTaskDelay(pdMS_TO_TICKS(50));
-    }
-
-#else
-    // ========================================================================
-    // MODE B: Servo sweep mode with 4 sectors (one per motor)
-    // ========================================================================
-    // Motor 1: 0° - 30°
-    // Motor 2: 31° - 60°
-    // Motor 3: 61° - 90°
-    // Motor 4: 91° - 120°
-    // ========================================================================
-    for (;;) {
+        // ====================================================================
+        // Servo sweep mode with 4 sectors (one per motor)
+        // ====================================================================
+        // Motor 1: 0° - 30°
+        // Motor 2: 31° - 60°
+        // Motor 3: 61° - 90°
+        // Motor 4: 91° - 120°
+        // ====================================================================
         // Track minimum distance per sector (one per motor)
         float min_distance_sector[4] = {999.0f, 999.0f, 999.0f, 999.0f};
         int angle_of_min_sector[4] = {SECTOR_MOTOR_1_MIN, SECTOR_MOTOR_2_MIN,
@@ -353,5 +321,4 @@ void servoSweepTask(void* parameter) {
         // Brief pause before starting next sweep
         vTaskDelay(pdMS_TO_TICKS(100));
     }
-#endif
 }

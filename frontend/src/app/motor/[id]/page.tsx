@@ -55,21 +55,22 @@ export default function MotorDetailPage() {
   // Extract motor-specific data
   const pressureKey = `pp${motorId}_mv` as keyof MotorData;
   const dutyKey = `duty${motorId}_pct` as keyof MotorData;
+  const setpointKey = `sp${motorId}_mv` as keyof MotorData;
 
   // Current values
   const currentPressure = currentData ? (currentData[pressureKey] as number) : 0;
   const currentDuty = currentData ? (currentData[dutyKey] as number) : 0;
-  const currentSetpoint = currentData ? currentData.setpoint_mv : 0;
+  const currentSetpoint = currentData ? (currentData[setpointKey] as number) : 0;
   const error = Math.abs(currentPressure - currentSetpoint);
   const isOnTarget = error < 50;
 
   // Prepare chart data
   const fullHistory = dataHistory.map((data) => ({
     time: data.time_ms,
-    setpoint: data.setpoint_mv,
+    setpoint: data[setpointKey] as number,
     pressure: data[pressureKey] as number,
     duty: data[dutyKey] as number,
-    error: Math.abs((data[pressureKey] as number) - data.setpoint_mv),
+    error: Math.abs((data[pressureKey] as number) - (data[setpointKey] as number)),
   }));
 
   // Statistics

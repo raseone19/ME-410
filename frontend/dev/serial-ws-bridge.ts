@@ -73,7 +73,7 @@ function calculateCRC16(data: Buffer): number {
  *   [58-61]: tof4_cm (float)
  *   [62]:    servo_angle (uint8)
  *   [63-66]: tof_current_cm (float)
- *   [67]:    padding (uint8)
+ *   [67]:    current_mode (uint8) - 0=MODE_A, 1=MODE_B
  *   [68-69]: crc (uint16)
  */
 function parseBinaryPacket(packet: Buffer): MotorData | null {
@@ -100,6 +100,7 @@ function parseBinaryPacket(packet: Buffer): MotorData | null {
   }
 
   try {
+    const currentMode = packet.readUInt8(67); // 0=MODE_A, 1=MODE_B
     return {
       time_ms: packet.readUInt32LE(2),
       sp1_mv: packet.readFloatLE(6),
@@ -120,6 +121,7 @@ function parseBinaryPacket(packet: Buffer): MotorData | null {
       tof4_cm: packet.readFloatLE(58),
       servo_angle: packet.readUInt8(62),
       tof_current_cm: packet.readFloatLE(63),
+      current_mode: currentMode === 0 ? 'A' : 'B', // Convert to 'A' or 'B'
     };
   } catch (error) {
     console.error('❌ Error parsing binary packet:', error);
@@ -304,6 +306,7 @@ function parseCSVLine(line: string): MotorData | null {
       tof4_cm: parseFloat(parts[16]),
       servo_angle: parseFloat(parts[17]),
       tof_current_cm: 0,  // Not available in CSV mode
+      current_mode: 'B',  // CSV mode doesn't include mode, default to B
     };
   } catch (error) {
     console.error('❌ Failed to parse numbers from:', line);
@@ -339,6 +342,23 @@ function broadcast(message: any) {
       client.send(msg);
     }
   });
+}
+
+/**
+ * Send command to ESP32 via serial port
+ */
+function sendCommandToESP32(command: string) {
+  if (serialPort && serialPort.isOpen) {
+    serialPort.write(command, (err) => {
+      if (err) {
+        console.error('❌ Error sending command to ESP32:', err.message);
+      } else {
+        console.log(`✅ Sent to ESP32: ${command.trim()}`);
+      }
+    });
+  } else {
+    console.error('❌ Cannot send command: Serial port not open');
+  }
 }
 
 // WebSocket Server
@@ -385,6 +405,26 @@ wss.on('connection', (ws: WebSocket) => {
             type: 'reset_complete',
           });
           console.log('🔄 Reset requested (ESP32 continues running)');
+          break;
+
+        case 'change_mode':
+          // Send mode change command to ESP32
+          const mode = message.mode; // 'A' or 'B'
+          if (mode === 'A' || mode === 'B') {
+            sendCommandToESP32(`MODE:${mode}\n`);
+            console.log(`🔄 Mode change requested: MODE ${mode}`);
+            // Acknowledge to client
+            broadcast({
+              type: 'mode_changed',
+              mode: mode,
+            });
+          } else {
+            console.warn('⚠️  Invalid mode:', mode);
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: 'Invalid mode. Use "A" or "B"'
+            }));
+          }
           break;
 
         case 'ping':

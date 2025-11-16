@@ -170,6 +170,49 @@ Always use:
 - [ ] CSV data logs properly
 - [ ] No crashes or watchdog resets
 
+## Build Instructions
+
+### Building the ESP32 Firmware
+
+**From the Project directory:**
+
+```bash
+# Navigate to project directory
+cd Project
+
+# Build the firmware
+~/.platformio/penv/bin/pio run
+
+# Upload to ESP32
+~/.platformio/penv/bin/pio run --target upload
+
+# Monitor serial output
+~/.platformio/penv/bin/pio device monitor
+```
+
+**Alternative (if PlatformIO is in PATH):**
+
+```bash
+cd Project
+pio run                    # Build
+pio run --target upload    # Upload
+pio device monitor         # Monitor
+```
+
+**VS Code:**
+- **Build**: Click ✓ icon in bottom toolbar or `Cmd+Shift+B` (Mac) / `Ctrl+Alt+B` (Windows/Linux)
+- **Upload**: Click → icon or `Cmd+Shift+U` (Mac) / `Ctrl+Alt+U` (Windows/Linux)
+- **Monitor**: Click 🔌 icon or `Cmd+Shift+S` (Mac) / `Ctrl+Alt+S` (Windows/Linux)
+
+### Build Output
+
+Successful build shows:
+```
+RAM:   [=         ]   6.8% (used 22308 bytes from 327680 bytes)
+Flash: [==        ]  22.9% (used 300161 bytes from 1310720 bytes)
+========================= [SUCCESS] Took X.XX seconds =========================
+```
+
 ## Project-Specific Notes
 
 ### Current Configuration

@@ -53,11 +53,12 @@ export function MotorCard({
   // Extract motor-specific data
   const pressureKey = `pp${motorNumber}_mv` as keyof MotorData;
   const dutyKey = `duty${motorNumber}_pct` as keyof MotorData;
+  const setpointKey = `sp${motorNumber}_mv` as keyof MotorData;
 
   // Prepare chart data (last 100 points for performance)
   const chartData = dataHistory.slice(-100).map((data) => ({
     time: data.time_ms,
-    setpoint: data.setpoint_mv,
+    setpoint: data[setpointKey] as number,
     actual: data[pressureKey] as number,
   }));
 
@@ -66,7 +67,7 @@ export function MotorCard({
     ? (currentData[pressureKey] as number)
     : 0;
   const currentDuty = currentData ? (currentData[dutyKey] as number) : 0;
-  const currentSetpoint = currentData ? currentData.setpoint_mv : 0;
+  const currentSetpoint = currentData ? (currentData[setpointKey] as number) : 0;
 
   // Calculate pressure percentage (0-1200mV range)
   const pressurePercent = Math.min((currentPressure / 1200) * 100, 100);

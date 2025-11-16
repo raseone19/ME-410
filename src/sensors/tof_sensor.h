@@ -36,9 +36,10 @@ constexpr float SECURITY_OFFSET_MV = 50.0f;     // Offset added to baseline in F
 constexpr float SETPOINT_MEDIUM_MV = 780.0f;    // Setpoint for medium range (100-200cm)
 constexpr float SETPOINT_CLOSE_MV = 1100.0f;    // Setpoint for close range (50-100cm)
 
-// Reverse motor parameters (when out of range)
-constexpr uint32_t REVERSE_TIME_MS = 500;       // Reverse duration (ms)
-constexpr float REVERSE_DUTY_PCT = 60.0f;       // Reverse duty cycle (%)
+// Out-of-range safety parameters
+constexpr float SAFE_PRESSURE_THRESHOLD_MV = 700.0f;  // Pressure must drop below this before release
+constexpr uint32_t RELEASE_TIME_MS = 500;             // Additional reverse time after reaching threshold (ms)
+constexpr float REVERSE_DUTY_PCT = 60.0f;             // Reverse duty cycle for deflation (%)
 
 // ============================================================================
 // Enumerations
@@ -59,9 +60,10 @@ enum DistanceRange {
  * @brief System state for out-of-range handling
  */
 enum SystemState {
-    NORMAL_OPERATION,        // Normal PI control active
-    OUT_OF_RANGE_REVERSING,  // Reversing due to out of bounds
-    WAITING_FOR_VALID_READING // Waiting for sensor to return to valid range
+    NORMAL_OPERATION,          // Normal PI control active
+    OUT_OF_RANGE_DEFLATING,    // Actively deflating (reverse until pressure <= threshold)
+    OUT_OF_RANGE_RELEASING,    // Continue reversing for 500ms after reaching threshold
+    WAITING_FOR_VALID_READING  // Motors stopped, waiting for sensor to return to valid range
 };
 
 // ============================================================================
@@ -69,8 +71,11 @@ enum SystemState {
 // ============================================================================
 
 extern SemaphoreHandle_t distanceMutex;
-extern volatile float shared_min_distance;
-extern volatile int shared_best_angle;
+
+// MODE_A: Single distance/angle for fixed servo
+// MODE_B: Array of 4 distances/angles (one per motor sector)
+extern volatile float shared_min_distance[4];  // Minimum distance per motor sector
+extern volatile int shared_best_angle[4];      // Angle of minimum distance per motor sector
 extern volatile bool sweep_active;
 
 // ============================================================================
@@ -117,24 +122,26 @@ DistanceRange getDistanceRange(float distance);
 float calculateSetpoint(DistanceRange range, float baseline_pressure_mv);
 
 /**
- * @brief Get minimum distance from last servo sweep (thread-safe)
+ * @brief Get minimum distance for a specific motor (thread-safe)
  *
- * Retrieves the minimum distance found in the most recent servo sweep.
- * Uses mutex protection for thread-safe access.
+ * MODE_A: All motors use index 0 (fixed servo, single distance)
+ * MODE_B: Each motor gets distance from its sector (0-3)
  *
- * @return Minimum distance in centimeters
+ * @param motor_index Motor index (0-3)
+ * @return Minimum distance in centimeters for that motor's sector
  */
-float getMinDistance();
+float getMinDistance(int motor_index);
 
 /**
- * @brief Get optimal angle from last servo sweep (thread-safe)
+ * @brief Get optimal angle for a specific motor (thread-safe)
  *
- * Retrieves the servo angle where minimum distance was found.
- * Uses mutex protection for thread-safe access.
+ * MODE_A: All motors use index 0 (fixed servo angle)
+ * MODE_B: Each motor gets angle from its sector (0-3)
  *
- * @return Optimal servo angle in degrees
+ * @param motor_index Motor index (0-3)
+ * @return Optimal servo angle in degrees for that motor's sector
  */
-int getBestAngle();
+int getBestAngle(int motor_index);
 
 /**
  * @brief Servo sweep task (runs on Core 0)

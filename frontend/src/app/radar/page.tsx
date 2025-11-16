@@ -9,7 +9,6 @@ import { useEffect } from 'react';
 import { useWebSocketStore } from '@/lib/websocket-store';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ModeSwitcher } from '@/components/ui/mode-switcher';
 import { RadarChart } from '@/components/radar/RadarChart';
 import { RadarStats } from '@/components/radar/RadarStats';
 
@@ -44,11 +43,6 @@ export default function RadarPage() {
           <p className="text-muted-foreground">
             Real-time object detection across 4 sectors (0°-120° sweep)
           </p>
-        </div>
-
-        {/* Mode Switcher */}
-        <div className="max-w-7xl mx-auto">
-          <ModeSwitcher />
         </div>
 
         {/* Header with Controls */}

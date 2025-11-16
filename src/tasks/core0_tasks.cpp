@@ -98,7 +98,9 @@ void serialPrintTask(void* parameter) {
         // Binary Protocol Output
         // ====================================================================
         DataPacket packet;
-        buildDataPacket(&packet, time_ms, setpoints, pp_mv, duty, tof_dist, (uint8_t)servo_angle, tof_current);
+        // Mode is always 1 (sweep mode)
+        uint8_t mode_byte = 1;
+        buildDataPacket(&packet, time_ms, setpoints, pp_mv, duty, tof_dist, (uint8_t)servo_angle, tof_current, mode_byte);
         sendBinaryPacket(&packet);
 #endif
 

@@ -1,68 +1,13 @@
 /**
  * @file system_config.h
- * @brief System configuration and operation modes
+ * @brief System configuration
  *
- * This file defines the operation mode for the control system.
- * Change the MODE_SELECT definition to switch between modes before compiling.
+ * This file defines the system configuration for the 4-motor PI control system
+ * with servo sweep and TOF distance sensing.
  */
 
 #ifndef SYSTEM_CONFIG_H
 #define SYSTEM_CONFIG_H
-
-// ============================================================================
-// OPERATION MODES
-// ============================================================================
-
-/**
- * Available operation modes:
- *
- * MODE_A: Fixed servo position (90 degrees)
- *   - Servo stays at 90° (straight ahead)
- *   - Direct TOF distance reading (no sweep)
- *   - Faster response time
- *   - Single direction measurement
- *
- * MODE_B: Servo sweep mode (default)
- *   - Servo continuously sweeps from 30° to 90°
- *   - Finds minimum distance across sweep range
- *   - Better obstacle detection
- *   - Slower update rate due to sweep time
- */
-
-// ============================================================================
-// MODE SELECTION - CHANGE THIS TO SWITCH MODES
-// ============================================================================
-
-// Uncomment ONE of the following lines:
-#define MODE_A  // Fixed servo at 90°, direct distance reading
-//#define MODE_B  // Servo sweep, minimum distance tracking (default)
-
-// ============================================================================
-// MODE VALIDATION
-// ============================================================================
-
-#if defined(MODE_A) && defined(MODE_B)
-    #error "ERROR: Both MODE_A and MODE_B are defined! Please uncomment only ONE mode."
-#endif
-
-#if !defined(MODE_A) && !defined(MODE_B)
-    #error "ERROR: No mode selected! Please uncomment either MODE_A or MODE_B."
-#endif
-
-// ============================================================================
-// MODE-SPECIFIC CONFIGURATION
-// ============================================================================
-
-#ifdef MODE_A
-    // Mode A: Fixed servo position
-    constexpr int FIXED_SERVO_ANGLE = 90;  // Fixed angle in degrees
-    constexpr const char* MODE_NAME = "MODE A - Fixed Servo (90°)";
-#endif
-
-#ifdef MODE_B
-    // Mode B: Servo sweep (configuration in pins.h)
-    constexpr const char* MODE_NAME = "MODE B - Servo Sweep (30°-90°)";
-#endif
 
 // ============================================================================
 // SERIAL OUTPUT PROTOCOL

@@ -26,6 +26,7 @@ export interface MotorData {
   tof4_cm: number;  // Motor 4 sector distance (91°-120° in MODE_B)
   servo_angle: number;  // Current servo position in degrees (0-120°)
   tof_current_cm: number;  // TOF distance at current servo angle (real-time)
+  current_mode: 'A' | 'B';  // Current operation mode from ESP32
 }
 
 /**

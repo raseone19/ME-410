@@ -32,8 +32,8 @@ export default function DashboardPage() {
     connect();
   }, [connect]);
 
-  // Get TOF distance (default to 0 if no data)
-  const tofDistance = currentData?.tof_dist_cm ?? 0;
+  // Get TOF distance (MODE_A uses tof1_cm, all motors see same distance)
+  const tofDistance = currentData?.tof1_cm ?? 0;
 
   // Snapshot handler
   const handleSnapshot = async () => {
@@ -169,10 +169,10 @@ export default function DashboardPage() {
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-muted-foreground">
-                    Target Setpoint
+                    Target Setpoint (M1)
                   </div>
                   <div className="text-2xl font-bold">
-                    {currentData.setpoint_mv.toFixed(0)}
+                    {currentData.sp1_mv.toFixed(0)}
                   </div>
                   <div className="text-xs text-muted-foreground">mV</div>
                 </div>

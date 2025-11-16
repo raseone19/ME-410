@@ -28,7 +28,7 @@ interface DashboardHeaderProps {
   onConnect: () => void;
   onDisconnect: () => void;
   onReset: () => void;
-  onSnapshot: () => void;
+  onSnapshot?: () => void; // Optional snapshot handler
 }
 
 export function DashboardHeader({
@@ -145,16 +145,18 @@ export function DashboardHeader({
           </div>
 
           {/* Snapshot Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onSnapshot}
-            disabled={!isConnected}
-            title="Save debug snapshot"
-          >
-            <Camera className="mr-2 h-4 w-4" />
-            Snapshot
-          </Button>
+          {onSnapshot && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onSnapshot}
+              disabled={!isConnected}
+              title="Save debug snapshot"
+            >
+              <Camera className="mr-2 h-4 w-4" />
+              Snapshot
+            </Button>
+          )}
 
           {/* Reset Button */}
           <Button
