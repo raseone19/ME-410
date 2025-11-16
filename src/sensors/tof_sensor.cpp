@@ -5,6 +5,7 @@
 
 #include "tof_sensor.h"
 #include "../config/pins.h"
+#include "../config/system_config.h"
 
 // ============================================================================
 // Internal Variables
@@ -87,7 +88,15 @@ void initTOFSensor() {
     // Initialize servo using ESP32Servo library
     tofServo.setPeriodHertz(50);    // Standard 50Hz servo
     tofServo.attach(SERVO_PIN);
-    tofServo.write(SERVO_MIN_ANGLE);  // Start at minimum angle
+
+#ifdef MODE_A
+    // Mode A: Position servo at fixed angle (90°)
+    tofServo.write(FIXED_SERVO_ANGLE);
+#else
+    // Mode B: Position servo at sweep starting position
+    tofServo.write(SERVO_MIN_ANGLE);
+#endif
+
     delay(500);
 
     // Create mutex for thread-safe access to shared variables
@@ -221,29 +230,47 @@ int getBestAngle() {
 }
 
 void servoSweepTask(void* parameter) {
-    Serial.println("[SERVO] Sweep task started");
+    // Note: Debug prints removed to avoid interfering with CSV data stream
 
+#ifdef MODE_A
+    // ========================================================================
+    // MODE A: Fixed servo position, direct distance reading
+    // ========================================================================
+    for (;;) {
+        // Read TOF distance at fixed angle (90°)
+        float distance = tofGetDistance();
+
+        // Update shared variable with current distance
+        if (distance > 0) {
+            if (xSemaphoreTake(distanceMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+                shared_min_distance = distance;
+                shared_best_angle = FIXED_SERVO_ANGLE;
+                xSemaphoreGive(distanceMutex);
+            }
+        }
+
+        // Read at ~20Hz (50ms delay)
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+
+#else
+    // ========================================================================
+    // MODE B: Servo sweep mode, minimum distance tracking
+    // ========================================================================
     for (;;) {
         float min_distance_this_sweep = 999.0f;
         int angle_of_min = SERVO_MIN_ANGLE;
-
-        Serial.println("[SERVO] Starting new sweep...");
 
         // Sweep from minimum to maximum angle
         for (int angle = SERVO_MIN_ANGLE; angle <= SERVO_MAX_ANGLE; angle += SERVO_STEP) {
             // Move servo to current angle
             tofServo.write(angle);
-            Serial.print("[SERVO] Angle: ");
-            Serial.print(angle);
 
             // Wait for servo to settle
             vTaskDelay(pdMS_TO_TICKS(SERVO_SETTLE_MS));
 
             // Read TOF distance at this angle
             float distance = tofGetDistance();
-            Serial.print("° | Distance: ");
-            Serial.print(distance);
-            Serial.println(" cm");
 
             // Track minimum distance in this sweep
             if (distance > 0 && distance < min_distance_this_sweep) {
@@ -257,27 +284,19 @@ void servoSweepTask(void* parameter) {
 
         // Sweep completed - update shared variables if valid minimum was found
         if (min_distance_this_sweep < 999.0f) {
-            Serial.print("[SERVO] Sweep complete! Min distance: ");
-            Serial.print(min_distance_this_sweep);
-            Serial.print(" cm at angle: ");
-            Serial.println(angle_of_min);
-
             if (xSemaphoreTake(distanceMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
                 shared_min_distance = min_distance_this_sweep;
                 shared_best_angle = angle_of_min;
                 xSemaphoreGive(distanceMutex);
             }
-        } else {
-            Serial.println("[SERVO] No valid distance found in sweep");
         }
 
         // Position servo at optimal angle (where minimum distance was found)
-        Serial.print("[SERVO] Positioning at optimal angle: ");
-        Serial.println(angle_of_min);
         tofServo.write(angle_of_min);
         vTaskDelay(pdMS_TO_TICKS(SERVO_SETTLE_MS));
 
         // Brief pause before starting next sweep
         vTaskDelay(pdMS_TO_TICKS(100));
     }
+#endif
 }

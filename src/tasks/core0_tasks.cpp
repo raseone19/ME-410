@@ -6,6 +6,11 @@
 #include "core0_tasks.h"
 #include "../sensors/tof_sensor.h"
 #include "../config/pins.h"
+#include "../config/system_config.h"
+
+#ifdef PROTOCOL_BINARY
+#include "../utils/binary_protocol.h"
+#endif
 
 // ============================================================================
 // Shared Variables (Extern declarations in header)
@@ -21,11 +26,13 @@ volatile float shared_tof_distance = 0.0f;
 // ============================================================================
 
 void serialPrintTask(void* parameter) {
+#ifdef PROTOCOL_CSV
     // Print CSV header once at startup
     Serial.println("time_ms,setpoint_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,tof_dist_cm");
+#endif
 
     TickType_t lastWakeTime = xTaskGetTickCount();
-    const TickType_t frequency = pdMS_TO_TICKS(PRINT_DT_MS);
+    const TickType_t frequency = pdMS_TO_TICKS(LOGGING_PERIOD_MS);
 
     for (;;) {
         // Get current time
@@ -44,10 +51,13 @@ void serialPrintTask(void* parameter) {
             duty[i] = shared_duty_cycles[i];
         }
 
-        // Print CSV line
+#ifdef PROTOCOL_CSV
+        // ====================================================================
+        // CSV Protocol Output
+        // ====================================================================
         Serial.print(time_ms);
         Serial.print(",");
-        Serial.print(setpoint, 1);
+        Serial.print(setpoint, CSV_DECIMAL_PLACES);
         Serial.print(",");
 
         // Print all 4 pressure pad values
@@ -58,14 +68,23 @@ void serialPrintTask(void* parameter) {
 
         // Print all 4 duty cycles
         for (int i = 0; i < NUM_MOTORS; ++i) {
-            Serial.print(duty[i], 2);
+            Serial.print(duty[i], CSV_DECIMAL_PLACES);
             if (i < NUM_MOTORS - 1) {
                 Serial.print(",");
             }
         }
 
         Serial.print(",");
-        Serial.println(tof_dist, 2);
+        Serial.println(tof_dist, CSV_DECIMAL_PLACES);
+
+#else
+        // ====================================================================
+        // Binary Protocol Output
+        // ====================================================================
+        DataPacket packet;
+        buildDataPacket(&packet, time_ms, setpoint, pp_mv, duty, tof_dist);
+        sendBinaryPacket(&packet);
+#endif
 
         // Wait for next period
         vTaskDelayUntil(&lastWakeTime, frequency);

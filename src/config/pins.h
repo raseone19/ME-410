@@ -20,27 +20,24 @@
 
 
 // Motor 1
-constexpr uint8_t M2_PWM  = 13;  // PWM speed control
-constexpr uint8_t M2_IN1  = 14;  // H-bridge input 1
-constexpr uint8_t M2_IN2  = 12;  // H-bridge input 2
+constexpr uint8_t M1_PWM  = 13;  // PWM speed control
+constexpr uint8_t M1_IN1  = 14;  // H-bridge input 1
+constexpr uint8_t M1_IN2  = 12;  // H-bridge input 2
 
 // Motor 2
-constexpr uint8_t M1_PWM  = 25;  // PWM speed control
-constexpr uint8_t M1_IN1  = 27;  // H-bridge input 1
-constexpr uint8_t M1_IN2  = 26;  // H-bridge input 2
-
-
+constexpr uint8_t M2_PWM  = 25;  // PWM speed control
+constexpr uint8_t M2_IN1  = 27;  // H-bridge input 1
+constexpr uint8_t M2_IN2  = 26;  // H-bridge input 2
 
 // Motor 3
-constexpr uint8_t M4_PWM  = 5;   // PWM speed control
-constexpr uint8_t M4_IN1  = 16;  // H-bridge input 1
-constexpr uint8_t M4_IN2  = 17;  // H-bridge input 2
-
+constexpr uint8_t M3_PWM  = 5;   // PWM speed control
+constexpr uint8_t M3_IN1  = 16;  // H-bridge input 1
+constexpr uint8_t M3_IN2  = 17;  // H-bridge input 2
 
 // Motor 4
-constexpr uint8_t M3_PWM  = 15;  // PWM speed control
-constexpr uint8_t M3_IN1  = 4;   // H-bridge input 1
-constexpr uint8_t M3_IN2  = 2;   // H-bridge input 2
+constexpr uint8_t M4_PWM  = 15;  // PWM speed control
+constexpr uint8_t M4_IN1  = 4;   // H-bridge input 1
+constexpr uint8_t M4_IN2  = 2;   // H-bridge input 2
 
 
 // Motor system configuration

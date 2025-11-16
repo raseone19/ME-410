@@ -25,6 +25,7 @@
 
 // Project modules
 #include "config/pins.h"
+#include "config/system_config.h"
 #include "sensors/tof_sensor.h"
 #include "sensors/pressure_pads.h"
 #include "actuators/motors.h"
@@ -73,6 +74,13 @@ void setup() {
     Serial.println("========================================");
     Serial.println("4-Motor Independent PI Control System");
     Serial.println("With Dynamic TOF Setpoint");
+    Serial.println("========================================");
+    Serial.print("Operation Mode: ");
+    Serial.println(MODE_NAME);
+    Serial.print("Protocol: ");
+    Serial.println(PROTOCOL_NAME);
+    Serial.print("Logging Rate: ");
+    Serial.println(LOGGING_RATE_NAME);
     Serial.println("========================================");
     Serial.println();
 
@@ -179,8 +187,6 @@ void loop() {
 
                     // Reset integrators to avoid windup
                     resetIntegrators();
-
-                    Serial.println("WARNING: Out of range detected! Reversing motors...");
                 }
                 else {
                     // Normal PI control for all 4 motors
@@ -196,8 +202,6 @@ void loop() {
 
                     // Transition to waiting state
                     current_state = WAITING_FOR_VALID_READING;
-
-                    Serial.println("Reverse complete. Waiting for valid distance reading...");
                 }
                 break;
 
@@ -210,8 +214,6 @@ void loop() {
                     // Return to normal operation
                     current_state = NORMAL_OPERATION;
                     resetIntegrators();
-
-                    Serial.println("Valid distance detected. Resuming normal operation.");
                 }
                 break;
         }

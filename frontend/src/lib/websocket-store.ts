@@ -40,7 +40,7 @@ interface WebSocketStore {
 }
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
-const DEFAULT_MAX_HISTORY = 500; // Keep last 500 data points (10 seconds at 50Hz)
+const DEFAULT_MAX_HISTORY = 25; // Keep last 25 data points (0.5 seconds at 50Hz, 2.5 seconds at 10Hz)
 
 export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
   // Initial state

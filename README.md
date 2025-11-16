@@ -5,9 +5,12 @@ A robust ESP32-based control system that independently controls 4 DC motors usin
 ## Features
 
 - **Independent PI Control**: Each of the 4 motors has its own pressure pad sensor and PI controller
-- **Dynamic Setpoint**: TOF sensor with servo sweep determines minimum distance to calculate optimal setpoint
+- **Dual Operation Modes**:
+  - **Mode A**: Fixed servo at 90°, direct distance reading (faster response)
+  - **Mode B**: Servo sweep 30°-90°, minimum distance tracking (better detection)
+- **Dynamic Setpoint**: TOF sensor determines distance to calculate optimal setpoint
 - **Multi-Core Architecture**: Utilizes both ESP32 cores for parallel processing
-  - Core 0: Servo sweep and data logging
+  - Core 0: TOF reading and data logging
   - Core 1: Real-time PI control at 50 Hz
 - **Adaptive Range Control**: Different control strategies for CLOSE, MEDIUM, and FAR distance ranges
 - **Out-of-Range Protection**: Automatic reversal when object gets too close or too far
@@ -119,7 +122,8 @@ MovingTof_OneMotor_OK/
 ├── src/
 │   ├── main.cpp                      # Main program
 │   ├── config/
-│   │   └── pins.h                    # Pin definitions
+│   │   ├── pins.h                    # Pin definitions
+│   │   └── system_config.h           # Operation mode selection
 │   ├── sensors/
 │   │   ├── tof_sensor.cpp/.h         # TOF + servo sweep
 │   │   └── pressure_pads.cpp/.h      # Pressure pad reading
@@ -134,6 +138,37 @@ MovingTof_OneMotor_OK/
 ```
 
 ## Configuration
+
+### Switching Operation Modes
+
+The system supports two operation modes that can be selected before compilation:
+
+**Edit `src/config/system_config.h`:**
+
+```cpp
+// Uncomment ONE of the following lines:
+//#define MODE_A  // Fixed servo at 90°, direct distance reading
+#define MODE_B  // Servo sweep, minimum distance tracking (default)
+```
+
+**Mode A - Fixed Servo (Faster Response)**
+- Servo stays at 90° (straight ahead)
+- Direct TOF reading at ~20Hz
+- Lower latency response
+- Single direction measurement
+- Best for: Forward-only obstacle detection
+
+**Mode B - Servo Sweep (Better Detection)**
+- Servo sweeps 30° to 90°
+- Tracks minimum distance across sweep
+- Wider field of view
+- Slower update rate due to sweep time
+- Best for: Multi-directional obstacle avoidance
+
+After changing the mode, rebuild and upload:
+```bash
+pio run --target upload
+```
 
 ### PI Controller Tuning
 
