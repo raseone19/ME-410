@@ -18,25 +18,30 @@
 // MOTOR PINS (4 Motors with PWM and H-Bridge Control)
 // ============================================================================
 
-// Motor 1
-constexpr uint8_t M1_PWM  = 25;  // PWM speed control
-constexpr uint8_t M1_IN1  = 27;  // H-bridge input 1
-constexpr uint8_t M1_IN2  = 26;  // H-bridge input 2
 
-// Motor 2
+// Motor 1
 constexpr uint8_t M2_PWM  = 13;  // PWM speed control
 constexpr uint8_t M2_IN1  = 14;  // H-bridge input 1
 constexpr uint8_t M2_IN2  = 12;  // H-bridge input 2
 
+// Motor 2
+constexpr uint8_t M1_PWM  = 25;  // PWM speed control
+constexpr uint8_t M1_IN1  = 27;  // H-bridge input 1
+constexpr uint8_t M1_IN2  = 26;  // H-bridge input 2
+
+
+
 // Motor 3
+constexpr uint8_t M4_PWM  = 5;   // PWM speed control
+constexpr uint8_t M4_IN1  = 16;  // H-bridge input 1
+constexpr uint8_t M4_IN2  = 17;  // H-bridge input 2
+
+
+// Motor 4
 constexpr uint8_t M3_PWM  = 15;  // PWM speed control
 constexpr uint8_t M3_IN1  = 4;   // H-bridge input 1
 constexpr uint8_t M3_IN2  = 2;   // H-bridge input 2
 
-// Motor 4
-constexpr uint8_t M4_PWM  = 5;   // PWM speed control
-constexpr uint8_t M4_IN1  = 16;  // H-bridge input 1
-constexpr uint8_t M4_IN2  = 17;  // H-bridge input 2
 
 // Motor system configuration
 constexpr int NUM_MOTORS = 4;
@@ -47,8 +52,8 @@ constexpr uint8_t PWM_RES_BITS = 10;      // 10-bit resolution (0-1023)
 // TOF SENSOR PINS (Serial Communication + Servo)
 // ============================================================================
 
-constexpr uint8_t TOF_RX_PIN = 18;        // Serial RX (changed from 16)
-constexpr uint8_t TOF_TX_PIN = 34;        // Serial TX (changed from 17)
+constexpr uint8_t TOF_RX_PIN = 34;        // Serial RX (changed from 16)
+constexpr uint8_t TOF_TX_PIN = 18;        // Serial TX (changed from 17)
 constexpr uint32_t TOF_BAUDRATE = 921600; // TOF sensor baud rate
 
 // Servo for TOF scanning
