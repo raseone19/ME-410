@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useState } from 'react';
 import { useWebSocketStore } from '@/lib/websocket-store';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { PerformanceMonitor } from '@/components/debug/PerformanceMonitor';
@@ -40,6 +40,8 @@ import {
   Activity,
   Zap,
   Eye,
+  RefreshCw,
+  FileCode,
 } from 'lucide-react';
 import { ConnectionStatus } from '@/lib/types';
 import type { MotorData } from '@/lib/types';
@@ -72,6 +74,36 @@ export default function SensorsPage() {
     togglePause,
     resetSimulation,
   } = useWebSocketStore();
+
+  // Configuration state
+  const [espConfig, setEspConfig] = useState<any>(null);
+  const [configLoading, setConfigLoading] = useState(true);
+  const [configError, setConfigError] = useState<string | null>(null);
+
+  // Fetch ESP32 configuration
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        setConfigLoading(true);
+        setConfigError(null);
+        const response = await fetch('/api/config');
+        const data = await response.json();
+
+        if (data.success) {
+          setEspConfig(data.config);
+        } else {
+          setConfigError(data.error || 'Failed to load configuration');
+        }
+      } catch (error: any) {
+        console.error('Error fetching config:', error);
+        setConfigError(error.message || 'Network error');
+      } finally {
+        setConfigLoading(false);
+      }
+    };
+
+    fetchConfig();
+  }, []);
 
   // Auto-connect on mount
   useEffect(() => {
@@ -266,6 +298,134 @@ export default function SensorsPage() {
             onDisconnect={handleDisconnect}
             onReset={handleReset}
           />
+
+          {/* Live ESP32 Configuration */}
+          <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/20">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                  <FileCode className="h-5 w-5" />
+                  Live ESP32 Configuration
+                </CardTitle>
+                {configLoading && (
+                  <RefreshCw className="h-4 w-4 animate-spin text-green-600" />
+                )}
+              </div>
+              <CardDescription>
+                Configuration loaded directly from ESP32 source code (src/config/pins.h and system_config.h).
+                This shows the actual hardware setup compiled into the firmware.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {configError ? (
+                <div className="flex items-center gap-2 p-4 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
+                  <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                  <div>
+                    <div className="font-semibold">Could not load configuration</div>
+                    <div className="text-sm text-muted-foreground">{configError}</div>
+                  </div>
+                </div>
+              ) : espConfig ? (
+                <div className="grid md:grid-cols-2 gap-6 text-sm">
+                  {/* Motors Configuration */}
+                  <div className="space-y-3">
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <Zap className="h-4 w-4" />
+                      Motors ({espConfig.motors.numMotors} Total)
+                    </h4>
+                    <div className="space-y-2 text-xs">
+                      <div className="bg-card p-3 rounded border">
+                        <div className="font-semibold mb-1">Motor 1</div>
+                        <div className="space-y-0.5 text-muted-foreground">
+                          <div>PWM: GPIO {espConfig.motors.motor1.pwm}</div>
+                          <div>IN1: GPIO {espConfig.motors.motor1.in1} | IN2: GPIO {espConfig.motors.motor1.in2}</div>
+                        </div>
+                      </div>
+                      <div className="bg-card p-3 rounded border">
+                        <div className="font-semibold mb-1">Motor 2</div>
+                        <div className="space-y-0.5 text-muted-foreground">
+                          <div>PWM: GPIO {espConfig.motors.motor2.pwm}</div>
+                          <div>IN1: GPIO {espConfig.motors.motor2.in1} | IN2: GPIO {espConfig.motors.motor2.in2}</div>
+                        </div>
+                      </div>
+                      <div className="bg-card p-3 rounded border">
+                        <div className="font-semibold mb-1">Motor 3</div>
+                        <div className="space-y-0.5 text-muted-foreground">
+                          <div>PWM: GPIO {espConfig.motors.motor3.pwm}</div>
+                          <div>IN1: GPIO {espConfig.motors.motor3.in1} | IN2: GPIO {espConfig.motors.motor3.in2}</div>
+                        </div>
+                      </div>
+                      <div className="bg-card p-3 rounded border">
+                        <div className="font-semibold mb-1">Motor 4</div>
+                        <div className="space-y-0.5 text-muted-foreground">
+                          <div>PWM: GPIO {espConfig.motors.motor4.pwm}</div>
+                          <div>IN1: GPIO {espConfig.motors.motor4.in1} | IN2: GPIO {espConfig.motors.motor4.in2}</div>
+                        </div>
+                      </div>
+                      <div className="bg-muted p-2 rounded text-xs">
+                        <div><strong>PWM Frequency:</strong> {espConfig.motors.pwmFreqHz} Hz</div>
+                        <div><strong>PWM Resolution:</strong> {espConfig.motors.pwmResBits}-bit (0-{Math.pow(2, parseInt(espConfig.motors.pwmResBits)) - 1})</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sensors Configuration */}
+                  <div className="space-y-3">
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <Gauge className="h-4 w-4" />
+                      Sensors & Multiplexer
+                    </h4>
+                    <div className="space-y-2 text-xs">
+                      <div className="bg-card p-3 rounded border">
+                        <div className="font-semibold mb-1">Pressure Pads ({espConfig.pressurePads.numPads}x)</div>
+                        <div className="space-y-0.5 text-muted-foreground">
+                          <div>Channels: C{espConfig.pressurePads.channels.join(', C')}</div>
+                          <div>ADC Samples: {espConfig.pressurePads.samples} per reading</div>
+                        </div>
+                      </div>
+                      <div className="bg-card p-3 rounded border">
+                        <div className="font-semibold mb-1">Multiplexer (CD74HC4067)</div>
+                        <div className="space-y-0.5 text-muted-foreground">
+                          <div>S0: GPIO {espConfig.multiplexer.s0} | S1: GPIO {espConfig.multiplexer.s1}</div>
+                          <div>S2: GPIO {espConfig.multiplexer.s2} | S3: GPIO {espConfig.multiplexer.s3}</div>
+                          <div>SIG: GPIO {espConfig.multiplexer.sig} (ADC input)</div>
+                          <div>Settling: {espConfig.multiplexer.settleUs}µs</div>
+                        </div>
+                      </div>
+                      <div className="bg-card p-3 rounded border">
+                        <div className="font-semibold mb-1">TOF Sensor + Servo</div>
+                        <div className="space-y-0.5 text-muted-foreground">
+                          <div>RX: GPIO {espConfig.tof.rxPin} | TX: GPIO {espConfig.tof.txPin}</div>
+                          <div>Baud Rate: {espConfig.tof.baudrate}</div>
+                          <div>Servo: GPIO {espConfig.tof.servoPin}</div>
+                          <div>Sweep: {espConfig.tof.servoMinAngle}°-{espConfig.tof.servoMaxAngle}° in {espConfig.tof.servoStep}° steps</div>
+                          <div>Settling: {espConfig.tof.servoSettleMs}ms per step</div>
+                        </div>
+                      </div>
+                      <div className="bg-card p-3 rounded border">
+                        <div className="font-semibold mb-1">Sector Assignments</div>
+                        <div className="space-y-0.5 text-muted-foreground">
+                          <div>Motor 1: {espConfig.sectors.motor1.min}°-{espConfig.sectors.motor1.max}°</div>
+                          <div>Motor 2: {espConfig.sectors.motor2.min}°-{espConfig.sectors.motor2.max}°</div>
+                          <div>Motor 3: {espConfig.sectors.motor3.min}°-{espConfig.sectors.motor3.max}°</div>
+                          <div>Motor 4: {espConfig.sectors.motor4.min}°-{espConfig.sectors.motor4.max}°</div>
+                        </div>
+                      </div>
+                      <div className="bg-muted p-2 rounded text-xs">
+                        <div><strong>Protocol:</strong> {espConfig.system.protocol}</div>
+                        <div><strong>Data Rate:</strong> {espConfig.system.loggingRate} ({espConfig.system.loggingPeriodMs}ms)</div>
+                        <div><strong>Precision:</strong> {espConfig.system.precision}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center p-8">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Introduction Card */}
           <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
