@@ -1,20 +1,23 @@
-# 4-Motor Independent PI Control with Dynamic TOF Setpoint
+# 4-Motor Independent PI Control with Servo Sweep TOF Sensing
 
-A robust ESP32-based control system that independently controls 4 DC motors using PI controllers, with a dynamic setpoint calculated from TOF (Time-of-Flight) distance sensor readings.
+A robust ESP32-based control system that independently controls 4 DC motors using PI controllers, with dynamic setpoints calculated from TOF (Time-of-Flight) distance sensor readings across 4 sectors using servo sweep.
 
 ## Features
 
-- **Independent PI Control**: Each of the 4 motors has its own pressure pad sensor and PI controller
-- **Dual Operation Modes**:
-  - **Mode A**: Fixed servo at 90°, direct distance reading (faster response)
-  - **Mode B**: Servo sweep 30°-90°, minimum distance tracking (better detection)
-- **Dynamic Setpoint**: TOF sensor determines distance to calculate optimal setpoint
+- **4 Independent Motors**: Each motor has its own pressure pad sensor and PI controller
+- **Sector-Based Distance Sensing**: Servo sweeps 0°-120° divided into 4 sectors (one per motor)
+  - Motor 1: 0° - 30° sector
+  - Motor 2: 31° - 60° sector
+  - Motor 3: 61° - 90° sector
+  - Motor 4: 91° - 120° sector
+- **Dynamic Setpoints**: Each motor calculates its setpoint based on minimum distance in its sector
 - **Multi-Core Architecture**: Utilizes both ESP32 cores for parallel processing
-  - Core 0: TOF reading and data logging
-  - Core 1: Real-time PI control at 50 Hz
-- **Adaptive Range Control**: Different control strategies for CLOSE, MEDIUM, and FAR distance ranges
-- **Out-of-Range Protection**: Automatic reversal when object gets too close or too far
-- **Real-time CSV Logging**: Streams sensor and control data for analysis
+  - Core 0: Servo sweep, TOF scanning, and data logging
+  - Core 1: Real-time PI control at 50 Hz for all 4 motors
+- **Adaptive Range Control**: Different control strategies for CLOSE (50-100cm), MEDIUM (100-200cm), and FAR (200-300cm) distance ranges
+- **Out-of-Range Protection**: Automatic deflation when object distance is invalid or out of bounds
+- **Real-time Data Streaming**: Binary protocol (70 bytes) or CSV format for visualization and analysis
+- **Web Dashboard**: Real-time visualization with React/Next.js frontend including radar display
 
 ## Hardware Requirements
 
@@ -24,12 +27,18 @@ A robust ESP32-based control system that independently controls 4 DC motors usin
 - **4× DC Motors** with H-bridge drivers (L298N, TB6612, or similar)
 - **4× Pressure Pad Sensors** (FSR or similar analog sensors)
 - **1× TOF Distance Sensor** (serial UART interface, 921600 baud)
-- **1× Servo Motor** (for TOF scanning mechanism)
+- **1× Servo Motor** (for TOF scanning mechanism, 0°-120° sweep)
 - **1× CD74HC4067** 16-channel analog multiplexer
 
 ### Pin Connections
 
 See [docs/hardware.md](docs/hardware.md) for complete wiring diagram and pin mappings.
+
+**Quick Reference:**
+- Servo: GPIO 22 (PWM, timer 2)
+- TOF Sensor: RX on GPIO 34 (input-only), TX on GPIO 18
+- Pressure Pads: Multiplexer channels C1, C2, C3, C6
+- Motors: H-bridge connections via GPIOs (see hardware.md)
 
 ## Quick Start
 
@@ -37,11 +46,11 @@ See [docs/hardware.md](docs/hardware.md) for complete wiring diagram and pin map
 
 1. Connect the 4 motors to H-bridge drivers
 2. Wire pressure pads to multiplexer channels (C1, C2, C3, C6)
-3. Connect TOF sensor to Serial1 (RX=GPIO18, TX=GPIO34)
-4. Attach servo to GPIO2
+3. Connect TOF sensor to Serial1 (RX=GPIO34, TX=GPIO18)
+4. Attach servo to GPIO22 (3.3V or 5V power, depending on servo specs)
 5. Connect multiplexer control pins (S0-S3) and signal pin
 
-### 2. Software Setup
+### 2. ESP32 Firmware Setup
 
 #### Visual Studio Code + PlatformIO
 
@@ -55,7 +64,7 @@ See [docs/hardware.md](docs/hardware.md) for complete wiring diagram and pin map
    - Click Install
 
 3. **Open the Project**:
-   - File → Open Folder → Select `MovingTof_OneMotor_OK`
+   - File → Open Folder → Select `Project`
    - PlatformIO will automatically install dependencies (ESP32Servo library)
 
 4. **Build and Upload**:
@@ -67,28 +76,51 @@ See [docs/hardware.md](docs/hardware.md) for complete wiring diagram and pin map
 
 ```bash
 # Navigate to project directory
-cd MovingTof_OneMotor_OK
+cd Project
 
 # Build the project
-pio run
+~/.platformio/penv/bin/pio run
 
 # Upload to ESP32
-pio run --target upload
+~/.platformio/penv/bin/pio run --target upload
 
 # Open serial monitor
-pio device monitor
+~/.platformio/penv/bin/pio device monitor
 ```
 
-> **Note:** For detailed VS Code usage instructions, see [`.vscode/README_VSCODE.md`](.vscode/README_VSCODE.md)
+### 3. Frontend Setup
 
-### 3. Verification
+The project includes a Next.js web dashboard for real-time visualization:
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+pnpm install
+
+# Start the WebSocket bridge and dev server (automatically connects to ESP32)
+pnpm run dev:serial
+```
+
+Open browser to `http://localhost:3000` to view:
+- **Main Dashboard**: 4-motor overview with live pressure, duty cycle, and distance data
+- **Radar Page**: Real-time TOF sweep visualization showing detected objects
+- **Mode B Page**: Alternative motor view with sector-specific data
+
+For detailed frontend setup, see [frontend/README.md](frontend/README.md)
+
+### 4. Verification
 
 After uploading, you should see:
 
 ```
 ========================================
 4-Motor Independent PI Control System
-With Dynamic TOF Setpoint
+With Servo Sweep and TOF Distance Sensing
+========================================
+Protocol: Binary
+Logging Rate: 50 Hz
 ========================================
 
 Initializing hardware...
@@ -103,71 +135,84 @@ Starting Core 0 tasks...
 
 Initialization complete!
 Starting PI control loop on Core 1 at 50 Hz...
-
-time_ms,setpoint_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,tof_dist_cm
-...
 ```
+
+Then binary data packets (70 bytes) or CSV data will stream continuously.
 
 ## Project Structure
 
 ```
-MovingTof_OneMotor_OK/
+Project/
 ├── README.md                         # This file
 ├── platformio.ini                    # PlatformIO configuration
+├── Claude.md                         # AI development guidelines
 ├── docs/                             # Documentation
 │   ├── architecture.md               # System architecture
 │   ├── hardware.md                   # Pin mappings & wiring
 │   ├── control-system.md             # PI controller details
-│   └── communication.md              # Inter-core communication
+│   ├── communication.md              # Inter-core communication
+│   └── project-structure.md          # Code organization
 ├── src/
-│   ├── main.cpp                      # Main program
+│   ├── main.cpp                      # Main program (Core 1 control loop)
 │   ├── config/
 │   │   ├── pins.h                    # Pin definitions
-│   │   └── system_config.h           # Operation mode selection
+│   │   └── system_config.h           # Protocol and logging configuration
 │   ├── sensors/
-│   │   ├── tof_sensor.cpp/.h         # TOF + servo sweep
-│   │   └── pressure_pads.cpp/.h      # Pressure pad reading
+│   │   ├── tof_sensor.cpp/.h         # TOF + servo sweep (4 sectors)
+│   │   └── pressure_pads.cpp/.h      # Pressure pad reading via multiplexer
 │   ├── actuators/
-│   │   └── motors.cpp/.h             # Motor control
+│   │   └── motors.cpp/.h             # Motor control (4 motors)
 │   ├── control/
-│   │   └── pi_controller.cpp/.h      # PI controllers
+│   │   └── pi_controller.cpp/.h      # PI controllers (4 independent)
 │   ├── utils/
-│   │   └── multiplexer.cpp/.h        # Multiplexer functions
+│   │   ├── multiplexer.cpp/.h        # Multiplexer functions
+│   │   └── binary_protocol.cpp/.h    # Binary data packet encoding
 │   └── tasks/
-│       └── core0_tasks.cpp/.h        # FreeRTOS tasks
+│       └── core0_tasks.cpp/.h        # FreeRTOS tasks (sweep + logging)
+├── frontend/                         # Next.js web dashboard
+│   ├── dev/
+│   │   └── serial-ws-bridge.ts       # WebSocket bridge for ESP32 serial data
+│   ├── src/
+│   │   ├── app/                      # Pages (dashboard, radar, motor detail)
+│   │   ├── components/               # React components
+│   │   └── lib/                      # WebSocket store, types, parsers
+│   └── README.md                     # Frontend documentation
 ```
 
 ## Configuration
 
-### Switching Operation Modes
+### Serial Output Protocol
 
-The system supports two operation modes that can be selected before compilation:
-
-**Edit `src/config/system_config.h`:**
+The system supports two output protocols. Edit `src/config/system_config.h`:
 
 ```cpp
 // Uncomment ONE of the following lines:
-//#define MODE_A  // Fixed servo at 90°, direct distance reading
-#define MODE_B  // Servo sweep, minimum distance tracking (default)
+//#define PROTOCOL_CSV     // Human-readable CSV format
+#define PROTOCOL_BINARY   // High-performance binary format (recommended)
 ```
 
-**Mode A - Fixed Servo (Faster Response)**
-- Servo stays at 90° (straight ahead)
-- Direct TOF reading at ~20Hz
-- Lower latency response
-- Single direction measurement
-- Best for: Forward-only obstacle detection
+**CSV Protocol:**
+- Human-readable
+- Easy to debug with serial monitor
+- ~65 bytes per line
+- Compatible with any serial terminal
 
-**Mode B - Servo Sweep (Better Detection)**
-- Servo sweeps 30° to 90°
-- Tracks minimum distance across sweep
-- Wider field of view
-- Slower update rate due to sweep time
-- Best for: Multi-directional obstacle avoidance
+**Binary Protocol:**
+- 35% smaller (70 bytes/packet)
+- 3-5x faster parsing
+- CRC-16 error detection
+- Required for frontend dashboard
 
-After changing the mode, rebuild and upload:
-```bash
-pio run --target upload
+### Logging Rate
+
+Edit `src/config/system_config.h`:
+
+```cpp
+// Uncomment ONE of the following lines:
+//#define LOGGING_RATE_10HZ   // 100ms - Best for visualization
+//#define LOGGING_RATE_25HZ   // 40ms - Balanced
+#define LOGGING_RATE_50HZ    // 20ms - Matches control rate (default)
+//#define LOGGING_RATE_100HZ  // 10ms - Maximum detail
 ```
 
 ### PI Controller Tuning
@@ -194,38 +239,82 @@ constexpr float DISTANCE_FAR_MIN = 200.0f;     // 200-300 cm
 Edit `src/sensors/tof_sensor.h`:
 
 ```cpp
-constexpr float SETPOINT_CLOSE_MV = 1150.0f;   // Close range setpoint
-constexpr float SETPOINT_MEDIUM_MV = 800.0f;   // Medium range setpoint
+constexpr float SETPOINT_CLOSE_MV = 1100.0f;   // Close range setpoint
+constexpr float SETPOINT_MEDIUM_MV = 780.0f;   // Medium range setpoint
 constexpr float SECURITY_OFFSET_MV = 50.0f;    // Far range offset
 ```
 
 ## How It Works
 
-1. **Core 0** continuously sweeps the servo from 30° to 90°, reading the TOF sensor at each angle
-2. The minimum distance found is stored in a thread-safe shared variable
-3. **Core 1** reads this distance every 20 ms (50 Hz) and classifies it into a range (CLOSE, MEDIUM, FAR)
-4. Based on the range, a setpoint is calculated:
-   - **CLOSE** (50-100 cm): High pressure setpoint (1150 mV)
-   - **MEDIUM** (100-200 cm): Medium pressure setpoint (800 mV)
-   - **FAR** (200-300 cm): Dynamic setpoint (current pressure + 50 mV)
-5. Each motor's PI controller compares its pressure pad reading to the setpoint
-6. The PI algorithm calculates the appropriate duty cycle to reach the setpoint
-7. All data is logged in CSV format via Serial at 50 Hz
+### Servo Sweep and Distance Tracking (Core 0)
+
+1. Servo continuously sweeps from 0° to 120° in steps
+2. At each angle, TOF sensor reads distance
+3. Minimum distance is tracked independently for each of 4 sectors:
+   - Motor 1 sector: 0° - 30°
+   - Motor 2 sector: 31° - 60°
+   - Motor 3 sector: 61° - 90°
+   - Motor 4 sector: 91° - 120°
+4. When a sector completes, its minimum distance is immediately shared with Core 1 (via mutex-protected variable)
+5. Sweep continues indefinitely
+
+### PI Control Loop (Core 1)
+
+1. Runs at 50 Hz (every 20 ms)
+2. Reads all 4 pressure pads via multiplexer
+3. For each motor independently:
+   - Get minimum distance from its sector
+   - Classify distance into range (CLOSE, MEDIUM, FAR)
+   - Calculate setpoint based on range:
+     - **CLOSE** (50-100 cm): High pressure setpoint (1100 mV)
+     - **MEDIUM** (100-200 cm): Medium pressure setpoint (780 mV)
+     - **FAR** (200-300 cm): Dynamic setpoint (baseline pressure + 50 mV)
+   - PI controller compares pressure to setpoint
+   - Calculate duty cycle to reach setpoint
+   - Apply motor command
+4. Update shared variables for logging
+
+### Safety State Machine (Per Motor)
+
+Each motor has an independent state machine:
+
+- **NORMAL_OPERATION**: PI control active
+- **OUT_OF_RANGE_DEFLATING**: Distance invalid, reversing motor to deflate until pressure drops below safe threshold
+- **OUT_OF_RANGE_RELEASING**: Pressure safe but distance still invalid, continue reversing for release period
+- **WAITING_FOR_VALID_READING**: Waiting for valid distance and safe pressure before resuming PI control
+
+## Data Format
+
+### Binary Protocol (70 bytes)
+
+```
+[0-1]   Header: 0xAA 0x55
+[2-5]   Timestamp (uint32_t, milliseconds)
+[6-21]  Setpoints: 4× float (sp1, sp2, sp3, sp4)
+[22-29] Pressure Pads: 4× uint16_t (pp1, pp2, pp3, pp4)
+[30-45] Duty Cycles: 4× float (duty1, duty2, duty3, duty4)
+[46-61] TOF Distances: 4× float (tof1, tof2, tof3, tof4)
+[62]    Servo Angle (uint8_t, 0-120)
+[63-66] Current TOF Reading: float
+[67]    Mode Byte (always 1 = sweep mode)
+[68-69] CRC-16
+```
+
+### CSV Protocol
+
+```
+time_ms,sp1_mv,sp2_mv,sp3_mv,sp4_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,tof1_cm,tof2_cm,tof3_cm,tof4_cm,servo_angle
+1234,850.0,850.0,850.0,850.0,820,835,845,830,45.23,38.67,42.11,41.89,156.78,142.34,165.23,158.91,45
+```
 
 ## Safety Features
 
-- **Out-of-Range Detection**: If distance is <50 cm or >300 cm, all motors reverse for 500 ms
+- **Out-of-Range Detection**: If distance is invalid (<0 cm or >300 cm), motor enters deflation state
+- **Pressure Safety**: Motors won't resume PI control until pressure drops below safe threshold (600 mV)
 - **Anti-Windup**: PI integrators are clamped to prevent excessive accumulation
 - **Deadband**: Motors require minimum 40% duty to overcome static friction
-- **Watchdog Protection**: Small delays prevent watchdog timer triggers
-
-## CSV Data Format
-
-```
-time_ms,setpoint_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,tof_dist_cm
-1234,850.0,820,835,845,830,45.23,38.67,42.11,41.89,156.78
-...
-```
+- **Independent State Machines**: Each motor can deflate/recover independently without affecting others
+- **Mutex Protection**: Thread-safe access to shared variables between cores
 
 ## Troubleshooting
 
@@ -233,19 +322,65 @@ time_ms,setpoint_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,du
 - Check H-bridge connections and power supply
 - Verify `MIN_RUN` threshold in `pi_controller.cpp` (default: 40%)
 - Ensure pressure pads are connected and reading values
+- Check serial output for motor state (should be NORMAL_OPERATION)
 
-### TOF sensor not responding
+### TOF sensor showing 999 cm
 - Verify baud rate is 921600
-- Check RX/TX pins (RX=18, TX=34)
+- Check RX/TX pins (RX=GPIO34, TX=GPIO18)
 - Ensure TOF sensor is powered (usually 3.3V or 5V)
+- Verify wiring: TOF TX → ESP32 RX (GPIO34), TOF RX → ESP32 TX (GPIO18)
 
-### Erratic servo movement
-- Check servo power supply (separate from logic if possible)
+### Servo not moving
+- Check servo power supply (3.3V or 5V, separate from logic if high current)
+- Verify servo is connected to GPIO22
+- Ensure timer 2 is allocated for servo (in tof_sensor.cpp)
 - Adjust `SERVO_SETTLE_MS` in `pins.h` for slower servos
+
+### Servo moves erratically or conflicts with motors
+- **Fixed in current version**: Servo now uses dedicated timer 2, motors use default timers
+- If still experiencing issues, check for PWM channel conflicts in motor driver
 
 ### Pressure readings are noisy
 - Increase `PP_SAMPLES` in `pins.h` (default: 8)
 - Check multiplexer wiring and ground connections
+- Ensure proper ADC reference voltage
+
+### Frontend not receiving data
+- Ensure binary protocol is enabled (`PROTOCOL_BINARY` in system_config.h)
+- Check that no debug Serial.print statements exist in loop/tasks
+- Verify WebSocket bridge is running (`pnpm run dev:serial`)
+- Check serial port matches ESP32 port (`SERIAL_PORT=/dev/cu.usbserial-10`)
+
+## Frontend Screenshots
+
+The web dashboard provides real-time visualization of all system data:
+
+### Main Dashboard
+Overview of all 4 motors with live pressure, duty cycle, distance, and setpoint data.
+
+![Main Dashboard - Upper Section](docs/Home_1.png)
+*Upper section: System status, connection controls, and real-time metrics*
+
+![Main Dashboard - Lower Section](docs/Home_2.png)
+*Lower section: 4-motor grid with individual motor cards showing live data*
+
+### Motor Detail View
+Detailed view for individual motor analysis with historical charts.
+
+![Motor Detail - Upper Section](docs/Motor_detailed_1.png)
+*Upper section: Motor-specific metrics and real-time values*
+
+![Motor Detail - Lower Section](docs/Motor_detailed_2.png)
+*Lower section: Historical charts for pressure, duty cycle, and distance tracking*
+
+### Radar Visualization
+Live TOF sensor sweep visualization showing detected objects in 4 sectors (0°-120°).
+
+![Radar View - Upper Section](docs/Radar_1.png)
+*Upper section: Radar polar plot with servo sweep and sector-based distance tracking*
+
+![Radar View - Lower Section](docs/Radar_2.png)
+*Lower section: Sector statistics showing min distance and best angle per motor*
 
 ## Further Documentation
 
@@ -253,6 +388,7 @@ time_ms,setpoint_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,du
 - [Hardware Guide](docs/hardware.md) - Complete pin mappings and wiring
 - [Control System](docs/control-system.md) - PI controller theory and tuning
 - [Communication](docs/communication.md) - FreeRTOS and inter-core details
+- [Frontend README](frontend/README.md) - Web dashboard setup and usage
 
 ## License
 

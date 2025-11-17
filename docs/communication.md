@@ -38,26 +38,33 @@ graph TB
 
         subgraph "Shared Memory"
             Mutex[Mutex:<br/>distanceMutex]
-            Var1[shared_min_distance]
-            Var2[shared_best_angle]
-            Var3[shared_setpoint_mv]
-            Var4[shared_pressure_pads_mv]
-            Var5[shared_duty_cycles]
-            Var6[shared_tof_distance]
+            Var1[shared_min_distance<br/>Array of 4]
+            Var2[shared_best_angle<br/>Array of 4]
+            Var3[shared_setpoints_mv<br/>Array of 4]
+            Var4[shared_pressure_pads_mv<br/>Array of 4]
+            Var5[shared_duty_cycles<br/>Array of 4]
+            Var6[shared_tof_distances<br/>Array of 4]
+            Var7[shared_servo_angle]
+            Var8[shared_tof_current]
         end
 
         Task1 -->|Write| Mutex
         Loop -->|Read| Mutex
         Task1 -.->|Write| Var1
         Task1 -.->|Write| Var2
+        Task1 -.->|Write| Var7
+        Task1 -.->|Write| Var8
         Loop -.->|Write| Var3
         Loop -.->|Write| Var4
         Loop -.->|Write| Var5
         Loop -.->|Write| Var6
+        Task2 -.->|Read| Var1
         Task2 -.->|Read| Var3
         Task2 -.->|Read| Var4
         Task2 -.->|Read| Var5
         Task2 -.->|Read| Var6
+        Task2 -.->|Read| Var7
+        Task2 -.->|Read| Var8
     end
 ```
 
@@ -98,10 +105,11 @@ xTaskCreatePinnedToCore(
 ```
 
 **Responsibilities:**
-- Continuously sweep servo from 30° to 90°
+- Continuously sweep servo from 0° to 120°
 - Read TOF distance at each angle
-- Find minimum distance in each sweep
-- Update `shared_min_distance` and `shared_best_angle` (mutex-protected)
+- Track minimum distance for each of 4 sectors (0-30°, 31-60°, 61-90°, 91-120°)
+- Update `shared_min_distance[4]` and `shared_best_angle[4]` (mutex-protected) when each sector completes
+- Update `shared_servo_angle` and `shared_tof_current` for live radar display
 
 **Execution Flow:**
 ```mermaid
@@ -147,7 +155,8 @@ xTaskCreatePinnedToCore(
 
 **Responsibilities:**
 - Read shared variables from Core 1
-- Print CSV data at 50 Hz
+- Output binary (70 bytes) or CSV data at configurable rate (10-100 Hz)
+- Send to WebSocket bridge or serial monitor
 - No mutex needed (reads volatile variables)
 
 **Execution Flow:**

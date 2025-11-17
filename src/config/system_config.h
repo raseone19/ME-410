@@ -23,7 +23,7 @@
  *   - Compatible with any serial terminal
  *
  * PROTOCOL_BINARY: High-performance binary format
- *   - 35% smaller (42 bytes/packet)
+ *   - 35% smaller (70 bytes/packet vs ~100 bytes CSV)
  *   - 3-5x faster parsing
  *   - CRC error detection
  *   - Requires binary parser (included in Node bridge)

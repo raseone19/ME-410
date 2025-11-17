@@ -37,30 +37,30 @@ This document provides complete hardware specifications, pin mappings, and wirin
 #### Motor 1
 | Pin Function | ESP32 GPIO | Description |
 |--------------|------------|-------------|
-| M1_PWM | GPIO 25 | PWM speed control (LEDC channel auto-assigned) |
-| M1_IN1 | GPIO 27 | H-bridge direction control 1 |
-| M1_IN2 | GPIO 26 | H-bridge direction control 2 |
+| M1_PWM | GPIO 13 | PWM speed control (LEDC channel auto-assigned) |
+| M1_IN1 | GPIO 14 | H-bridge direction control 1 |
+| M1_IN2 | GPIO 12 | H-bridge direction control 2 |
 
 #### Motor 2
 | Pin Function | ESP32 GPIO | Description |
 |--------------|------------|-------------|
-| M2_PWM | GPIO 13 | PWM speed control (LEDC channel auto-assigned) |
-| M2_IN1 | GPIO 14 | H-bridge direction control 1 |
-| M2_IN2 | GPIO 12 | H-bridge direction control 2 |
+| M2_PWM | GPIO 25 | PWM speed control (LEDC channel auto-assigned) |
+| M2_IN1 | GPIO 27 | H-bridge direction control 1 |
+| M2_IN2 | GPIO 26 | H-bridge direction control 2 |
 
 #### Motor 3
 | Pin Function | ESP32 GPIO | Description |
 |--------------|------------|-------------|
-| M3_PWM | GPIO 15 | PWM speed control (LEDC channel auto-assigned) |
-| M3_IN1 | GPIO 4 | H-bridge direction control 1 |
-| M3_IN2 | GPIO 2 | H-bridge direction control 2 |
+| M3_PWM | GPIO 5 | PWM speed control (LEDC channel auto-assigned) |
+| M3_IN1 | GPIO 16 | H-bridge direction control 1 |
+| M3_IN2 | GPIO 17 | H-bridge direction control 2 |
 
 #### Motor 4
 | Pin Function | ESP32 GPIO | Description |
 |--------------|------------|-------------|
-| M4_PWM | GPIO 5 | PWM speed control (LEDC channel auto-assigned) |
-| M4_IN1 | GPIO 16 | H-bridge direction control 1 |
-| M4_IN2 | GPIO 17 | H-bridge direction control 2 |
+| M4_PWM | GPIO 15 | PWM speed control (LEDC channel auto-assigned) |
+| M4_IN1 | GPIO 4 | H-bridge direction control 1 |
+| M4_IN2 | GPIO 2 | H-bridge direction control 2 |
 
 **PWM Configuration:**
 - Frequency: 20 kHz
@@ -73,11 +73,11 @@ This document provides complete hardware specifications, pin mappings, and wirin
 
 | Pin Function | ESP32 GPIO | Description |
 |--------------|------------|-------------|
-| TOF_RX | GPIO 18 | Serial receive from TOF sensor |
-| TOF_TX | GPIO 34 | Serial transmit to TOF sensor (input-only pin)* |
-| SERVO_PWM | GPIO 2 | Servo control signal |
+| TOF_RX | GPIO 34 | Serial receive from TOF sensor (input-only pin)* |
+| TOF_TX | GPIO 18 | Serial transmit to TOF sensor |
+| SERVO_PWM | GPIO 22 | Servo control signal (PWM, uses Timer 2) |
 
-**Note:** GPIO 34 is input-only on ESP32. If the TOF requires bidirectional TX, use GPIO 22 or another output-capable pin.
+**Note:** GPIO 34 is input-only on ESP32, perfect for RX. TOF TX pin connects to ESP32 RX (GPIO 34), TOF RX pin connects to ESP32 TX (GPIO 18).
 
 **TOF Serial Configuration:**
 - Baud Rate: 921600
@@ -85,9 +85,11 @@ This document provides complete hardware specifications, pin mappings, and wirin
 - UART: Serial1 (UART1)
 
 **Servo Configuration:**
-- Sweep Range: 30° to 90°
+- Sweep Range: 0° to 120° (4 sectors of 30° each)
 - Step Size: 2° per movement
 - Settling Time: 80 ms per step
+- PWM Timer: Timer 2 (separate from motor PWM to avoid conflicts)
+- Frequency: 50 Hz (standard servo)
 
 ---
 

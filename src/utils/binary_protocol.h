@@ -8,9 +8,16 @@
  *
  * Packet Format:
  * - Header: 2 bytes (0xAA, 0x55) for synchronization
- * - Data: 38 bytes (timestamps, setpoints, pressures, duties, distance)
+ * - Timestamp: 4 bytes (uint32_t milliseconds)
+ * - Setpoints: 16 bytes (4× float)
+ * - Pressure Pads: 8 bytes (4× uint16_t)
+ * - Duty Cycles: 16 bytes (4× float)
+ * - TOF Distances: 16 bytes (4× float)
+ * - Servo Angle: 1 byte (uint8_t)
+ * - Current TOF: 4 bytes (float)
+ * - Mode: 1 byte (uint8_t)
  * - CRC: 2 bytes (CRC-16 for error detection)
- * - Total: 42 bytes per packet
+ * - Total: 70 bytes per packet
  */
 
 #ifndef BINARY_PROTOCOL_H
