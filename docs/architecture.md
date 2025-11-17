@@ -309,34 +309,22 @@ graph TD
 
 ### Timing Diagram
 
-```mermaid
-gantt
-    title Control System Timing - One 20ms Cycle
-    dateFormat X
-    axisFormat %L ms
+**One Control Cycle (20 ms):**
 
-    section Core 1 - Control Loop
-    Read 4 Pressure Pads:0, 3
-    Motor 1 Processing  :3, 2
-    Motor 2 Processing  :5, 2
-    Motor 3 Processing  :7, 2
-    Motor 4 Processing  :9, 2
-    Update Shared Vars  :11, 1
-    Idle Time           :12, 8
+| Time (ms) | Core 1 - Control Loop | Core 0 - Sweep Task | Core 0 - Logger Task |
+|-----------|----------------------|---------------------|----------------------|
+| 0-3 | Read 4 Pressure Pads | TOF Reading | Read Shared Vars |
+| 3-5 | Motor 1 Processing | TOF Reading (cont.) | Binary Encode/CSV |
+| 5-7 | Motor 2 Processing | Move Servo | Serial Transmit |
+| 7-9 | Motor 3 Processing | Move Servo (cont.) | Waiting |
+| 9-11 | Motor 4 Processing | TOF Reading | Waiting |
+| 11-12 | Update Shared Vars | TOF Reading (cont.) | Waiting |
+| 12-20 | Idle Time | TOF Reading (cont.) | Waiting |
 
-    section Core 0 - Sweep Task
-    TOF Reading         :0, 5
-    Move Servo          :5, 3
-    TOF Reading         :8, 5
-    Move Servo          :13, 3
-    TOF Reading         :16, 4
-
-    section Core 0 - Logger Task
-    Read Shared Vars    :0, 1
-    Binary Encode/CSV   :1, 2
-    Serial Transmit     :3, 2
-    Wait                :5, 15
-```
+**Notes:**
+- Core 1 completes control loop in ~12 ms, leaving 8 ms idle time
+- Core 0 Sweep Task runs continuously, taking TOF readings at each servo angle
+- Core 0 Logger Task transmits data in ~5 ms, then waits for next period
 
 ### Timing Specifications
 

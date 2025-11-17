@@ -114,23 +114,25 @@ xTaskCreatePinnedToCore(
 **Execution Flow:**
 ```mermaid
 flowchart TD
-    Start([Task Start]) --> Init[Initialize at min angle]
-    Init --> SweepStart{For each angle<br/>30° to 90°}
+    Start([Task Start]) --> Init[Initialize at 0°]
+    Init --> SweepStart{For angle 0° to 120°<br/>step 2°}
     SweepStart --> MoveServo[Move servo to angle]
     MoveServo --> Wait1[Wait 80 ms for settling]
     Wait1 --> ReadTOF[Read TOF distance]
-    ReadTOF --> CheckMin{Min distance<br/>in sweep?}
-    CheckMin -->|Yes| UpdateMin[Update min_distance]
-    CheckMin -->|No| NextAngle
-    UpdateMin --> NextAngle[Next angle += 2°]
-    NextAngle --> SweepStart
-
-    SweepStart -->|Sweep done| LockMutex{Acquire mutex}
-    LockMutex -->|Success| WriteShared[Write to shared vars]
+    ReadTOF --> UpdateLive[Update live servo angle<br/>and TOF current]
+    UpdateLive --> CheckSector{Which sector?}
+    CheckSector --> UpdateSectorMin[Update min distance<br/>for this sector]
+    UpdateSectorMin --> CheckComplete{Sector<br/>complete?}
+    CheckComplete -->|Yes| LockMutex{Acquire mutex}
+    CheckComplete -->|No| NextAngle
+    LockMutex -->|Success| WriteShared[Write sector min<br/>to shared vars]
     LockMutex -->|Timeout| Skip[Skip update]
     WriteShared --> UnlockMutex[Release mutex]
-    UnlockMutex --> PositionServo[Position at optimal angle]
-    Skip --> PositionServo
+    UnlockMutex --> NextAngle
+    Skip --> NextAngle
+    NextAngle[Next angle += 2°] --> SweepStart
+
+    SweepStart -->|Sweep complete| PositionServo[Position at 60°<br/>center position]
     PositionServo --> Pause[Wait 100 ms]
     Pause --> SweepStart
 ```
