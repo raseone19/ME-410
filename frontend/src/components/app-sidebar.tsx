@@ -8,7 +8,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Gauge, Radar, Grid3x3, Activity } from 'lucide-react';
+import { Gauge, Radar, Grid3x3, Activity, Stethoscope } from 'lucide-react';
 import { useWebSocketStore, TRANSITION_PAUSE_MS } from '@/lib/websocket-store';
 
 import {
@@ -70,6 +70,17 @@ const data = {
         {
           title: 'Motor 4',
           url: '/motor/4',
+        },
+      ],
+    },
+    {
+      title: 'Diagnostics',
+      url: '#',
+      icon: Stethoscope,
+      items: [
+        {
+          title: 'System Health',
+          url: '/diagnostics',
         },
       ],
     },

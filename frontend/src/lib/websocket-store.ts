@@ -13,6 +13,43 @@ import {
   RadarScanPoint,
 } from './types';
 
+// Diagnostic metrics
+export interface DiagnosticMetrics {
+  // Connection metrics
+  connectionAttempts: number;
+  reconnectionCount: number;
+  lastConnectedTime: number | null;
+  connectionUptime: number; // ms
+
+  // Data metrics
+  totalPacketsReceived: number;
+  packetsPerSecond: number;
+  lastPacketTime: number | null;
+  expectedFrequency: number; // Hz (50 for this system)
+  actualFrequency: number; // Calculated Hz
+
+  // Latency metrics
+  latencyHistory: number[]; // Last 50 latency measurements
+  averageLatency: number;
+  minLatency: number;
+  maxLatency: number;
+
+  // Error tracking
+  errorLog: ErrorLogEntry[];
+  totalErrors: number;
+
+  // Packet loss
+  packetLossCount: number;
+  packetLossPercentage: number;
+}
+
+export interface ErrorLogEntry {
+  timestamp: number;
+  type: 'connection' | 'data' | 'protocol' | 'other';
+  message: string;
+  severity: 'error' | 'warning' | 'info';
+}
+
 interface WebSocketStore {
   // Connection state
   status: ConnectionStatus;
@@ -33,6 +70,9 @@ interface WebSocketStore {
   maxHistorySize: number;
   maxScanHistorySize: number;
 
+  // Diagnostic metrics
+  diagnostics: DiagnosticMetrics;
+
   // WebSocket instance
   ws: WebSocket | null;
 
@@ -45,6 +85,8 @@ interface WebSocketStore {
   resetSimulation: () => void;
   clearHistory: () => void;
   setMaxHistorySize: (size: number) => void;
+  addErrorLog: (entry: Omit<ErrorLogEntry, 'timestamp'>) => void;
+  clearErrorLog: () => void;
 }
 
 // Generate WebSocket URL based on current hostname
@@ -92,11 +134,30 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
   maxHistorySize: DEFAULT_MAX_HISTORY,
   maxScanHistorySize: DEFAULT_MAX_SCAN_HISTORY,
   ws: null,
+  diagnostics: {
+    connectionAttempts: 0,
+    reconnectionCount: 0,
+    lastConnectedTime: null,
+    connectionUptime: 0,
+    totalPacketsReceived: 0,
+    packetsPerSecond: 0,
+    lastPacketTime: null,
+    expectedFrequency: 50,
+    actualFrequency: 0,
+    latencyHistory: [],
+    averageLatency: 0,
+    minLatency: Infinity,
+    maxLatency: 0,
+    errorLog: [],
+    totalErrors: 0,
+    packetLossCount: 0,
+    packetLossPercentage: 0,
+  },
 
   // Connect to WebSocket server
   connect: (url?: string) => {
     const wsUrl = url || getWebSocketUrl();
-    const { ws: existingWs, status } = get();
+    const { ws: existingWs, status, diagnostics } = get();
 
     // Don't reconnect if already connected or connecting
     if (
@@ -107,7 +168,18 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
       return;
     }
 
-    set({ status: ConnectionStatus.CONNECTING, error: null, shouldReconnect: true });
+    // Track connection attempt
+    const isReconnection = diagnostics.connectionAttempts > 0;
+    set({
+      status: ConnectionStatus.CONNECTING,
+      error: null,
+      shouldReconnect: true,
+      diagnostics: {
+        ...diagnostics,
+        connectionAttempts: diagnostics.connectionAttempts + 1,
+        reconnectionCount: isReconnection ? diagnostics.reconnectionCount + 1 : 0,
+      }
+    });
 
     console.log(`🔌 Connecting to WebSocket: ${wsUrl}`);
 
@@ -116,7 +188,17 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
 
       ws.onopen = () => {
         console.log('✅ WebSocket connected');
-        set({ status: ConnectionStatus.CONNECTED, error: null });
+        const now = Date.now();
+        const { diagnostics } = get();
+        set({
+          status: ConnectionStatus.CONNECTED,
+          error: null,
+          diagnostics: {
+            ...diagnostics,
+            lastConnectedTime: now,
+            connectionUptime: 0,
+          }
+        });
       };
 
       ws.onmessage = (event) => {
@@ -129,10 +211,56 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
               break;
 
             case 'data':
-              const { isPaused } = get();
+              const { isPaused, diagnostics: currentDiagnostics } = get();
+
+              // Track packet metrics
+              const now = Date.now();
+              const timeSinceLastPacket = currentDiagnostics.lastPacketTime
+                ? now - currentDiagnostics.lastPacketTime
+                : 0;
+
+              // Calculate latency (time between packets)
+              const latency = timeSinceLastPacket;
+              const updatedLatencyHistory = latency > 0 && latency < 1000
+                ? [...currentDiagnostics.latencyHistory.slice(-49), latency]
+                : currentDiagnostics.latencyHistory;
+
+              const avgLatency = updatedLatencyHistory.length > 0
+                ? updatedLatencyHistory.reduce((sum, l) => sum + l, 0) / updatedLatencyHistory.length
+                : 0;
+
+              const minLatency = updatedLatencyHistory.length > 0
+                ? Math.min(...updatedLatencyHistory)
+                : Infinity;
+
+              const maxLatency = updatedLatencyHistory.length > 0
+                ? Math.max(...updatedLatencyHistory)
+                : 0;
+
+              // Calculate actual frequency
+              const actualFreq = latency > 0 ? 1000 / latency : 0;
+
+              // Update connection uptime
+              const uptime = currentDiagnostics.lastConnectedTime
+                ? now - currentDiagnostics.lastConnectedTime
+                : 0;
+
+              // Update diagnostics
+              const updatedDiagnostics = {
+                ...currentDiagnostics,
+                totalPacketsReceived: currentDiagnostics.totalPacketsReceived + 1,
+                lastPacketTime: now,
+                latencyHistory: updatedLatencyHistory,
+                averageLatency: avgLatency,
+                minLatency,
+                maxLatency,
+                actualFrequency: actualFreq,
+                connectionUptime: uptime,
+              };
 
               // Skip processing if paused
               if (isPaused) {
+                set({ diagnostics: updatedDiagnostics });
                 break;
               }
 
@@ -182,12 +310,14 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
                   dataHistory: updatedHistory,
                   motorHistory: updatedMotorHistory,
                   scanHistory: updatedScanHistory,
+                  diagnostics: updatedDiagnostics,
                 });
               } else {
                 set({
                   currentData: newData,
                   dataHistory: updatedHistory,
                   motorHistory: updatedMotorHistory,
+                  diagnostics: updatedDiagnostics,
                 });
               }
               break;
@@ -225,9 +355,21 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
 
       ws.onerror = (error) => {
         console.error('❌ WebSocket error:', error);
+        const { diagnostics } = get();
+        const errorEntry: ErrorLogEntry = {
+          timestamp: Date.now(),
+          type: 'connection',
+          message: 'WebSocket connection error',
+          severity: 'error',
+        };
         set({
           status: ConnectionStatus.ERROR,
           error: 'WebSocket connection error',
+          diagnostics: {
+            ...diagnostics,
+            errorLog: [...diagnostics.errorLog.slice(-99), errorEntry],
+            totalErrors: diagnostics.totalErrors + 1,
+          }
         });
       };
 
@@ -328,5 +470,33 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
   // Set maximum history size
   setMaxHistorySize: (size: number) => {
     set({ maxHistorySize: size });
+  },
+
+  // Add error log entry
+  addErrorLog: (entry: Omit<ErrorLogEntry, 'timestamp'>) => {
+    const { diagnostics } = get();
+    const errorEntry: ErrorLogEntry = {
+      ...entry,
+      timestamp: Date.now(),
+    };
+    set({
+      diagnostics: {
+        ...diagnostics,
+        errorLog: [...diagnostics.errorLog.slice(-99), errorEntry],
+        totalErrors: diagnostics.totalErrors + 1,
+      }
+    });
+  },
+
+  // Clear error log
+  clearErrorLog: () => {
+    const { diagnostics } = get();
+    set({
+      diagnostics: {
+        ...diagnostics,
+        errorLog: [],
+        totalErrors: 0,
+      }
+    });
   },
 }));
