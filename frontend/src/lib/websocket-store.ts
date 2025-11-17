@@ -43,14 +43,19 @@ interface WebSocketStore {
   sendMessage: (message: any) => void;
   toggleRecording: () => void;
   togglePause: () => void;
+  pauseTemporarily: (ms: number) => void;
   resetSimulation: () => void;
   clearHistory: () => void;
   setMaxHistorySize: (size: number) => void;
 }
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
-const DEFAULT_MAX_HISTORY = 25; // Keep last 25 data points (0.5 seconds at 50Hz, 2.5 seconds at 10Hz)
-const DEFAULT_MAX_SCAN_HISTORY = 180; // Keep 180 scan points (one for each degree from 0-180)
+const DEFAULT_MAX_HISTORY = 50; // Keep last 50 data points (1 second at 50Hz, enough for smooth charts)
+const DEFAULT_MAX_SCAN_HISTORY = 120; // Keep 120 scan points (sufficient for radar visualization)
+const DEBUG_MODE = process.env.NODE_ENV === 'development'; // Only log in development
+
+// Transition pause duration (ms) - pause data processing during page transitions/fullscreen
+export const TRANSITION_PAUSE_MS = 250;
 
 export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
   // Initial state
@@ -116,33 +121,26 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
               const newData = message.payload;
               const { dataHistory, motorHistory, scanHistory, maxHistorySize, maxScanHistorySize } = get();
 
-              // Add to shared history and maintain max size
-              const updatedHistory = [...dataHistory, newData];
-              if (updatedHistory.length > maxHistorySize) {
-                updatedHistory.shift(); // Remove oldest
-              }
+              // Optimized: slice from end if at capacity, then add new data
+              const updatedHistory = dataHistory.length >= maxHistorySize
+                ? [...dataHistory.slice(-maxHistorySize + 1), newData]
+                : [...dataHistory, newData];
 
-              // Add to per-motor history and maintain max size
+              // Optimized: Update motor history with slice instead of shift
               const updatedMotorHistory = {
-                motor1: [...motorHistory.motor1, newData],
-                motor2: [...motorHistory.motor2, newData],
-                motor3: [...motorHistory.motor3, newData],
-                motor4: [...motorHistory.motor4, newData],
+                motor1: motorHistory.motor1.length >= maxHistorySize
+                  ? [...motorHistory.motor1.slice(-maxHistorySize + 1), newData]
+                  : [...motorHistory.motor1, newData],
+                motor2: motorHistory.motor2.length >= maxHistorySize
+                  ? [...motorHistory.motor2.slice(-maxHistorySize + 1), newData]
+                  : [...motorHistory.motor2, newData],
+                motor3: motorHistory.motor3.length >= maxHistorySize
+                  ? [...motorHistory.motor3.slice(-maxHistorySize + 1), newData]
+                  : [...motorHistory.motor3, newData],
+                motor4: motorHistory.motor4.length >= maxHistorySize
+                  ? [...motorHistory.motor4.slice(-maxHistorySize + 1), newData]
+                  : [...motorHistory.motor4, newData],
               };
-
-              // Trim each motor history to max size
-              if (updatedMotorHistory.motor1.length > maxHistorySize) {
-                updatedMotorHistory.motor1.shift();
-              }
-              if (updatedMotorHistory.motor2.length > maxHistorySize) {
-                updatedMotorHistory.motor2.shift();
-              }
-              if (updatedMotorHistory.motor3.length > maxHistorySize) {
-                updatedMotorHistory.motor3.shift();
-              }
-              if (updatedMotorHistory.motor4.length > maxHistorySize) {
-                updatedMotorHistory.motor4.shift();
-              }
 
               // Add to scan history for radar visualization using live servo data
               const angle = newData.servo_angle;
@@ -156,12 +154,10 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
                   timestamp: newData.time_ms,
                 };
 
-                const updatedScanHistory = [...scanHistory, scanPoint];
-
-                // Trim scan history to max size
-                if (updatedScanHistory.length > maxScanHistorySize) {
-                  updatedScanHistory.shift();
-                }
+                // Optimized: slice from end if at capacity
+                const updatedScanHistory = scanHistory.length >= maxScanHistorySize
+                  ? [...scanHistory.slice(-maxScanHistorySize + 1), scanPoint]
+                  : [...scanHistory, scanPoint];
 
                 set({
                   currentData: newData,
@@ -293,6 +289,21 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
     const { isPaused } = get();
     set({ isPaused: !isPaused });
     console.log(isPaused ? '▶️  Resumed' : '⏸️  Paused');
+  },
+
+  // Temporarily pause data processing (for transitions)
+  pauseTemporarily: (ms: number) => {
+    const wasAlreadyPaused = get().isPaused;
+
+    // Always pause during transition
+    set({ isPaused: true });
+
+    // Only auto-resume if user didn't manually pause
+    setTimeout(() => {
+      if (!wasAlreadyPaused) {
+        set({ isPaused: false });
+      }
+    }, ms);
   },
 
   // Reset simulation

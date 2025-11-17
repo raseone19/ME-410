@@ -6,7 +6,7 @@
 
 'use client';
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useRef, useEffect, useState } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { Activity, Gauge, Zap, Ruler, Target } from 'lucide-react';
 import {
@@ -83,14 +83,26 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
   const setpointKey = `sp${motorNumber}_mv` as keyof MotorData;
   const tofKey = `tof${motorNumber}_cm` as keyof MotorData;
 
-  // Memoize chart data transformation
+  // Throttle chart updates to reduce re-renders (update every 50ms = 20Hz for smooth visuals)
+  const [throttledHistory, setThrottledHistory] = useState(dataHistory);
+  const lastChartUpdateRef = useRef(0);
+
+  useEffect(() => {
+    const now = Date.now();
+    if (now - lastChartUpdateRef.current > 50) { // Update chart every 50ms (20Hz)
+      lastChartUpdateRef.current = now;
+      setThrottledHistory(dataHistory);
+    }
+  }, [dataHistory]);
+
+  // Memoize chart data transformation (using throttled data)
   const chartData = useMemo(() => {
-    return dataHistory.slice(-100).map((data) => ({
+    return throttledHistory.slice(-100).map((data) => ({
       time: data.time_ms,
       setpoint: data[setpointKey] as number,
       actual: data[pressureKey] as number,
     }));
-  }, [dataHistory, pressureKey, setpointKey]);
+  }, [throttledHistory, pressureKey, setpointKey]);
 
   // Memoize current values and calculations
   const currentValues = useMemo(() => {

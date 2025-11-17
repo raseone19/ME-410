@@ -9,6 +9,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Gauge, Radar, Grid3x3, Activity } from 'lucide-react';
+import { useWebSocketStore, TRANSITION_PAUSE_MS } from '@/lib/websocket-store';
 
 import {
   Sidebar,
@@ -77,6 +78,12 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
+  const pauseTemporarily = useWebSocketStore((state) => state.pauseTemporarily);
+
+  const handleNavigation = React.useCallback(() => {
+    // Pause data processing during page transition
+    pauseTemporarily(TRANSITION_PAUSE_MS);
+  }, [pauseTemporarily]);
 
   return (
     <Sidebar {...props}>
@@ -117,7 +124,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         return (
                           <SidebarMenuSubItem key={subItem.title}>
                             <SidebarMenuSubButton asChild isActive={isActive}>
-                              <Link href={subItem.url}>{subItem.title}</Link>
+                              <Link href={subItem.url} onClick={handleNavigation}>
+                                {subItem.title}
+                              </Link>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
                         );

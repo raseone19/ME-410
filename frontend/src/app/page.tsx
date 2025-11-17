@@ -7,7 +7,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { X } from 'lucide-react';
-import { useWebSocketStore } from '@/lib/websocket-store';
+import { useWebSocketStore, TRANSITION_PAUSE_MS } from '@/lib/websocket-store';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { ModeBMotorCard } from '@/components/mode-b/ModeBMotorCard';
 import { Card, CardContent } from '@/components/ui/card';
@@ -43,6 +43,7 @@ export default function DashboardPage() {
     disconnect,
     toggleRecording,
     togglePause,
+    pauseTemporarily,
     resetSimulation,
   } = useWebSocketStore();
 
@@ -88,6 +89,9 @@ export default function DashboardPage() {
   }, [togglePause]);
 
   const handleFullscreen = useCallback(async () => {
+    // Pause data processing during transition
+    pauseTemporarily(TRANSITION_PAUSE_MS);
+
     if (fullscreenRef.current) {
       try {
         await fullscreenRef.current.requestFullscreen();
@@ -95,9 +99,12 @@ export default function DashboardPage() {
         console.error('Error attempting to enable fullscreen:', err);
       }
     }
-  }, []);
+  }, [pauseTemporarily]);
 
   const handleExitFullscreen = useCallback(async () => {
+    // Pause data processing during transition
+    pauseTemporarily(TRANSITION_PAUSE_MS);
+
     if (document.fullscreenElement) {
       try {
         await document.exitFullscreen();
@@ -105,7 +112,7 @@ export default function DashboardPage() {
         console.error('Error attempting to exit fullscreen:', err);
       }
     }
-  }, []);
+  }, [pauseTemporarily]);
 
   // Snapshot handler
   const handleSnapshot = useCallback(async () => {
