@@ -57,17 +57,17 @@ export const DashboardHeader = memo(function DashboardHeader({
 
   return (
     <Card>
-      <CardContent className="flex items-center justify-between p-6">
+      <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 md:p-6">
         {/* Left: TOF Distance Display (optional) */}
         {showTofDistance && (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 justify-center md:justify-start">
             <div>
               <p className="text-sm text-muted-foreground mb-1">TOF Distance</p>
               <div className="flex items-center gap-2">
-                <span className="text-3xl font-bold">
+                <span className="text-2xl md:text-3xl font-bold">
                   {tofDistance.toFixed(1)}
                 </span>
-                <span className="text-lg text-muted-foreground">cm</span>
+                <span className="text-base md:text-lg text-muted-foreground">cm</span>
                 <Badge variant={rangeColor!}>{distanceRange}</Badge>
               </div>
             </div>
@@ -75,7 +75,7 @@ export const DashboardHeader = memo(function DashboardHeader({
         )}
 
         {/* Center: Connection Status */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 justify-center">
           {isConnected ? (
             <>
               <Wifi className="h-5 w-5 text-green-600" />
@@ -114,23 +114,24 @@ export const DashboardHeader = memo(function DashboardHeader({
         </div>
 
         {/* Right: Controls */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-center md:justify-end gap-2">
           {/* Pause Button */}
           <Button
             variant={isPaused ? 'default' : 'outline'}
             size="sm"
             onClick={onTogglePause}
             disabled={!isConnected}
+            className="flex-shrink-0"
           >
             {isPaused ? (
               <>
-                <Play className="mr-2 h-4 w-4" />
-                Resume
+                <Play className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Resume</span>
               </>
             ) : (
               <>
-                <Pause className="mr-2 h-4 w-4" />
-                Pause
+                <Pause className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Pause</span>
               </>
             )}
           </Button>
@@ -142,9 +143,10 @@ export const DashboardHeader = memo(function DashboardHeader({
               size="sm"
               onClick={onFullscreen}
               title="View motors in fullscreen"
+              className="flex-shrink-0"
             >
-              <Maximize2 className="mr-2 h-4 w-4" />
-              Fullscreen
+              <Maximize2 className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Fullscreen</span>
             </Button>
           )}
 
@@ -156,9 +158,10 @@ export const DashboardHeader = memo(function DashboardHeader({
               onClick={onSnapshot}
               disabled={!isConnected}
               title="Save debug snapshot"
+              className="flex-shrink-0"
             >
-              <Camera className="mr-2 h-4 w-4" />
-              Snapshot
+              <Camera className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Snapshot</span>
             </Button>
           )}
 
@@ -168,18 +171,22 @@ export const DashboardHeader = memo(function DashboardHeader({
             size="sm"
             onClick={onReset}
             disabled={!isConnected}
+            className="flex-shrink-0"
           >
-            Reset
+            <span className="hidden sm:inline">Reset</span>
+            <span className="sm:hidden">↻</span>
           </Button>
 
           {/* Connect/Disconnect Button */}
           {isConnected ? (
-            <Button variant="destructive" size="sm" onClick={onDisconnect}>
-              Disconnect
+            <Button variant="destructive" size="sm" onClick={onDisconnect} className="flex-shrink-0">
+              <span className="hidden sm:inline">Disconnect</span>
+              <span className="sm:hidden">✕</span>
             </Button>
           ) : (
-            <Button variant="default" size="sm" onClick={onConnect}>
-              Connect
+            <Button variant="default" size="sm" onClick={onConnect} className="flex-shrink-0">
+              <span className="hidden sm:inline">Connect</span>
+              <span className="sm:hidden">⚡</span>
             </Button>
           )}
         </div>

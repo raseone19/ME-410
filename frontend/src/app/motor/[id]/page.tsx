@@ -266,13 +266,13 @@ export default function MotorDetailPage() {
       <div className="flex flex-1 flex-col gap-4 p-4">
         <div className="space-y-4 mx-auto w-full max-w-7xl">
           {/* Compact Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3">
               <Button variant="outline" size="icon" onClick={() => router.push('/')}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex flex-wrap items-center gap-2">
                   Motor {motorId} Analysis
                   <Badge variant={isOnTarget ? 'default' : 'secondary'} className="text-xs">
                     <Activity className="mr-1 h-3 w-3" />
@@ -281,19 +281,20 @@ export default function MotorDetailPage() {
                 </h1>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant={isPaused ? 'default' : 'outline'} onClick={togglePause} size="sm">
-                {isPaused ? 'Resume' : 'Pause'} Updates
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button variant={isPaused ? 'default' : 'outline'} onClick={togglePause} size="sm" className="flex-shrink-0">
+                <span className="hidden sm:inline">{isPaused ? 'Resume' : 'Pause'} Updates</span>
+                <span className="sm:hidden">{isPaused ? 'Resume' : 'Pause'}</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={handleFullscreen}>
-                <Maximize className="h-4 w-4 mr-2" />
-                Fullscreen
+              <Button variant="outline" size="sm" onClick={handleFullscreen} className="flex-shrink-0">
+                <Maximize className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Fullscreen</span>
               </Button>
             </div>
           </div>
 
           {/* Compact Status Overview - 5 Stats */}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
             {/* TOF Distance */}
             <Card className="p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -584,7 +585,7 @@ export default function MotorDetailPage() {
           {/* Fullscreen Content - Same layout as main view */}
           <div className="space-y-4">
             {/* Compact Status Overview */}
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
               {/* TOF Distance */}
               <Card className="p-4">
                 <div className="flex items-center gap-2 mb-2">

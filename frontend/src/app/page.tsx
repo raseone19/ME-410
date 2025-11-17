@@ -190,10 +190,10 @@ export default function DashboardPage() {
         <div className="space-y-4 mx-auto w-full max-w-7xl">
           {/* Page Title */}
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               Motor Control Dashboard
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground">
               4 independent motors with dedicated 30° sectors (0°-120° servo sweep)
             </p>
           </div>

@@ -78,10 +78,10 @@ export default function RadarPage() {
         <div className="space-y-6 mx-auto w-full" style={{ maxWidth: '100%' }}>
           {/* Page Title */}
           <div className="max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               TOF Radar Visualization
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground">
               Real-time object detection across 4 sectors (0°-120° sweep)
             </p>
           </div>
