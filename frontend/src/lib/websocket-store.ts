@@ -17,7 +17,6 @@ interface WebSocketStore {
   // Connection state
   status: ConnectionStatus;
   error: string | null;
-  isRecording: boolean;
   isPaused: boolean;
   shouldReconnect: boolean; // Flag to control auto-reconnect
 
@@ -41,7 +40,6 @@ interface WebSocketStore {
   connect: (url?: string) => void;
   disconnect: () => void;
   sendMessage: (message: any) => void;
-  toggleRecording: () => void;
   togglePause: () => void;
   pauseTemporarily: (ms: number) => void;
   resetSimulation: () => void;
@@ -61,7 +59,6 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
   // Initial state
   status: ConnectionStatus.DISCONNECTED,
   error: null,
-  isRecording: false,
   isPaused: false,
   shouldReconnect: true, // Auto-reconnect enabled by default
   currentData: null,
@@ -107,7 +104,6 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
           switch (message.type) {
             case 'connected':
               console.log('📡 Server confirmed connection');
-              set({ isRecording: message.isRecording });
               break;
 
             case 'data':
@@ -164,23 +160,14 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
                   dataHistory: updatedHistory,
                   motorHistory: updatedMotorHistory,
                   scanHistory: updatedScanHistory,
-                  isRecording: message.isRecording,
                 });
               } else {
                 set({
                   currentData: newData,
                   dataHistory: updatedHistory,
                   motorHistory: updatedMotorHistory,
-                  isRecording: message.isRecording,
                 });
               }
-              break;
-
-            case 'recording_status':
-              set({ isRecording: message.isRecording });
-              console.log(
-                `📹 Recording ${message.isRecording ? 'started' : 'stopped'}`
-              );
               break;
 
             case 'reset_complete':
@@ -272,16 +259,6 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
     } else {
       console.warn('Cannot send message: WebSocket not connected');
     }
-  },
-
-  // Toggle recording state
-  toggleRecording: () => {
-    const { isRecording, sendMessage } = get();
-    const newState = !isRecording;
-
-    sendMessage({
-      type: newState ? 'start_recording' : 'stop_recording',
-    });
   },
 
   // Toggle pause state (stop processing incoming data)

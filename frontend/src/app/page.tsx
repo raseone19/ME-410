@@ -38,11 +38,9 @@ export default function DashboardPage() {
   const status = useWebSocketStore((state) => state.status);
   const currentData = useWebSocketStore((state) => state.currentData);
   const dataHistory = useWebSocketStore((state) => state.dataHistory);
-  const isRecording = useWebSocketStore((state) => state.isRecording);
   const isPaused = useWebSocketStore((state) => state.isPaused);
   const connect = useWebSocketStore((state) => state.connect);
   const disconnect = useWebSocketStore((state) => state.disconnect);
-  const toggleRecording = useWebSocketStore((state) => state.toggleRecording);
   const togglePause = useWebSocketStore((state) => state.togglePause);
   const pauseTemporarily = useWebSocketStore((state) => state.pauseTemporarily);
   const resetSimulation = useWebSocketStore((state) => state.resetSimulation);
@@ -93,10 +91,6 @@ export default function DashboardPage() {
     resetSimulation();
   }, [resetSimulation]);
 
-  const handleToggleRecording = useCallback(() => {
-    toggleRecording();
-  }, [toggleRecording]);
-
   const handleTogglePause = useCallback(() => {
     togglePause();
   }, [togglePause]);
@@ -135,7 +129,6 @@ export default function DashboardPage() {
       const snapshot = {
         timestamp: new Date().toISOString(),
         connectionStatus: status,
-        isRecording,
         isPaused,
         currentData,
         dataHistory,
@@ -176,7 +169,7 @@ export default function DashboardPage() {
       setSnapshotStatus('❌ Failed to save snapshot');
       setTimeout(() => setSnapshotStatus(null), 5000);
     }
-  }, [status, isRecording, isPaused, currentData, dataHistory]);
+  }, [status, isPaused, currentData, dataHistory]);
 
   return (
     <SidebarInset>
@@ -217,9 +210,7 @@ export default function DashboardPage() {
         {/* Header with Controls */}
         <DashboardHeader
           connectionStatus={status}
-          isRecording={isRecording}
           isPaused={isPaused}
-          onToggleRecording={handleToggleRecording}
           onTogglePause={handleTogglePause}
           onConnect={handleConnect}
           onDisconnect={handleDisconnect}

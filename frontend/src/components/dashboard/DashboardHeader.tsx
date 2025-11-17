@@ -1,16 +1,14 @@
 /**
  * Dashboard Header Component
- * Displays TOF distance, connection status, and recording controls
+ * Displays TOF distance, connection status, and controls
  */
 
 'use client';
 
 import { memo, useMemo } from 'react';
-import { Wifi, WifiOff, Radio, Circle, Pause, Play, Camera, Maximize2 } from 'lucide-react';
+import { Wifi, WifiOff, Radio, Pause, Play, Camera, Maximize2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import {
   ConnectionStatus,
@@ -22,9 +20,7 @@ import {
 interface DashboardHeaderProps {
   tofDistance?: number; // Optional - only for single-distance modes
   connectionStatus: ConnectionStatus;
-  isRecording: boolean;
   isPaused: boolean;
-  onToggleRecording: () => void;
   onTogglePause: () => void;
   onConnect: () => void;
   onDisconnect: () => void;
@@ -36,9 +32,7 @@ interface DashboardHeaderProps {
 export const DashboardHeader = memo(function DashboardHeader({
   tofDistance,
   connectionStatus,
-  isRecording,
   isPaused,
-  onToggleRecording,
   onTogglePause,
   onConnect,
   onDisconnect,
@@ -119,7 +113,7 @@ export const DashboardHeader = memo(function DashboardHeader({
           )}
         </div>
 
-        {/* Right: Recording Controls */}
+        {/* Right: Controls */}
         <div className="flex items-center gap-4">
           {/* Pause Button */}
           <Button
@@ -140,24 +134,6 @@ export const DashboardHeader = memo(function DashboardHeader({
               </>
             )}
           </Button>
-
-          {/* Recording Toggle */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              {isRecording && (
-                <Circle className="h-3 w-3 fill-red-600 text-red-600 animate-pulse" />
-              )}
-              <Label htmlFor="recording-toggle" className="cursor-pointer">
-                {isRecording ? 'Recording' : 'Record'}
-              </Label>
-            </div>
-            <Switch
-              id="recording-toggle"
-              checked={isRecording}
-              onCheckedChange={onToggleRecording}
-              disabled={!isConnected}
-            />
-          </div>
 
           {/* Fullscreen Button */}
           {onFullscreen && (

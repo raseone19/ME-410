@@ -45,17 +45,11 @@ export type WebSocketMessage =
       type: 'connected';
       message: string;
       frequency: string;
-      isRecording: boolean;
     }
   | {
       type: 'data';
       payload: MotorData;
       timestamp: number;
-      isRecording: boolean;
-    }
-  | {
-      type: 'recording_status';
-      isRecording: boolean;
     }
   | {
       type: 'reset_complete';
@@ -119,7 +113,6 @@ export interface Session {
   name: string;
   start_time: number;
   end_time: number | null;
-  is_recording: boolean;
 }
 
 /**

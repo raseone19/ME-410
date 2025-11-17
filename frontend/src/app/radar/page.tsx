@@ -30,11 +30,9 @@ export default function RadarPage() {
     currentData,
     motorHistory,
     scanHistory,
-    isRecording,
     isPaused,
     connect,
     disconnect,
-    toggleRecording,
     togglePause,
     resetSimulation,
   } = useWebSocketStore();
@@ -56,10 +54,6 @@ export default function RadarPage() {
   const handleReset = useCallback(() => {
     resetSimulation();
   }, [resetSimulation]);
-
-  const handleToggleRecording = useCallback(() => {
-    toggleRecording();
-  }, [toggleRecording]);
 
   const handleTogglePause = useCallback(() => {
     togglePause();
@@ -96,9 +90,7 @@ export default function RadarPage() {
         <div className="max-w-7xl mx-auto">
           <DashboardHeader
             connectionStatus={status}
-            isRecording={isRecording}
             isPaused={isPaused}
-            onToggleRecording={handleToggleRecording}
             onTogglePause={handleTogglePause}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
