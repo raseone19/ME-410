@@ -47,7 +47,26 @@ interface WebSocketStore {
   setMaxHistorySize: (size: number) => void;
 }
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
+// Generate WebSocket URL based on current hostname
+// This allows the app to work on localhost, LAN, and remote networks
+const getWebSocketUrl = (): string => {
+  // If explicitly set in environment, use that
+  if (process.env.NEXT_PUBLIC_WS_URL) {
+    return process.env.NEXT_PUBLIC_WS_URL;
+  }
+
+  // In browser, use the current hostname
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const hostname = window.location.hostname;
+    const port = '3001'; // WebSocket server port
+    return `${protocol}//${hostname}:${port}`;
+  }
+
+  // Fallback for SSR (should not be used since connections happen client-side)
+  return 'ws://localhost:3001';
+};
+
 const DEFAULT_MAX_HISTORY = 150; // Keep last 150 data points (3 seconds at 50Hz)
 const DEFAULT_MAX_SCAN_HISTORY = 120; // Keep 120 scan points (sufficient for radar visualization)
 const DEBUG_MODE = process.env.NODE_ENV === 'development'; // Only log in development
@@ -75,7 +94,8 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
   ws: null,
 
   // Connect to WebSocket server
-  connect: (url: string = WS_URL) => {
+  connect: (url?: string) => {
+    const wsUrl = url || getWebSocketUrl();
     const { ws: existingWs, status } = get();
 
     // Don't reconnect if already connected or connecting
@@ -89,8 +109,10 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
 
     set({ status: ConnectionStatus.CONNECTING, error: null, shouldReconnect: true });
 
+    console.log(`🔌 Connecting to WebSocket: ${wsUrl}`);
+
     try {
-      const ws = new WebSocket(url);
+      const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         console.log('✅ WebSocket connected');
@@ -221,7 +243,7 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
           const { status, shouldReconnect } = get();
           if (status === ConnectionStatus.DISCONNECTED && shouldReconnect) {
             console.log('🔄 Attempting to reconnect...');
-            get().connect(url);
+            get().connect(wsUrl);
           }
         }, 3000);
       };
