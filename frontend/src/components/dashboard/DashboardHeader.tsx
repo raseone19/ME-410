@@ -6,7 +6,7 @@
 'use client';
 
 import { memo, useMemo } from 'react';
-import { Wifi, WifiOff, Radio, Circle, Pause, Play, Camera } from 'lucide-react';
+import { Wifi, WifiOff, Radio, Circle, Pause, Play, Camera, Maximize2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -30,6 +30,7 @@ interface DashboardHeaderProps {
   onDisconnect: () => void;
   onReset: () => void;
   onSnapshot?: () => void; // Optional snapshot handler
+  onFullscreen?: () => void; // Optional fullscreen handler
 }
 
 export const DashboardHeader = memo(function DashboardHeader({
@@ -43,6 +44,7 @@ export const DashboardHeader = memo(function DashboardHeader({
   onDisconnect,
   onReset,
   onSnapshot,
+  onFullscreen,
 }: DashboardHeaderProps) {
   // Memoize distance calculations (only if tofDistance is provided)
   const { distanceRange, rangeColor } = useMemo(() => {
@@ -156,6 +158,19 @@ export const DashboardHeader = memo(function DashboardHeader({
               disabled={!isConnected}
             />
           </div>
+
+          {/* Fullscreen Button */}
+          {onFullscreen && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onFullscreen}
+              title="View motors in fullscreen"
+            >
+              <Maximize2 className="mr-2 h-4 w-4" />
+              Fullscreen
+            </Button>
+          )}
 
           {/* Snapshot Button */}
           {onSnapshot && (

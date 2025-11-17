@@ -5,11 +5,13 @@
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { X } from 'lucide-react';
 import { useWebSocketStore } from '@/lib/websocket-store';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { ModeBMotorCard } from '@/components/mode-b/ModeBMotorCard';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -45,11 +47,23 @@ export default function DashboardPage() {
   } = useWebSocketStore();
 
   const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const fullscreenRef = useRef<HTMLDivElement>(null);
 
   // Auto-connect on mount
   useEffect(() => {
     connect();
   }, [connect]);
+
+  // Handle fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
 
   // Memoize event handlers to prevent unnecessary re-renders
@@ -72,6 +86,26 @@ export default function DashboardPage() {
   const handleTogglePause = useCallback(() => {
     togglePause();
   }, [togglePause]);
+
+  const handleFullscreen = useCallback(async () => {
+    if (fullscreenRef.current) {
+      try {
+        await fullscreenRef.current.requestFullscreen();
+      } catch (err) {
+        console.error('Error attempting to enable fullscreen:', err);
+      }
+    }
+  }, []);
+
+  const handleExitFullscreen = useCallback(async () => {
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch (err) {
+        console.error('Error attempting to exit fullscreen:', err);
+      }
+    }
+  }, []);
 
   // Snapshot handler
   const handleSnapshot = useCallback(async () => {
@@ -171,6 +205,7 @@ export default function DashboardPage() {
           onDisconnect={handleDisconnect}
           onReset={handleReset}
           onSnapshot={handleSnapshot}
+          onFullscreen={handleFullscreen}
         />
 
         {/* Sector Visualization */}
@@ -251,6 +286,42 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         )}
+        </div>
+      </div>
+
+      {/* Fullscreen Motor Cards Container */}
+      <div
+        ref={fullscreenRef}
+        className={`${isFullscreen ? 'fixed inset-0 z-50 bg-background overflow-auto' : 'hidden'}`}
+      >
+        <div className="container mx-auto p-6 h-full">
+          {/* Exit Button */}
+          <div className="flex justify-end mb-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExitFullscreen}
+              className="gap-2"
+            >
+              <X className="h-4 w-4" />
+              Exit Fullscreen (ESC)
+            </Button>
+          </div>
+
+          {/* Motor Cards Grid */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 h-[calc(100%-60px)]">
+            {SECTORS.map((sector) => (
+              <ModeBMotorCard
+                key={sector.motor}
+                motorNumber={sector.motor}
+                sectorMin={sector.minAngle}
+                sectorMax={sector.maxAngle}
+                sectorColor={sector.color}
+                dataHistory={dataHistory}
+                currentData={currentData}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </SidebarInset>
