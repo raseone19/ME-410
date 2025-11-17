@@ -6,7 +6,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Activity, TrendingUp, TrendingDown, Gauge, Zap, Target, Maximize, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useWebSocketStore, TRANSITION_PAUSE_MS } from '@/lib/websocket-store';
 import { PerformanceMonitor } from '@/components/debug/PerformanceMonitor';
@@ -39,6 +39,7 @@ import {
 export default function MotorDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const motorId = parseInt(params.id as string);
 
   const { status, currentData, dataHistory, connect, isPaused, togglePause, pauseTemporarily } =
@@ -51,6 +52,7 @@ export default function MotorDetailPage() {
   // Fullscreen state
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fullscreenRef = useRef<HTMLDivElement>(null);
+  const shouldEnterFullscreen = searchParams.get('fs') === '1';
 
   useEffect(() => {
     if (!currentData) return;
@@ -77,6 +79,21 @@ export default function MotorDetailPage() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // Auto-enter fullscreen if URL parameter is set
+  useEffect(() => {
+    if (shouldEnterFullscreen && fullscreenRef.current && !document.fullscreenElement) {
+      const enterFullscreen = async () => {
+        try {
+          await fullscreenRef.current?.requestFullscreen();
+        } catch (err) {
+          console.error('Error auto-entering fullscreen:', err);
+        }
+      };
+      // Small delay to ensure DOM is ready
+      setTimeout(enterFullscreen, 100);
+    }
+  }, [shouldEnterFullscreen, motorId]);
+
   // Fullscreen handlers
   const handleFullscreen = useCallback(async () => {
     pauseTemporarily(TRANSITION_PAUSE_MS);
@@ -102,15 +119,21 @@ export default function MotorDetailPage() {
     }
   }, [pauseTemporarily]);
 
-  // Motor navigation handlers
+  // Motor navigation handlers - maintain fullscreen during navigation using URL params
   const handlePreviousMotor = useCallback(() => {
     const prevMotor = motorId === 1 ? 4 : motorId - 1;
-    router.push(`/motor/${prevMotor}`);
+    const wasFullscreen = !!document.fullscreenElement;
+
+    // Add fs=1 parameter if we're in fullscreen to maintain state
+    router.push(`/motor/${prevMotor}${wasFullscreen ? '?fs=1' : ''}`);
   }, [motorId, router]);
 
   const handleNextMotor = useCallback(() => {
     const nextMotor = motorId === 4 ? 1 : motorId + 1;
-    router.push(`/motor/${nextMotor}`);
+    const wasFullscreen = !!document.fullscreenElement;
+
+    // Add fs=1 parameter if we're in fullscreen to maintain state
+    router.push(`/motor/${nextMotor}${wasFullscreen ? '?fs=1' : ''}`);
   }, [motorId, router]);
 
   // Validate motor ID
