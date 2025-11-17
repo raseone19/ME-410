@@ -1,7 +1,7 @@
 /**
- * MODE B Motor Card Component
+ * Motor Card Component
  * Displays individual motor with its dedicated sector
- * Matches Mode A styling with sector-specific information
+ * Shows sector-specific information (angle range, distance, pressure, duty cycle)
  */
 
 'use client';
@@ -254,7 +254,7 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
           </div>
         </div>
 
-        {/* Additional Mode B specific metrics */}
+        {/* Additional sector-specific metrics */}
         <div className="grid grid-cols-2 gap-4">
           {/* TOF Distance */}
           <div className="flex items-center justify-between rounded-lg border p-3">

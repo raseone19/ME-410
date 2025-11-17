@@ -20,13 +20,12 @@ export interface MotorData {
   duty2_pct: number;
   duty3_pct: number;
   duty4_pct: number;
-  tof1_cm: number;  // Motor 1 sector distance (0°-30° in MODE_B)
-  tof2_cm: number;  // Motor 2 sector distance (31°-60° in MODE_B)
-  tof3_cm: number;  // Motor 3 sector distance (61°-90° in MODE_B)
-  tof4_cm: number;  // Motor 4 sector distance (91°-120° in MODE_B)
+  tof1_cm: number;  // Motor 1 sector distance (0°-30°)
+  tof2_cm: number;  // Motor 2 sector distance (31°-60°)
+  tof3_cm: number;  // Motor 3 sector distance (61°-90°)
+  tof4_cm: number;  // Motor 4 sector distance (91°-120°)
   servo_angle: number;  // Current servo position in degrees (0-120°)
   tof_current_cm: number;  // TOF distance at current servo angle (real-time)
-  current_mode: 'A' | 'B';  // Current operation mode from ESP32
 }
 
 /**

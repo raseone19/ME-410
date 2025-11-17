@@ -21,6 +21,19 @@ import {
 } from '@/components/ui/chart';
 import { Progress } from '@/components/ui/progress';
 import type { MotorData } from '@/lib/types';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { Separator } from '@/components/ui/separator';
+import {
+  SidebarInset,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
 
 export default function MotorDetailPage() {
   const params = useParams();
@@ -97,17 +110,35 @@ export default function MotorDetailPage() {
   } satisfies ChartConfig;
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="mx-auto max-w-7xl space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" onClick={() => router.push('/')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-                Motor {motorId} Analysis
+    <SidebarInset>
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b">
+        <div className="flex items-center gap-2 px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem className="hidden md:block">
+                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator className="hidden md:block" />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Motor {motorId}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+      </header>
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        <div className="space-y-6 mx-auto w-full max-w-7xl">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="outline" size="icon" onClick={() => router.push('/')}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+                  Motor {motorId} Analysis
                 <Badge variant={isOnTarget ? 'default' : 'secondary'}>
                   <Activity className="mr-1 h-3 w-3" />
                   {isOnTarget ? 'On Target' : 'Adjusting'}
@@ -332,7 +363,8 @@ export default function MotorDetailPage() {
             </CardContent>
           </Card>
         </div>
+        </div>
       </div>
-    </div>
+    </SidebarInset>
   );
 }

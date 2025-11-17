@@ -202,11 +202,6 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
               });
               break;
 
-            case 'mode_changed':
-              console.log(`🔄 ESP32 mode changed to: MODE ${message.mode}`);
-              // Mode change confirmed by ESP32
-              break;
-
             case 'error':
               console.error('❌ Error from server:', message.message);
               break;

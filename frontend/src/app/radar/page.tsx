@@ -11,6 +11,17 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadarChart } from '@/components/radar/RadarChart';
 import { RadarStats } from '@/components/radar/RadarStats';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+} from '@/components/ui/breadcrumb';
+import { Separator } from '@/components/ui/separator';
+import {
+  SidebarInset,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
 
 export default function RadarPage() {
   const {
@@ -54,17 +65,31 @@ export default function RadarPage() {
   }, [togglePause]);
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="mx-auto space-y-6" style={{ maxWidth: '100%' }}>
-        {/* Page Title */}
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold tracking-tight">
-            TOF Radar Visualization
-          </h1>
-          <p className="text-muted-foreground">
-            Real-time object detection across 4 sectors (0°-120° sweep)
-          </p>
+    <SidebarInset>
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b">
+        <div className="flex items-center gap-2 px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbPage>Radar Visualization</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
+      </header>
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        <div className="space-y-6 mx-auto w-full" style={{ maxWidth: '100%' }}>
+          {/* Page Title */}
+          <div className="max-w-7xl mx-auto">
+            <h1 className="text-3xl font-bold tracking-tight">
+              TOF Radar Visualization
+            </h1>
+            <p className="text-muted-foreground">
+              Real-time object detection across 4 sectors (0°-120° sweep)
+            </p>
+          </div>
 
         {/* Header with Controls */}
         <div className="max-w-7xl mx-auto">
@@ -148,7 +173,8 @@ export default function RadarPage() {
           })}
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </SidebarInset>
   );
 }
