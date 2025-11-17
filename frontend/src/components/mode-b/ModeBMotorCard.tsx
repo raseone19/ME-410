@@ -8,11 +8,10 @@
 
 import { memo, useMemo } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
-import { Activity } from 'lucide-react';
+import { Activity, Gauge, Zap, Ruler, Target } from 'lucide-react';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -24,6 +23,12 @@ import {
 } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { MotorData } from '@/lib/types';
 
 interface ModeBMotorCardProps {
@@ -132,37 +137,34 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <div
-              className="h-4 w-4 rounded-full"
+              className="h-3 w-3 rounded-full"
               style={{ backgroundColor: sectorColor }}
             />
-            <CardTitle className="text-lg">Motor {motorNumber}</CardTitle>
-            <Badge variant={isOnTarget ? 'default' : 'secondary'}>
-              <Activity className="mr-1 h-3 w-3" />
+            <CardTitle className="text-base">Motor {motorNumber}</CardTitle>
+            <Badge variant={isOnTarget ? 'default' : 'secondary'} className="text-xs">
+              <Activity className="mr-1 h-2.5 w-2.5" />
               {isOnTarget ? 'On Target' : 'Adjusting'}
             </Badge>
           </div>
-          <div className="text-sm text-muted-foreground">
-            Sector: {sectorMin}° - {sectorMax}°
+          <div className="text-xs text-muted-foreground">
+            {sectorMin}° - {sectorMax}°
           </div>
         </div>
-        <CardDescription>
-          Pressure: {currentPressure}mV / {currentSetpoint}mV
-        </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-3">
         {/* Chart Legend */}
-        <div className="flex items-center justify-end gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-sm border-2 border-dashed border-blue-500"></div>
+        <div className="flex items-center justify-end gap-3 text-xs">
+          <div className="flex items-center gap-1.5">
+            <div className="h-2.5 w-2.5 rounded-sm border-2 border-dashed border-blue-500"></div>
             <span className="text-muted-foreground">Setpoint</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-sm bg-green-500"></div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-2.5 w-2.5 rounded-sm bg-green-500"></div>
             <span className="text-muted-foreground">Actual</span>
           </div>
         </div>
@@ -228,71 +230,126 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
           </ChartContainer>
         </div>
 
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Current Pressure */}
-          <div className="space-y-2 rounded-lg border bg-muted/50 p-3">
-            <div className="text-xs font-medium text-muted-foreground">
-              Current Pressure
-            </div>
-            <div className="text-2xl font-bold">{currentPressure}</div>
-            <div className="text-xs text-muted-foreground">mV</div>
-            <Progress value={pressurePercent} className="h-1.5" />
-          </div>
+        {/* Compact Metrics with Icons and Tooltips */}
+        <TooltipProvider>
+          <div className="grid grid-cols-2 gap-2">
+            {/* Current Pressure */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-2 hover:bg-muted/50 transition-colors cursor-help">
+                  <Gauge className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-sm font-semibold">{currentPressure}</span>
+                      <span className="text-xs text-muted-foreground">mV</span>
+                    </div>
+                    <Progress value={pressurePercent} className="h-1 mt-1" />
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="text-xs">
+                  <div className="font-semibold">Current Pressure</div>
+                  <div>{currentPressure} mV / {currentSetpoint} mV</div>
+                  <div className="text-muted-foreground">{pressurePercent.toFixed(1)}% of max</div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
 
-          {/* PWM Duty Cycle */}
-          <div className="space-y-2 rounded-lg border bg-muted/50 p-3">
-            <div className="text-xs font-medium text-muted-foreground">
-              PWM Duty Cycle
-            </div>
-            <div className="text-2xl font-bold">
-              {currentDuty > 0 ? '+' : ''}
-              {currentDuty.toFixed(1)}
-            </div>
-            <div className="text-xs text-muted-foreground">%</div>
-            <Progress value={dutyPercent} className="h-1.5" />
-          </div>
-        </div>
+            {/* PWM Duty Cycle */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-2 hover:bg-muted/50 transition-colors cursor-help">
+                  <Zap className="h-4 w-4 text-yellow-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-sm font-semibold">
+                        {currentDuty > 0 ? '+' : ''}{currentDuty.toFixed(0)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">%</span>
+                    </div>
+                    <Progress value={dutyPercent} className="h-1 mt-1" />
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="text-xs">
+                  <div className="font-semibold">PWM Duty Cycle</div>
+                  <div>{currentDuty.toFixed(1)}%</div>
+                  <div className="text-muted-foreground">Range: -100% to +100%</div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
 
-        {/* Additional sector-specific metrics */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* TOF Distance */}
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <span className="text-sm font-medium text-muted-foreground">
-              TOF Distance
-            </span>
-            <div className="flex flex-col items-end gap-1">
-              <span className="text-lg font-bold">
-                {currentDistance.toFixed(1)}
-              </span>
-              <span className="text-xs text-muted-foreground">cm</span>
-              <span className={`text-xs font-semibold ${getRangeColor(currentRange)}`}>
-                {currentRange}
-              </span>
-            </div>
-          </div>
+            {/* TOF Distance */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-2 hover:bg-muted/50 transition-colors cursor-help">
+                  <Ruler className="h-4 w-4 text-purple-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-sm font-semibold">{currentDistance.toFixed(0)}</span>
+                      <span className="text-xs text-muted-foreground">cm</span>
+                    </div>
+                    <div className={`text-xs font-medium mt-0.5 ${getRangeColor(currentRange)}`}>
+                      {currentRange}
+                    </div>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="text-xs">
+                  <div className="font-semibold">TOF Distance</div>
+                  <div>{currentDistance.toFixed(1)} cm</div>
+                  <div className={`font-medium ${getRangeColor(currentRange)}`}>{currentRange}</div>
+                  <div className="text-muted-foreground mt-1">
+                    CLOSE: 50-100cm<br/>
+                    MEDIUM: 100-200cm<br/>
+                    FAR: 200-300cm
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
 
-          {/* Tracking Error */}
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <span className="text-sm font-medium text-muted-foreground">
-              Tracking Error
-            </span>
-            <div className="flex items-center gap-2">
-              <span
-                className={`text-lg font-bold ${
-                  error < 50
-                    ? 'text-green-600'
-                    : error < 100
-                    ? 'text-yellow-600'
-                    : 'text-red-600'
-                }`}
-              >
-                {error.toFixed(0)}
-              </span>
-              <span className="text-sm text-muted-foreground">mV</span>
-            </div>
+            {/* Tracking Error */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-2 hover:bg-muted/50 transition-colors cursor-help">
+                  <Target className="h-4 w-4 text-green-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-1">
+                      <span
+                        className={`text-sm font-semibold ${
+                          error < 50
+                            ? 'text-green-600'
+                            : error < 100
+                            ? 'text-yellow-600'
+                            : 'text-red-600'
+                        }`}
+                      >
+                        {error.toFixed(0)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">mV</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {isOnTarget ? 'Good' : 'Adj.'}
+                    </div>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="text-xs">
+                  <div className="font-semibold">Tracking Error</div>
+                  <div>{error.toFixed(0)} mV</div>
+                  <div className="text-muted-foreground">
+                    Target: &lt;50mV<br/>
+                    Status: {isOnTarget ? 'On Target ✓' : 'Adjusting...'}
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
           </div>
-        </div>
+        </TooltipProvider>
       </CardContent>
     </Card>
   );

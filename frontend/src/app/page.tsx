@@ -140,7 +140,7 @@ export default function DashboardPage() {
         </div>
       </header>
       <div className="flex flex-1 flex-col gap-4 p-4">
-        <div className="space-y-6 mx-auto w-full max-w-7xl">
+        <div className="space-y-4 mx-auto w-full max-w-7xl">
           {/* Page Title */}
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
@@ -195,7 +195,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Motor Grid (2x2) */}
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {SECTORS.map((sector) => (
             <ModeBMotorCard
               key={sector.motor}
