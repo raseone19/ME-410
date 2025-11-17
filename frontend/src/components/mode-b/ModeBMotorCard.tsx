@@ -83,26 +83,14 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
   const setpointKey = `sp${motorNumber}_mv` as keyof MotorData;
   const tofKey = `tof${motorNumber}_cm` as keyof MotorData;
 
-  // Throttle chart updates to reduce re-renders (update every 50ms = 20Hz for smooth visuals)
-  const [throttledHistory, setThrottledHistory] = useState(dataHistory);
-  const lastChartUpdateRef = useRef(0);
-
-  useEffect(() => {
-    const now = Date.now();
-    if (now - lastChartUpdateRef.current > 50) { // Update chart every 50ms (20Hz)
-      lastChartUpdateRef.current = now;
-      setThrottledHistory(dataHistory);
-    }
-  }, [dataHistory]);
-
-  // Memoize chart data transformation (using throttled data)
+  // Memoize chart data transformation (updates at WebSocket rate ~50Hz)
   const chartData = useMemo(() => {
-    return throttledHistory.slice(-100).map((data) => ({
+    return dataHistory.slice(-100).map((data) => ({
       time: data.time_ms,
       setpoint: data[setpointKey] as number,
       actual: data[pressureKey] as number,
     }));
-  }, [throttledHistory, pressureKey, setpointKey]);
+  }, [dataHistory, pressureKey, setpointKey]);
 
   // Memoize current values and calculations
   const currentValues = useMemo(() => {
@@ -183,18 +171,19 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
 
         {/* Pressure Chart */}
         <div className="h-[180px] w-full">
-          <ChartContainer config={chartConfig} className="h-full w-full">
-            <LineChart
-              data={chartData}
-              width={500}
-              height={180}
-              margin={{
-                left: 12,
-                right: 12,
-                top: 5,
-                bottom: 5,
-              }}
-            >
+          {chartData.length > 0 ? (
+            <ChartContainer config={chartConfig} className="h-full w-full">
+              <LineChart
+                data={chartData}
+                width={600}
+                height={180}
+                margin={{
+                  left: 12,
+                  right: 12,
+                  top: 5,
+                  bottom: 5,
+                }}
+              >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="time"
@@ -240,6 +229,11 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
               />
             </LineChart>
           </ChartContainer>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              Waiting for data...
+            </div>
+          )}
         </div>
 
         {/* Compact Metrics with Icons and Tooltips */}

@@ -61,6 +61,10 @@ export type WebSocketMessage =
       type: 'reset_complete';
     }
   | {
+      type: 'error';
+      message: string;
+    }
+  | {
       type: 'pong';
     };
 

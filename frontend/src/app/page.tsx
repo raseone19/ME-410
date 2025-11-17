@@ -10,6 +10,7 @@ import { X } from 'lucide-react';
 import { useWebSocketStore, TRANSITION_PAUSE_MS } from '@/lib/websocket-store';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { ModeBMotorCard } from '@/components/mode-b/ModeBMotorCard';
+import { PerformanceMonitor } from '@/components/debug/PerformanceMonitor';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,19 +34,18 @@ const SECTORS = [
 ];
 
 export default function DashboardPage() {
-  const {
-    status,
-    currentData,
-    dataHistory,
-    isRecording,
-    isPaused,
-    connect,
-    disconnect,
-    toggleRecording,
-    togglePause,
-    pauseTemporarily,
-    resetSimulation,
-  } = useWebSocketStore();
+  // Individual selectors (recommended by Zustand for best performance)
+  const status = useWebSocketStore((state) => state.status);
+  const currentData = useWebSocketStore((state) => state.currentData);
+  const dataHistory = useWebSocketStore((state) => state.dataHistory);
+  const isRecording = useWebSocketStore((state) => state.isRecording);
+  const isPaused = useWebSocketStore((state) => state.isPaused);
+  const connect = useWebSocketStore((state) => state.connect);
+  const disconnect = useWebSocketStore((state) => state.disconnect);
+  const toggleRecording = useWebSocketStore((state) => state.toggleRecording);
+  const togglePause = useWebSocketStore((state) => state.togglePause);
+  const pauseTemporarily = useWebSocketStore((state) => state.pauseTemporarily);
+  const resetSimulation = useWebSocketStore((state) => state.resetSimulation);
 
   const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -55,6 +55,19 @@ export default function DashboardPage() {
   useEffect(() => {
     connect();
   }, [connect]);
+
+  // Handle tab visibility - pause when hidden to prevent freezing
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Tab hidden - pause data processing
+        pauseTemporarily(500);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [pauseTemporarily]);
 
   // Handle fullscreen change events
   useEffect(() => {
@@ -331,6 +344,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Performance Monitor (toggle with Ctrl+Shift+P) */}
+      <PerformanceMonitor />
     </SidebarInset>
   );
 }

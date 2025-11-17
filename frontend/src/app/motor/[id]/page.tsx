@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Activity, TrendingUp, TrendingDown } from 'lucide-react';
 import { useWebSocketStore } from '@/lib/websocket-store';
+import { PerformanceMonitor } from '@/components/debug/PerformanceMonitor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -365,6 +366,9 @@ export default function MotorDetailPage() {
         </div>
         </div>
       </div>
+
+      {/* Performance Monitor (toggle with Ctrl+Shift+P) */}
+      <PerformanceMonitor />
     </SidebarInset>
   );
 }

@@ -121,7 +121,6 @@ function parseBinaryPacket(packet: Buffer): MotorData | null {
       tof4_cm: packet.readFloatLE(58),
       servo_angle: packet.readUInt8(62),
       tof_current_cm: packet.readFloatLE(63),
-      current_mode: currentMode === 0 ? 'A' : 'B', // Convert to 'A' or 'B'
     };
   } catch (error) {
     console.error('❌ Error parsing binary packet:', error);
@@ -306,7 +305,6 @@ function parseCSVLine(line: string): MotorData | null {
       tof4_cm: parseFloat(parts[16]),
       servo_angle: parseFloat(parts[17]),
       tof_current_cm: 0,  // Not available in CSV mode
-      current_mode: 'B',  // CSV mode doesn't include mode, default to B
     };
   } catch (error) {
     console.error('❌ Failed to parse numbers from:', line);

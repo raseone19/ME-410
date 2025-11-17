@@ -8,6 +8,7 @@
 import { useEffect, useCallback } from 'react';
 import { useWebSocketStore } from '@/lib/websocket-store';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { PerformanceMonitor } from '@/components/debug/PerformanceMonitor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadarChart } from '@/components/radar/RadarChart';
 import { RadarStats } from '@/components/radar/RadarStats';
@@ -175,6 +176,9 @@ export default function RadarPage() {
         </div>
         </div>
       </div>
+
+      {/* Performance Monitor (toggle with Ctrl+Shift+P) */}
+      <PerformanceMonitor />
     </SidebarInset>
   );
 }
