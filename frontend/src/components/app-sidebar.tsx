@@ -93,6 +93,10 @@ const data = {
           title: 'System Health',
           url: '/diagnostics',
         },
+        {
+          title: 'Sensor Debug',
+          url: '/sensors',
+        },
       ],
     },
   ],
