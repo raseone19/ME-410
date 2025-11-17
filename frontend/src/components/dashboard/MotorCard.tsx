@@ -3,6 +3,7 @@
  * Displays real-time data for a single motor including:
  * - Pressure chart (setpoint vs actual)
  * - Current pressure gauge
+ * - TOF distance with range classification
  * - PWM duty cycle gauge
  */
 
@@ -26,7 +27,7 @@ import {
 } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { MotorData } from '@/lib/types';
+import { MotorData, getDistanceRange } from '@/lib/types';
 
 interface MotorCardProps {
   motorNumber: 1 | 2 | 3 | 4;
@@ -54,6 +55,7 @@ export function MotorCard({
   const pressureKey = `pp${motorNumber}_mv` as keyof MotorData;
   const dutyKey = `duty${motorNumber}_pct` as keyof MotorData;
   const setpointKey = `sp${motorNumber}_mv` as keyof MotorData;
+  const tofKey = `tof${motorNumber}_cm` as keyof MotorData;
 
   // Prepare chart data (last 100 points for performance)
   const chartData = dataHistory.slice(-100).map((data) => ({
@@ -68,6 +70,7 @@ export function MotorCard({
     : 0;
   const currentDuty = currentData ? (currentData[dutyKey] as number) : 0;
   const currentSetpoint = currentData ? (currentData[setpointKey] as number) : 0;
+  const currentDistance = currentData ? (currentData[tofKey] as number) : 0;
 
   // Calculate pressure percentage (0-1200mV range)
   const pressurePercent = Math.min((currentPressure / 1200) * 100, 100);
@@ -78,6 +81,17 @@ export function MotorCard({
   // Determine if pressure is close to setpoint
   const error = Math.abs(currentPressure - currentSetpoint);
   const isOnTarget = error < 50; // Within 50mV
+
+  // Get distance range and color
+  const currentRange = getDistanceRange(currentDistance);
+  const getRangeColor = (range: string) => {
+    switch (range) {
+      case 'FAR': return 'text-blue-500';
+      case 'MEDIUM': return 'text-yellow-500';
+      case 'CLOSE': return 'text-red-500';
+      default: return 'text-gray-500';
+    }
+  };
 
   return (
     <Card>
@@ -176,7 +190,7 @@ export function MotorCard({
         </div>
 
         {/* Metrics Grid */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           {/* Current Pressure */}
           <div className="space-y-2 rounded-lg border bg-muted/50 p-3">
             <div className="text-xs font-medium text-muted-foreground">
@@ -185,6 +199,20 @@ export function MotorCard({
             <div className="text-2xl font-bold">{currentPressure}</div>
             <div className="text-xs text-muted-foreground">mV</div>
             <Progress value={pressurePercent} className="h-1.5" />
+          </div>
+
+          {/* TOF Distance */}
+          <div className="space-y-2 rounded-lg border bg-muted/50 p-3">
+            <div className="text-xs font-medium text-muted-foreground">
+              TOF Distance
+            </div>
+            <div className="text-2xl font-bold">{currentDistance.toFixed(1)}</div>
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-muted-foreground">cm</div>
+              <div className={`text-xs font-semibold ${getRangeColor(currentRange)}`}>
+                {currentRange}
+              </div>
+            </div>
           </div>
 
           {/* PWM Duty Cycle */}
