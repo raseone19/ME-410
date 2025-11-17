@@ -6,6 +6,7 @@
 
 'use client';
 
+import { memo, useMemo } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { Activity } from 'lucide-react';
 import {
@@ -45,7 +46,25 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function ModeBMotorCard({
+// Helper functions outside component to avoid recreating
+const getRange = (distance: number) => {
+  if (distance < 0) return 'UNKNOWN';
+  if (distance >= 200 && distance <= 300) return 'FAR';
+  if (distance >= 100 && distance < 200) return 'MEDIUM';
+  if (distance >= 50 && distance < 100) return 'CLOSE';
+  return 'OUT OF BOUNDS';
+};
+
+const getRangeColor = (range: string) => {
+  switch (range) {
+    case 'FAR': return 'text-blue-500';
+    case 'MEDIUM': return 'text-yellow-500';
+    case 'CLOSE': return 'text-red-500';
+    default: return 'text-gray-500';
+  }
+};
+
+export const ModeBMotorCard = memo(function ModeBMotorCard({
   motorNumber,
   sectorMin,
   sectorMax,
@@ -53,57 +72,63 @@ export function ModeBMotorCard({
   dataHistory,
   currentData,
 }: ModeBMotorCardProps) {
-  // Extract motor-specific data
+  // Extract motor-specific data keys
   const pressureKey = `pp${motorNumber}_mv` as keyof MotorData;
   const dutyKey = `duty${motorNumber}_pct` as keyof MotorData;
   const setpointKey = `sp${motorNumber}_mv` as keyof MotorData;
   const tofKey = `tof${motorNumber}_cm` as keyof MotorData;
 
-  // Prepare chart data (last 100 points for performance)
-  const chartData = dataHistory.slice(-100).map((data) => ({
-    time: data.time_ms,
-    setpoint: data[setpointKey] as number,
-    actual: data[pressureKey] as number,
-  }));
+  // Memoize chart data transformation
+  const chartData = useMemo(() => {
+    return dataHistory.slice(-100).map((data) => ({
+      time: data.time_ms,
+      setpoint: data[setpointKey] as number,
+      actual: data[pressureKey] as number,
+    }));
+  }, [dataHistory, pressureKey, setpointKey]);
 
-  // Current values
-  const currentPressure = currentData
-    ? (currentData[pressureKey] as number)
-    : 0;
-  const currentDuty = currentData ? (currentData[dutyKey] as number) : 0;
-  const currentSetpoint = currentData ? (currentData[setpointKey] as number) : 0;
-  const currentDistance = currentData ? (currentData[tofKey] as number) : 0;
+  // Memoize current values and calculations
+  const currentValues = useMemo(() => {
+    const currentPressure = currentData ? (currentData[pressureKey] as number) : 0;
+    const currentDuty = currentData ? (currentData[dutyKey] as number) : 0;
+    const currentSetpoint = currentData ? (currentData[setpointKey] as number) : 0;
+    const currentDistance = currentData ? (currentData[tofKey] as number) : 0;
 
-  // Calculate pressure percentage (0-1200mV range)
-  const pressurePercent = Math.min((currentPressure / 1200) * 100, 100);
+    // Calculate percentages
+    const pressurePercent = Math.min((currentPressure / 1200) * 100, 100);
+    const dutyPercent = ((currentDuty + 100) / 200) * 100;
 
-  // Calculate duty cycle percentage (convert -100 to +100 range to 0-100 for display)
-  const dutyPercent = ((currentDuty + 100) / 200) * 100;
+    // Calculate error and status
+    const error = Math.abs(currentPressure - currentSetpoint);
+    const isOnTarget = error < 50; // Within 50mV
 
-  // Determine if pressure is close to setpoint
-  const error = Math.abs(currentPressure - currentSetpoint);
-  const isOnTarget = error < 50; // Within 50mV
+    // Get range
+    const currentRange = getRange(currentDistance);
 
-  // Determine range based on distance
-  const getRange = (distance: number) => {
-    if (distance < 0) return 'UNKNOWN';
-    if (distance >= 200 && distance <= 300) return 'FAR';
-    if (distance >= 100 && distance < 200) return 'MEDIUM';
-    if (distance >= 50 && distance < 100) return 'CLOSE';
-    return 'OUT OF BOUNDS';
-  };
+    return {
+      currentPressure,
+      currentDuty,
+      currentSetpoint,
+      currentDistance,
+      pressurePercent,
+      dutyPercent,
+      error,
+      isOnTarget,
+      currentRange,
+    };
+  }, [currentData, pressureKey, dutyKey, setpointKey, tofKey]);
 
-  const currentRange = getRange(currentDistance);
-
-  // Get range color
-  const getRangeColor = (range: string) => {
-    switch (range) {
-      case 'FAR': return 'text-blue-500';
-      case 'MEDIUM': return 'text-yellow-500';
-      case 'CLOSE': return 'text-red-500';
-      default: return 'text-gray-500';
-    }
-  };
+  const {
+    currentPressure,
+    currentDuty,
+    currentSetpoint,
+    currentDistance,
+    pressurePercent,
+    dutyPercent,
+    error,
+    isOnTarget,
+    currentRange,
+  } = currentValues;
 
   return (
     <Card>
@@ -188,6 +213,7 @@ export function ModeBMotorCard({
                 strokeDasharray="5 5"
                 dot={false}
                 name="Setpoint"
+                isAnimationActive={false}
               />
               <Line
                 dataKey="actual"
@@ -196,6 +222,7 @@ export function ModeBMotorCard({
                 strokeWidth={2}
                 dot={false}
                 name="Actual"
+                isAnimationActive={false}
               />
             </LineChart>
           </ChartContainer>
@@ -269,4 +296,4 @@ export function ModeBMotorCard({
       </CardContent>
     </Card>
   );
-}
+});

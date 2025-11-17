@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useWebSocketStore } from '@/lib/websocket-store';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { MotorCard } from '@/components/dashboard/MotorCard';
@@ -35,8 +35,29 @@ export default function DashboardPage() {
   // Get TOF distance (MODE_A uses tof1_cm, all motors see same distance)
   const tofDistance = currentData?.tof1_cm ?? 0;
 
+  // Memoize event handlers to prevent unnecessary re-renders
+  const handleConnect = useCallback(() => {
+    connect();
+  }, [connect]);
+
+  const handleDisconnect = useCallback(() => {
+    disconnect();
+  }, [disconnect]);
+
+  const handleReset = useCallback(() => {
+    resetSimulation();
+  }, [resetSimulation]);
+
+  const handleToggleRecording = useCallback(() => {
+    toggleRecording();
+  }, [toggleRecording]);
+
+  const handleTogglePause = useCallback(() => {
+    togglePause();
+  }, [togglePause]);
+
   // Snapshot handler
-  const handleSnapshot = async () => {
+  const handleSnapshot = useCallback(async () => {
     try {
       setSnapshotStatus('Saving snapshot...');
 
@@ -76,7 +97,7 @@ export default function DashboardPage() {
       setSnapshotStatus('❌ Failed to save snapshot');
       setTimeout(() => setSnapshotStatus(null), 5000);
     }
-  };
+  }, [status, isRecording, isPaused, currentData, dataHistory, tofDistance]);
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -106,11 +127,11 @@ export default function DashboardPage() {
           connectionStatus={status}
           isRecording={isRecording}
           isPaused={isPaused}
-          onToggleRecording={toggleRecording}
-          onTogglePause={togglePause}
-          onConnect={() => connect()}
-          onDisconnect={disconnect}
-          onReset={resetSimulation}
+          onToggleRecording={handleToggleRecording}
+          onTogglePause={handleTogglePause}
+          onConnect={handleConnect}
+          onDisconnect={handleDisconnect}
+          onReset={handleReset}
           onSnapshot={handleSnapshot}
         />
 

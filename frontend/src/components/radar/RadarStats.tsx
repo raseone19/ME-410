@@ -5,6 +5,7 @@
 
 'use client';
 
+import { memo, useMemo } from 'react';
 import { MotorData } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -19,33 +20,54 @@ interface RadarStatsProps {
   };
 }
 
-export function RadarStats({ currentData, motorHistory }: RadarStatsProps) {
-  // Calculate minimum distance across all sectors
-  const distances = currentData
-    ? [
-        currentData.tof1_cm,
-        currentData.tof2_cm,
-        currentData.tof3_cm,
-        currentData.tof4_cm,
-      ]
-    : [0, 0, 0, 0];
+export const RadarStats = memo(function RadarStats({ currentData, motorHistory }: RadarStatsProps) {
+  // Memoize all distance calculations
+  const stats = useMemo(() => {
+    // Calculate minimum distance across all sectors
+    const distances = currentData
+      ? [
+          currentData.tof1_cm,
+          currentData.tof2_cm,
+          currentData.tof3_cm,
+          currentData.tof4_cm,
+        ]
+      : [0, 0, 0, 0];
 
-  const minDistance = Math.min(...distances.filter((d) => d > 0));
-  const maxDistance = Math.max(...distances);
-  const avgDistance =
-    distances.reduce((sum, d) => sum + d, 0) / distances.length;
+    const minDistance = Math.min(...distances.filter((d) => d > 0));
+    const maxDistance = Math.max(...distances);
+    const avgDistance =
+      distances.reduce((sum, d) => sum + d, 0) / distances.length;
 
-  // Count active detections (valid distances)
-  const activeDetections = distances.filter((d) => d > 0 && d <= 300).length;
+    // Count active detections (valid distances)
+    const activeDetections = distances.filter((d) => d > 0 && d <= 300).length;
 
-  // Get closest sector
-  const closestSectorIndex = distances.indexOf(minDistance);
-  const closestSectorRanges = [
-    '0°-30°',
-    '31°-60°',
-    '61°-90°',
-    '91°-120°',
-  ];
+    // Get closest sector
+    const closestSectorIndex = distances.indexOf(minDistance);
+    const closestSectorRanges = [
+      '0°-30°',
+      '31°-60°',
+      '61°-90°',
+      '91°-120°',
+    ];
+
+    return {
+      minDistance,
+      maxDistance,
+      avgDistance,
+      activeDetections,
+      closestSectorIndex,
+      closestSectorRanges,
+    };
+  }, [currentData]);
+
+  const {
+    minDistance,
+    maxDistance,
+    avgDistance,
+    activeDetections,
+    closestSectorIndex,
+    closestSectorRanges,
+  } = stats;
 
   return (
     <>
@@ -151,4 +173,4 @@ export function RadarStats({ currentData, motorHistory }: RadarStatsProps) {
       )}
     </>
   );
-}
+});

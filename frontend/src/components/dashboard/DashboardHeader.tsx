@@ -5,6 +5,7 @@
 
 'use client';
 
+import { memo, useMemo } from 'react';
 import { Wifi, WifiOff, Radio, Circle, Pause, Play, Camera } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +20,7 @@ import {
 } from '@/lib/types';
 
 interface DashboardHeaderProps {
-  tofDistance: number;
+  tofDistance?: number; // Optional - only for single-distance modes
   connectionStatus: ConnectionStatus;
   isRecording: boolean;
   isPaused: boolean;
@@ -31,7 +32,7 @@ interface DashboardHeaderProps {
   onSnapshot?: () => void; // Optional snapshot handler
 }
 
-export function DashboardHeader({
+export const DashboardHeader = memo(function DashboardHeader({
   tofDistance,
   connectionStatus,
   isRecording,
@@ -43,27 +44,39 @@ export function DashboardHeader({
   onReset,
   onSnapshot,
 }: DashboardHeaderProps) {
-  const distanceRange = getDistanceRange(tofDistance);
-  const rangeColor = getDistanceRangeColor(distanceRange);
+  // Memoize distance calculations (only if tofDistance is provided)
+  const { distanceRange, rangeColor } = useMemo(() => {
+    if (tofDistance === undefined) {
+      return { distanceRange: null, rangeColor: null };
+    }
+    const range = getDistanceRange(tofDistance);
+    return {
+      distanceRange: range,
+      rangeColor: getDistanceRangeColor(range),
+    };
+  }, [tofDistance]);
 
   const isConnected = connectionStatus === ConnectionStatus.CONNECTED;
+  const showTofDistance = tofDistance !== undefined;
 
   return (
     <Card>
       <CardContent className="flex items-center justify-between p-6">
-        {/* Left: TOF Distance Display */}
-        <div className="flex items-center gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">TOF Distance</p>
-            <div className="flex items-center gap-2">
-              <span className="text-3xl font-bold">
-                {tofDistance.toFixed(1)}
-              </span>
-              <span className="text-lg text-muted-foreground">cm</span>
-              <Badge variant={rangeColor}>{distanceRange}</Badge>
+        {/* Left: TOF Distance Display (optional) */}
+        {showTofDistance && (
+          <div className="flex items-center gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">TOF Distance</p>
+              <div className="flex items-center gap-2">
+                <span className="text-3xl font-bold">
+                  {tofDistance.toFixed(1)}
+                </span>
+                <span className="text-lg text-muted-foreground">cm</span>
+                <Badge variant={rangeColor!}>{distanceRange}</Badge>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Center: Connection Status */}
         <div className="flex items-center gap-3">
@@ -182,4 +195,4 @@ export function DashboardHeader({
       </CardContent>
     </Card>
   );
-}
+});

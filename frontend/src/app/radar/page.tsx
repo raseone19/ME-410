@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useWebSocketStore } from '@/lib/websocket-store';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +32,27 @@ export default function RadarPage() {
     connect();
   }, [connect]);
 
+  // Memoize event handlers
+  const handleConnect = useCallback(() => {
+    connect();
+  }, [connect]);
+
+  const handleDisconnect = useCallback(() => {
+    disconnect();
+  }, [disconnect]);
+
+  const handleReset = useCallback(() => {
+    resetSimulation();
+  }, [resetSimulation]);
+
+  const handleToggleRecording = useCallback(() => {
+    toggleRecording();
+  }, [toggleRecording]);
+
+  const handleTogglePause = useCallback(() => {
+    togglePause();
+  }, [togglePause]);
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="mx-auto space-y-6" style={{ maxWidth: '100%' }}>
@@ -48,15 +69,14 @@ export default function RadarPage() {
         {/* Header with Controls */}
         <div className="max-w-7xl mx-auto">
           <DashboardHeader
-            tofDistance={currentData?.tof1_cm ?? 0}
             connectionStatus={status}
             isRecording={isRecording}
             isPaused={isPaused}
-            onToggleRecording={toggleRecording}
-            onTogglePause={togglePause}
-            onConnect={() => connect()}
-            onDisconnect={disconnect}
-            onReset={resetSimulation}
+            onToggleRecording={handleToggleRecording}
+            onTogglePause={handleTogglePause}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+            onReset={handleReset}
           />
         </div>
 

@@ -7,7 +7,7 @@
 'use client';
 
 import { MotorData, RadarScanPoint } from '@/lib/types';
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, memo } from 'react';
 
 interface RadarChartProps {
   currentData: MotorData | null;
@@ -30,10 +30,22 @@ const SECTORS = [
 
 const MAX_DISTANCE = 300;
 
-export function RadarChart({ currentData, motorHistory, scanHistory }: RadarChartProps) {
+export const RadarChart = memo(function RadarChart({ currentData, motorHistory, scanHistory }: RadarChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
   const lastFrameRef = useRef(0);
+
+  // Use refs to store data without triggering effect recreation
+  const currentDataRef = useRef(currentData);
+  const motorHistoryRef = useRef(motorHistory);
+  const scanHistoryRef = useRef(scanHistory);
+
+  // Update refs when props change (doesn't trigger useEffect)
+  useEffect(() => {
+    currentDataRef.current = currentData;
+    motorHistoryRef.current = motorHistory;
+    scanHistoryRef.current = scanHistory;
+  }, [currentData, motorHistory, scanHistory]);
 
   // Convert sensor angle to canvas coordinates
   const angleToCanvas = useCallback((sensorAngle: number, distance: number, centerX: number, centerY: number, maxRadius: number) => {
@@ -185,7 +197,8 @@ export function RadarChart({ currentData, motorHistory, scanHistory }: RadarChar
       ctx.restore();
 
       // === HISTORY TRAILS (Angle-based scan points) ===
-      scanHistory.forEach((point, idx) => {
+      const currentScanHistory = scanHistoryRef.current;
+      currentScanHistory.forEach((point, idx) => {
         const dist = point.distance;
         const angle = point.angle;
 
@@ -195,7 +208,7 @@ export function RadarChart({ currentData, motorHistory, scanHistory }: RadarChar
         const pos = angleToCanvas(angle, dist, centerX, centerY, maxRadius);
 
         // Fade based on age (older points are more transparent)
-        const alpha = 0.15 + (idx / scanHistory.length) * 0.25;
+        const alpha = 0.15 + (idx / currentScanHistory.length) * 0.25;
         ctx.fillStyle = `rgba(0, 255, 0, ${alpha})`;
         ctx.beginPath();
         ctx.arc(pos.x, pos.y, 2.5, 0, Math.PI * 2);
@@ -203,9 +216,10 @@ export function RadarChart({ currentData, motorHistory, scanHistory }: RadarChar
       });
 
       // === CURRENT DETECTION (Show live servo position and distance) ===
-      if (currentData && currentData.servo_angle >= 0 && currentData.servo_angle <= 120) {
-        const angle = currentData.servo_angle;
-        const dist = currentData.tof_current_cm;  // Use live TOF reading at current servo angle
+      const currentDataNow = currentDataRef.current;
+      if (currentDataNow && currentDataNow.servo_angle >= 0 && currentDataNow.servo_angle <= 120) {
+        const angle = currentDataNow.servo_angle;
+        const dist = currentDataNow.tof_current_cm;  // Use live TOF reading at current servo angle
 
         if (dist > 0 && dist <= MAX_DISTANCE) {
           const pos = angleToCanvas(angle, dist, centerX, centerY, maxRadius);
@@ -242,9 +256,9 @@ export function RadarChart({ currentData, motorHistory, scanHistory }: RadarChar
       }
 
       // === SCAN LINE (Synced with actual servo position) ===
-      if (currentData && currentData.servo_angle >= 0 && currentData.servo_angle <= 120) {
+      if (currentDataNow && currentDataNow.servo_angle >= 0 && currentDataNow.servo_angle <= 120) {
         ctx.save();
-        const scanDisplayAngle = 180 - currentData.servo_angle; // Flip for 0° = West
+        const scanDisplayAngle = 180 - currentDataNow.servo_angle; // Flip for 0° = West
         const scanRad = (scanDisplayAngle * Math.PI) / 180;
         const grad = ctx.createLinearGradient(
           centerX,
@@ -292,7 +306,7 @@ export function RadarChart({ currentData, motorHistory, scanHistory }: RadarChar
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [currentData, motorHistory, scanHistory, angleToCanvas]);
+  }, [angleToCanvas]); // Only recreate animation loop on mount, not on data changes
 
   return (
     <div className="flex items-center justify-center w-full bg-black rounded-lg p-2">
@@ -306,4 +320,4 @@ export function RadarChart({ currentData, motorHistory, scanHistory }: RadarChar
       />
     </div>
   );
-}
+});
