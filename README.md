@@ -388,6 +388,7 @@ Live TOF sensor sweep visualization showing detected objects in 4 sectors (0°-1
 - [Hardware Guide](docs/hardware.md) - Complete pin mappings and wiring
 - [Control System](docs/control-system.md) - PI controller theory and tuning
 - [Communication](docs/communication.md) - FreeRTOS and inter-core details
+- [Variables Reference](docs/variables-reference.md) - Complete list of all variables and constants
 - [Frontend README](frontend/README.md) - Web dashboard setup and usage
 
 ## License
