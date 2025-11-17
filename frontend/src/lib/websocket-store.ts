@@ -50,7 +50,7 @@ interface WebSocketStore {
 }
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
-const DEFAULT_MAX_HISTORY = 50; // Keep last 50 data points (1 second at 50Hz, enough for smooth charts)
+const DEFAULT_MAX_HISTORY = 150; // Keep last 150 data points (3 seconds at 50Hz)
 const DEFAULT_MAX_SCAN_HISTORY = 120; // Keep 120 scan points (sufficient for radar visualization)
 const DEBUG_MODE = process.env.NODE_ENV === 'development'; // Only log in development
 

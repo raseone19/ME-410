@@ -83,21 +83,35 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
   const setpointKey = `sp${motorNumber}_mv` as keyof MotorData;
   const tofKey = `tof${motorNumber}_cm` as keyof MotorData;
 
+  // Throttled display values (update every 300ms for readability)
+  const [displayData, setDisplayData] = useState(currentData);
+  const lastDisplayUpdateRef = useRef(0);
+
+  useEffect(() => {
+    if (!currentData) return;
+
+    const now = Date.now();
+    if (now - lastDisplayUpdateRef.current >= 300) {
+      lastDisplayUpdateRef.current = now;
+      setDisplayData(currentData);
+    }
+  }, [currentData]);
+
   // Memoize chart data transformation (updates at WebSocket rate ~50Hz)
   const chartData = useMemo(() => {
-    return dataHistory.slice(-100).map((data) => ({
+    return dataHistory.slice(-150).map((data) => ({
       time: data.time_ms,
       setpoint: data[setpointKey] as number,
       actual: data[pressureKey] as number,
     }));
   }, [dataHistory, pressureKey, setpointKey]);
 
-  // Memoize current values and calculations
+  // Memoize current values and calculations (using throttled data)
   const currentValues = useMemo(() => {
-    const currentPressure = currentData ? (currentData[pressureKey] as number) : 0;
-    const currentDuty = currentData ? (currentData[dutyKey] as number) : 0;
-    const currentSetpoint = currentData ? (currentData[setpointKey] as number) : 0;
-    const currentDistance = currentData ? (currentData[tofKey] as number) : 0;
+    const currentPressure = displayData ? (displayData[pressureKey] as number) : 0;
+    const currentDuty = displayData ? (displayData[dutyKey] as number) : 0;
+    const currentSetpoint = displayData ? (displayData[setpointKey] as number) : 0;
+    const currentDistance = displayData ? (displayData[tofKey] as number) : 0;
 
     // Calculate percentages
     const pressurePercent = Math.min((currentPressure / 1200) * 100, 100);
@@ -121,7 +135,7 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
       isOnTarget,
       currentRange,
     };
-  }, [currentData, pressureKey, dutyKey, setpointKey, tofKey]);
+  }, [displayData, pressureKey, dutyKey, setpointKey, tofKey]);
 
   const {
     currentPressure,
@@ -200,14 +214,7 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
                 domain={[0, 1200]}
                 tickFormatter={(value) => `${value}`}
               />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    labelFormatter={(value) => `Time: ${(value / 1000).toFixed(1)}s`}
-                    formatter={(value, name) => [`${value} mV`, name]}
-                  />
-                }
-              />
+              <ChartTooltip content={<ChartTooltipContent />} />
               <Line
                 dataKey="setpoint"
                 type="monotone"

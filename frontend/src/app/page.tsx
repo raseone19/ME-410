@@ -281,7 +281,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="text-2xl font-bold">{dataHistory.length}</div>
                   <div className="text-xs text-muted-foreground">
-                    / 25 max (0.5s at 50Hz)
+                    / 150 max (3s at 50Hz)
                   </div>
                 </div>
                 <div className="space-y-1">
