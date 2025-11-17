@@ -7,9 +7,10 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Activity, TrendingUp, TrendingDown, Gauge, Zap, Target, Maximize, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Activity, TrendingUp, TrendingDown, Gauge, Zap, Target, Maximize, X, ChevronLeft, ChevronRight, Ruler } from 'lucide-react';
 import { useWebSocketStore, TRANSITION_PAUSE_MS } from '@/lib/websocket-store';
 import { PerformanceMonitor } from '@/components/debug/PerformanceMonitor';
+import { MiniMotorRadar } from '@/components/radar/MiniMotorRadar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,13 +37,31 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 
+// Helper functions for TOF distance range
+const getRange = (distance: number) => {
+  if (distance < 0) return 'UNKNOWN';
+  if (distance >= 200 && distance <= 300) return 'FAR';
+  if (distance >= 100 && distance < 200) return 'MEDIUM';
+  if (distance >= 50 && distance < 100) return 'CLOSE';
+  return 'OUT OF BOUNDS';
+};
+
+const getRangeColor = (range: string) => {
+  switch (range) {
+    case 'FAR': return 'text-blue-500';
+    case 'MEDIUM': return 'text-yellow-500';
+    case 'CLOSE': return 'text-red-500';
+    default: return 'text-gray-500';
+  }
+};
+
 export default function MotorDetailPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const motorId = parseInt(params.id as string);
 
-  const { status, currentData, dataHistory, connect, isPaused, togglePause, pauseTemporarily } =
+  const { status, currentData, dataHistory, scanHistory, connect, isPaused, togglePause, pauseTemporarily } =
     useWebSocketStore();
 
   // Throttled display values (update every 300ms for readability)
@@ -157,13 +176,24 @@ export default function MotorDetailPage() {
   const pressureKey = `pp${motorId}_mv` as keyof MotorData;
   const dutyKey = `duty${motorId}_pct` as keyof MotorData;
   const setpointKey = `sp${motorId}_mv` as keyof MotorData;
+  const tofKey = `tof${motorId}_cm` as keyof MotorData;
+
+  // Sector angles for this motor
+  const sectorAngles = [
+    { min: 0, max: 30 },    // Motor 1
+    { min: 31, max: 60 },   // Motor 2
+    { min: 61, max: 90 },   // Motor 3
+    { min: 91, max: 120 },  // Motor 4
+  ][motorId - 1];
 
   // Current values (using throttled data for display)
   const currentPressure = displayData ? (displayData[pressureKey] as number) : 0;
   const currentDuty = displayData ? (displayData[dutyKey] as number) : 0;
   const currentSetpoint = displayData ? (displayData[setpointKey] as number) : 0;
+  const currentTofDistance = displayData ? (displayData[tofKey] as number) : 0;
   const error = Math.abs(currentPressure - currentSetpoint);
   const isOnTarget = error < 50;
+  const currentRange = getRange(currentTofDistance);
 
   // Prepare chart data (use full dataHistory for charts at 50Hz)
   const fullHistory = dataHistory.map((data) => ({
@@ -262,8 +292,23 @@ export default function MotorDetailPage() {
             </div>
           </div>
 
-          {/* Compact Status Overview - 2x2 Grid */}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {/* Compact Status Overview - 5 Stats */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            {/* TOF Distance */}
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Ruler className="h-4 w-4 text-purple-500" />
+                <p className="text-xs text-muted-foreground">TOF Distance</p>
+              </div>
+              <div className="space-y-1">
+                <div className="text-2xl font-bold">{currentTofDistance.toFixed(0)}</div>
+                <p className="text-xs text-muted-foreground">cm</p>
+                <p className={`text-xs font-medium ${getRangeColor(currentRange)}`}>
+                  {currentRange}
+                </p>
+              </div>
+            </Card>
+
             {/* Current Pressure */}
             <Card className="p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -381,48 +426,22 @@ export default function MotorDetailPage() {
               </CardContent>
             </Card>
 
-            {/* Statistics with Radial Charts */}
+            {/* Mini Radar for this Motor */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Performance</CardTitle>
-                <CardDescription className="text-xs">Session metrics</CardDescription>
+                <CardTitle className="text-base">Motor {motorId} - Sector {sectorAngles.min}°-{sectorAngles.max}°</CardTitle>
+                <CardDescription className="text-xs">
+                  TOF Distance: {currentTofDistance.toFixed(1)} cm
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <div className="text-muted-foreground">Avg Pressure</div>
-                    <div className="text-lg font-bold">{stats.avgPressure.toFixed(0)}</div>
-                    <div className="text-muted-foreground">mV</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">Avg Error</div>
-                    <div className="text-lg font-bold">{stats.avgError.toFixed(0)}</div>
-                    <div className="text-muted-foreground">mV</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">Max Error</div>
-                    <div className="text-lg font-bold">{stats.maxError.toFixed(0)}</div>
-                    <div className="text-muted-foreground">mV</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">Avg Duty</div>
-                    <div className="text-lg font-bold">{stats.avgDuty.toFixed(1)}</div>
-                    <div className="text-muted-foreground">%</div>
-                  </div>
-                </div>
-                <Separator />
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <div className="text-muted-foreground">Pressure Range</div>
-                    <div className="text-sm font-medium">
-                      {stats.minPressure.toFixed(0)} - {stats.maxPressure.toFixed(0)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">Data Points</div>
-                    <div className="text-lg font-bold">{fullHistory.length}</div>
-                  </div>
-                </div>
+              <CardContent className="flex justify-center">
+                <MiniMotorRadar
+                  motorNumber={motorId}
+                  sectorMin={sectorAngles.min}
+                  sectorMax={sectorAngles.max}
+                  currentData={currentData}
+                  scanHistory={scanHistory}
+                />
               </CardContent>
             </Card>
           </div>
@@ -565,7 +584,22 @@ export default function MotorDetailPage() {
           {/* Fullscreen Content - Same layout as main view */}
           <div className="space-y-4">
             {/* Compact Status Overview */}
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+              {/* TOF Distance */}
+              <Card className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Ruler className="h-4 w-4 text-purple-500" />
+                  <p className="text-xs text-muted-foreground">TOF Distance</p>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-2xl font-bold">{currentTofDistance.toFixed(0)}</div>
+                  <p className="text-xs text-muted-foreground">cm</p>
+                  <p className={`text-xs font-medium ${getRangeColor(currentRange)}`}>
+                    {currentRange}
+                  </p>
+                </div>
+              </Card>
+
               {/* Current Pressure */}
               <Card className="p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -683,48 +717,22 @@ export default function MotorDetailPage() {
                 </CardContent>
               </Card>
 
-              {/* Statistics */}
+              {/* Mini Radar for this Motor */}
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Performance</CardTitle>
-                  <CardDescription className="text-xs">Session metrics</CardDescription>
+                  <CardTitle className="text-base">Motor {motorId} - Sector {sectorAngles.min}°-{sectorAngles.max}°</CardTitle>
+                  <CardDescription className="text-xs">
+                    TOF Distance: {currentTofDistance.toFixed(1)} cm
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <div className="text-muted-foreground">Avg Pressure</div>
-                      <div className="text-lg font-bold">{stats.avgPressure.toFixed(0)}</div>
-                      <div className="text-muted-foreground">mV</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">Avg Error</div>
-                      <div className="text-lg font-bold">{stats.avgError.toFixed(0)}</div>
-                      <div className="text-muted-foreground">mV</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">Max Error</div>
-                      <div className="text-lg font-bold">{stats.maxError.toFixed(0)}</div>
-                      <div className="text-muted-foreground">mV</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">Avg Duty</div>
-                      <div className="text-lg font-bold">{stats.avgDuty.toFixed(1)}</div>
-                      <div className="text-muted-foreground">%</div>
-                    </div>
-                  </div>
-                  <Separator />
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <div className="text-muted-foreground">Pressure Range</div>
-                      <div className="text-sm font-medium">
-                        {stats.minPressure.toFixed(0)} - {stats.maxPressure.toFixed(0)}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">Data Points</div>
-                      <div className="text-lg font-bold">{fullHistory.length}</div>
-                    </div>
-                  </div>
+                <CardContent className="flex justify-center">
+                  <MiniMotorRadar
+                    motorNumber={motorId}
+                    sectorMin={sectorAngles.min}
+                    sectorMax={sectorAngles.max}
+                    currentData={currentData}
+                    scanHistory={scanHistory}
+                  />
                 </CardContent>
               </Card>
             </div>
