@@ -1,19 +1,19 @@
 /**
  * Individual Motor Detail Page
- * Deep dive analysis for a single motor
+ * Deep dive analysis for a single motor - Compact & User-Friendly Design
  */
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Activity, TrendingUp, TrendingDown } from 'lucide-react';
-import { useWebSocketStore } from '@/lib/websocket-store';
+import { ArrowLeft, Activity, TrendingUp, TrendingDown, Gauge, Zap, Target, Maximize, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useWebSocketStore, TRANSITION_PAUSE_MS } from '@/lib/websocket-store';
 import { PerformanceMonitor } from '@/components/debug/PerformanceMonitor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CartesianGrid, Line, LineChart, XAxis, YAxis, Area, AreaChart } from 'recharts';
+import { CartesianGrid, Line, LineChart, XAxis, YAxis, Area, AreaChart, RadialBar, RadialBarChart, ReferenceLine } from 'recharts';
 import {
   ChartConfig,
   ChartContainer,
@@ -41,13 +41,77 @@ export default function MotorDetailPage() {
   const router = useRouter();
   const motorId = parseInt(params.id as string);
 
-  const { status, currentData, dataHistory, connect, isPaused, togglePause } =
+  const { status, currentData, dataHistory, connect, isPaused, togglePause, pauseTemporarily } =
     useWebSocketStore();
+
+  // Throttled display values (update every 300ms for readability)
+  const [displayData, setDisplayData] = useState(currentData);
+  const lastDisplayUpdateRef = useRef(0);
+
+  // Fullscreen state
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const fullscreenRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!currentData) return;
+
+    const now = Date.now();
+    if (now - lastDisplayUpdateRef.current >= 300) {
+      lastDisplayUpdateRef.current = now;
+      setDisplayData(currentData);
+    }
+  }, [currentData]);
 
   // Auto-connect on mount
   useEffect(() => {
     connect();
   }, [connect]);
+
+  // Handle fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Fullscreen handlers
+  const handleFullscreen = useCallback(async () => {
+    pauseTemporarily(TRANSITION_PAUSE_MS);
+
+    if (fullscreenRef.current) {
+      try {
+        await fullscreenRef.current.requestFullscreen();
+      } catch (err) {
+        console.error('Error attempting to enable fullscreen:', err);
+      }
+    }
+  }, [pauseTemporarily]);
+
+  const handleExitFullscreen = useCallback(async () => {
+    pauseTemporarily(TRANSITION_PAUSE_MS);
+
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch (err) {
+        console.error('Error attempting to exit fullscreen:', err);
+      }
+    }
+  }, [pauseTemporarily]);
+
+  // Motor navigation handlers
+  const handlePreviousMotor = useCallback(() => {
+    const prevMotor = motorId === 1 ? 4 : motorId - 1;
+    router.push(`/motor/${prevMotor}`);
+  }, [motorId, router]);
+
+  const handleNextMotor = useCallback(() => {
+    const nextMotor = motorId === 4 ? 1 : motorId + 1;
+    router.push(`/motor/${nextMotor}`);
+  }, [motorId, router]);
 
   // Validate motor ID
   if (!motorId || motorId < 1 || motorId > 4) {
@@ -71,14 +135,14 @@ export default function MotorDetailPage() {
   const dutyKey = `duty${motorId}_pct` as keyof MotorData;
   const setpointKey = `sp${motorId}_mv` as keyof MotorData;
 
-  // Current values
-  const currentPressure = currentData ? (currentData[pressureKey] as number) : 0;
-  const currentDuty = currentData ? (currentData[dutyKey] as number) : 0;
-  const currentSetpoint = currentData ? (currentData[setpointKey] as number) : 0;
+  // Current values (using throttled data for display)
+  const currentPressure = displayData ? (displayData[pressureKey] as number) : 0;
+  const currentDuty = displayData ? (displayData[dutyKey] as number) : 0;
+  const currentSetpoint = displayData ? (displayData[setpointKey] as number) : 0;
   const error = Math.abs(currentPressure - currentSetpoint);
   const isOnTarget = error < 50;
 
-  // Prepare chart data
+  // Prepare chart data (use full dataHistory for charts at 50Hz)
   const fullHistory = dataHistory.map((data) => ({
     time: data.time_ms,
     setpoint: data[setpointKey] as number,
@@ -110,6 +174,23 @@ export default function MotorDetailPage() {
     error: { label: 'Error', color: '#ef4444' },
   } satisfies ChartConfig;
 
+  // Radial chart data for stats
+  const pressureRadialData = [
+    {
+      name: 'pressure',
+      value: currentPressure,
+      fill: currentPressure > 800 ? '#10b981' : currentPressure > 400 ? '#f59e0b' : '#ef4444'
+    }
+  ];
+
+  const errorRadialData = [
+    {
+      name: 'error',
+      value: Math.min(error, 200),
+      fill: error < 50 ? '#10b981' : error < 100 ? '#f59e0b' : '#ef4444'
+    }
+  ];
+
   return (
     <SidebarInset>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b">
@@ -130,240 +211,583 @@ export default function MotorDetailPage() {
         </div>
       </header>
       <div className="flex flex-1 flex-col gap-4 p-4">
-        <div className="space-y-6 mx-auto w-full max-w-7xl">
-          {/* Header */}
+        <div className="space-y-4 mx-auto w-full max-w-7xl">
+          {/* Compact Header */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Button variant="outline" size="icon" onClick={() => router.push('/')}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+                <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                   Motor {motorId} Analysis
-                <Badge variant={isOnTarget ? 'default' : 'secondary'}>
-                  <Activity className="mr-1 h-3 w-3" />
-                  {isOnTarget ? 'On Target' : 'Adjusting'}
-                </Badge>
-              </h1>
-              <p className="text-muted-foreground">
-                Detailed performance metrics and visualization
-              </p>
+                  <Badge variant={isOnTarget ? 'default' : 'secondary'} className="text-xs">
+                    <Activity className="mr-1 h-3 w-3" />
+                    {isOnTarget ? 'On Target' : 'Adjusting'}
+                  </Badge>
+                </h1>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant={isPaused ? 'default' : 'outline'} onClick={togglePause} size="sm">
+                {isPaused ? 'Resume' : 'Pause'} Updates
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleFullscreen}>
+                <Maximize className="h-4 w-4 mr-2" />
+                Fullscreen
+              </Button>
             </div>
           </div>
-          <Button variant={isPaused ? 'default' : 'outline'} onClick={togglePause}>
-            {isPaused ? 'Resume' : 'Pause'} Updates
-          </Button>
-        </div>
 
-        {/* Current Status Cards */}
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Current Pressure</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{currentPressure}</div>
-              <p className="text-xs text-muted-foreground">mV</p>
-              <Progress value={(currentPressure / 1200) * 100} className="mt-2 h-2" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Target Setpoint</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{currentSetpoint.toFixed(0)}</div>
-              <p className="text-xs text-muted-foreground">mV</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>PWM Duty Cycle</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">
-                {currentDuty > 0 ? '+' : ''}
-                {currentDuty.toFixed(1)}
+          {/* Compact Status Overview - 2x2 Grid */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {/* Current Pressure */}
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Gauge className="h-4 w-4 text-blue-500" />
+                <p className="text-xs text-muted-foreground">Pressure</p>
               </div>
-              <p className="text-xs text-muted-foreground">%</p>
-              <div className="mt-2 flex items-center gap-1 text-xs">
-                {currentDuty > 0 ? (
-                  <TrendingUp className="h-3 w-3 text-blue-500" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 text-orange-500" />
-                )}
-                <span className="text-muted-foreground">
-                  {currentDuty > 0 ? 'Increasing' : 'Decreasing'}
-                </span>
+              <div className="space-y-1">
+                <div className="text-2xl font-bold">{currentPressure.toFixed(0)}</div>
+                <p className="text-xs text-muted-foreground">mV</p>
+                <Progress value={(currentPressure / 1200) * 100} className="h-1.5" />
               </div>
-            </CardContent>
-          </Card>
+            </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Tracking Error</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div
-                className={`text-3xl font-bold ${
-                  error < 50 ? 'text-green-600' : error < 100 ? 'text-yellow-600' : 'text-red-600'
-                }`}
-              >
-                {error.toFixed(0)}
+            {/* Target Setpoint */}
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="h-4 w-4 text-green-500" />
+                <p className="text-xs text-muted-foreground">Setpoint</p>
               </div>
-              <p className="text-xs text-muted-foreground">mV</p>
-            </CardContent>
-          </Card>
-        </div>
+              <div className="space-y-1">
+                <div className="text-2xl font-bold">{currentSetpoint.toFixed(0)}</div>
+                <p className="text-xs text-muted-foreground">mV target</p>
+              </div>
+            </Card>
 
-        {/* Main Charts */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Pressure vs Setpoint */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Pressure Tracking</CardTitle>
-              <CardDescription>Actual pressure vs target setpoint over time</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ChartContainer config={chartConfig}>
-                  <LineChart data={fullHistory} margin={{ left: 12, right: 12 }}>
+            {/* PWM Duty */}
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Zap className="h-4 w-4 text-orange-500" />
+                <p className="text-xs text-muted-foreground">PWM Duty</p>
+              </div>
+              <div className="space-y-1">
+                <div className="text-2xl font-bold">
+                  {currentDuty > 0 ? '+' : ''}{currentDuty.toFixed(1)}%
+                </div>
+                <div className="flex items-center gap-1 text-xs">
+                  {currentDuty > 0 ? (
+                    <TrendingUp className="h-3 w-3 text-blue-500" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 text-orange-500" />
+                  )}
+                  <span className="text-muted-foreground">
+                    {currentDuty > 0 ? 'Increasing' : 'Decreasing'}
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Tracking Error */}
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="h-4 w-4 text-red-500" />
+                <p className="text-xs text-muted-foreground">Error</p>
+              </div>
+              <div className="space-y-1">
+                <div
+                  className={`text-2xl font-bold ${
+                    error < 50 ? 'text-green-600' : error < 100 ? 'text-yellow-600' : 'text-red-600'
+                  }`}
+                >
+                  {error.toFixed(0)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {error < 50 ? '✓ On target' : 'Adjusting...'}
+                </p>
+              </div>
+            </Card>
+          </div>
+
+          {/* Main Charts - Compact Grid */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {/* Pressure Tracking - Line Chart with Gradient */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Pressure Tracking</CardTitle>
+                <CardDescription className="text-xs">Actual vs target over 3 seconds</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={chartConfig} className="h-[220px] w-full">
+                  <AreaChart data={fullHistory} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="pressureGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis
                       dataKey="time"
                       tickFormatter={(v) => `${(v / 1000).toFixed(0)}s`}
                       tickLine={false}
                       axisLine={false}
+                      tick={{ fontSize: 11 }}
                     />
-                    <YAxis domain={[0, 1200]} tickLine={false} axisLine={false} />
+                    <YAxis domain={[0, 1200]} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                     <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area
+                      dataKey="pressure"
+                      stroke="#10b981"
+                      fill="url(#pressureGradient)"
+                      strokeWidth={2}
+                      type="monotone"
+                      isAnimationActive={false}
+                    />
                     <Line
                       dataKey="setpoint"
                       stroke="#3b82f6"
                       strokeWidth={2}
                       strokeDasharray="5 5"
                       dot={false}
-                      name="Setpoint"
+                      isAnimationActive={false}
                     />
-                    <Line
-                      dataKey="pressure"
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      dot={false}
-                      name="Actual"
-                    />
-                  </LineChart>
+                  </AreaChart>
                 </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* PWM Duty Cycle */}
-          <Card>
-            <CardHeader>
-              <CardTitle>PWM Control Signal</CardTitle>
-              <CardDescription>Motor duty cycle percentage over time</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ChartContainer config={chartConfig}>
-                  <AreaChart data={fullHistory} margin={{ left: 12, right: 12 }}>
+            {/* Statistics with Radial Charts */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Performance</CardTitle>
+                <CardDescription className="text-xs">Session metrics</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <div className="text-muted-foreground">Avg Pressure</div>
+                    <div className="text-lg font-bold">{stats.avgPressure.toFixed(0)}</div>
+                    <div className="text-muted-foreground">mV</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Avg Error</div>
+                    <div className="text-lg font-bold">{stats.avgError.toFixed(0)}</div>
+                    <div className="text-muted-foreground">mV</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Max Error</div>
+                    <div className="text-lg font-bold">{stats.maxError.toFixed(0)}</div>
+                    <div className="text-muted-foreground">mV</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Avg Duty</div>
+                    <div className="text-lg font-bold">{stats.avgDuty.toFixed(1)}</div>
+                    <div className="text-muted-foreground">%</div>
+                  </div>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <div className="text-muted-foreground">Pressure Range</div>
+                    <div className="text-sm font-medium">
+                      {stats.minPressure.toFixed(0)} - {stats.maxPressure.toFixed(0)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Data Points</div>
+                    <div className="text-lg font-bold">{fullHistory.length}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Secondary Charts - Duty & Error */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* PWM Duty Cycle - Gradient Area */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">PWM Control Signal</CardTitle>
+                <CardDescription className="text-xs">Duty cycle over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={chartConfig} className="h-[180px] w-full">
+                  <AreaChart data={fullHistory} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="dutyGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.1} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis
                       dataKey="time"
                       tickFormatter={(v) => `${(v / 1000).toFixed(0)}s`}
                       tickLine={false}
                       axisLine={false}
+                      tick={{ fontSize: 11 }}
                     />
-                    <YAxis domain={[-100, 100]} tickLine={false} axisLine={false} />
+                    <YAxis domain={[-100, 100]} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                     <ChartTooltip content={<ChartTooltipContent />} />
+                    <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
                     <Area
                       dataKey="duty"
                       stroke="#f59e0b"
-                      fill="#f59e0b"
-                      fillOpacity={0.2}
+                      fill="url(#dutyGradient)"
                       strokeWidth={2}
-                      name="PWM Duty"
+                      type="monotone"
+                      isAnimationActive={false}
                     />
                   </AreaChart>
                 </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Tracking Error */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Tracking Error</CardTitle>
-              <CardDescription>Absolute difference from target setpoint</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ChartContainer config={chartConfig}>
-                  <AreaChart data={fullHistory} margin={{ left: 12, right: 12 }}>
+            {/* Tracking Error - Gradient Area with Zones */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Tracking Error</CardTitle>
+                <CardDescription className="text-xs">Deviation from setpoint</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={chartConfig} className="h-[180px] w-full">
+                  <AreaChart data={fullHistory} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="errorGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis
                       dataKey="time"
                       tickFormatter={(v) => `${(v / 1000).toFixed(0)}s`}
                       tickLine={false}
                       axisLine={false}
+                      tick={{ fontSize: 11 }}
                     />
-                    <YAxis domain={[0, 200]} tickLine={false} axisLine={false} />
+                    <YAxis domain={[0, 200]} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                     <ChartTooltip content={<ChartTooltipContent />} />
+                    <ReferenceLine y={50} stroke="#10b981" strokeDasharray="3 3" label={{ value: 'Target', fontSize: 10 }} />
+                    <ReferenceLine y={100} stroke="#f59e0b" strokeDasharray="3 3" />
                     <Area
                       dataKey="error"
                       stroke="#ef4444"
-                      fill="#ef4444"
-                      fillOpacity={0.2}
+                      fill="url(#errorGradient)"
                       strokeWidth={2}
-                      name="Error"
+                      type="monotone"
+                      isAnimationActive={false}
                     />
                   </AreaChart>
                 </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
 
-          {/* Statistics */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Session Statistics</CardTitle>
-              <CardDescription>Performance metrics for current session</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm text-muted-foreground">Avg Pressure</div>
-                  <div className="text-xl font-bold">{stats.avgPressure.toFixed(1)} mV</div>
+      {/* Fullscreen Motor View Container */}
+      <div
+        ref={fullscreenRef}
+        className={`${isFullscreen ? 'fixed inset-0 z-50 bg-background overflow-auto' : 'hidden'}`}
+      >
+        <div className="container mx-auto p-6 h-full">
+          {/* Fullscreen Controls */}
+          <div className="flex justify-between items-center mb-4">
+            {/* Navigation Buttons */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousMotor}
+                className="gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Motor {motorId === 1 ? 4 : motorId - 1}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextMotor}
+                className="gap-2"
+              >
+                Motor {motorId === 4 ? 1 : motorId + 1}
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Center Title */}
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold">Motor {motorId} Analysis</h2>
+              <Badge variant={isOnTarget ? 'default' : 'secondary'} className="text-xs">
+                <Activity className="mr-1 h-3 w-3" />
+                {isOnTarget ? 'On Target' : 'Adjusting'}
+              </Badge>
+            </div>
+
+            {/* Exit Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExitFullscreen}
+              className="gap-2"
+            >
+              <X className="h-4 w-4" />
+              Exit Fullscreen (ESC)
+            </Button>
+          </div>
+
+          {/* Fullscreen Content - Same layout as main view */}
+          <div className="space-y-4">
+            {/* Compact Status Overview */}
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {/* Current Pressure */}
+              <Card className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Gauge className="h-4 w-4 text-blue-500" />
+                  <p className="text-xs text-muted-foreground">Pressure</p>
                 </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Avg Duty</div>
-                  <div className="text-xl font-bold">{stats.avgDuty.toFixed(1)}%</div>
+                <div className="space-y-1">
+                  <div className="text-2xl font-bold">{currentPressure.toFixed(0)}</div>
+                  <p className="text-xs text-muted-foreground">mV</p>
+                  <Progress value={(currentPressure / 1200) * 100} className="h-1.5" />
                 </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Avg Error</div>
-                  <div className="text-xl font-bold">{stats.avgError.toFixed(1)} mV</div>
+              </Card>
+
+              {/* Target Setpoint */}
+              <Card className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="h-4 w-4 text-green-500" />
+                  <p className="text-xs text-muted-foreground">Setpoint</p>
                 </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Max Error</div>
-                  <div className="text-xl font-bold">{stats.maxError.toFixed(1)} mV</div>
+                <div className="space-y-1">
+                  <div className="text-2xl font-bold">{currentSetpoint.toFixed(0)}</div>
+                  <p className="text-xs text-muted-foreground">mV target</p>
                 </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Pressure Range</div>
-                  <div className="text-sm font-medium">
-                    {stats.minPressure.toFixed(0)} - {stats.maxPressure.toFixed(0)} mV
+              </Card>
+
+              {/* PWM Duty */}
+              <Card className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-orange-500" />
+                  <p className="text-xs text-muted-foreground">PWM Duty</p>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-2xl font-bold">
+                    {currentDuty > 0 ? '+' : ''}{currentDuty.toFixed(1)}%
+                  </div>
+                  <div className="flex items-center gap-1 text-xs">
+                    {currentDuty > 0 ? (
+                      <TrendingUp className="h-3 w-3 text-blue-500" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3 text-orange-500" />
+                    )}
+                    <span className="text-muted-foreground">
+                      {currentDuty > 0 ? 'Increasing' : 'Decreasing'}
+                    </span>
                   </div>
                 </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Data Points</div>
-                  <div className="text-xl font-bold">{fullHistory.length}</div>
+              </Card>
+
+              {/* Tracking Error */}
+              <Card className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="h-4 w-4 text-red-500" />
+                  <p className="text-xs text-muted-foreground">Error</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                <div className="space-y-1">
+                  <div
+                    className={`text-2xl font-bold ${
+                      error < 50 ? 'text-green-600' : error < 100 ? 'text-yellow-600' : 'text-red-600'
+                    }`}
+                  >
+                    {error.toFixed(0)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {error < 50 ? '✓ On target' : 'Adjusting...'}
+                  </p>
+                </div>
+              </Card>
+            </div>
+
+            {/* Main Charts */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {/* Pressure Tracking */}
+              <Card className="lg:col-span-2">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Pressure Tracking</CardTitle>
+                  <CardDescription className="text-xs">Actual vs target over 3 seconds</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-[220px] w-full">
+                    <AreaChart data={fullHistory} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
+                      <defs>
+                        <linearGradient id="pressureGradientFS" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="time"
+                        tickFormatter={(v) => `${(v / 1000).toFixed(0)}s`}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 11 }}
+                      />
+                      <YAxis domain={[0, 1200]} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Area
+                        dataKey="pressure"
+                        stroke="#10b981"
+                        fill="url(#pressureGradientFS)"
+                        strokeWidth={2}
+                        type="monotone"
+                        isAnimationActive={false}
+                      />
+                      <Line
+                        dataKey="setpoint"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+
+              {/* Statistics */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Performance</CardTitle>
+                  <CardDescription className="text-xs">Session metrics</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <div className="text-muted-foreground">Avg Pressure</div>
+                      <div className="text-lg font-bold">{stats.avgPressure.toFixed(0)}</div>
+                      <div className="text-muted-foreground">mV</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Avg Error</div>
+                      <div className="text-lg font-bold">{stats.avgError.toFixed(0)}</div>
+                      <div className="text-muted-foreground">mV</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Max Error</div>
+                      <div className="text-lg font-bold">{stats.maxError.toFixed(0)}</div>
+                      <div className="text-muted-foreground">mV</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Avg Duty</div>
+                      <div className="text-lg font-bold">{stats.avgDuty.toFixed(1)}</div>
+                      <div className="text-muted-foreground">%</div>
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <div className="text-muted-foreground">Pressure Range</div>
+                      <div className="text-sm font-medium">
+                        {stats.minPressure.toFixed(0)} - {stats.maxPressure.toFixed(0)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Data Points</div>
+                      <div className="text-lg font-bold">{fullHistory.length}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Secondary Charts */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {/* PWM Duty Cycle */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">PWM Control Signal</CardTitle>
+                  <CardDescription className="text-xs">Duty cycle over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-[180px] w-full">
+                    <AreaChart data={fullHistory} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
+                      <defs>
+                        <linearGradient id="dutyGradientFS" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.1} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="time"
+                        tickFormatter={(v) => `${(v / 1000).toFixed(0)}s`}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 11 }}
+                      />
+                      <YAxis domain={[-100, 100]} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
+                      <Area
+                        dataKey="duty"
+                        stroke="#f59e0b"
+                        fill="url(#dutyGradientFS)"
+                        strokeWidth={2}
+                        type="monotone"
+                        isAnimationActive={false}
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+
+              {/* Tracking Error */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Tracking Error</CardTitle>
+                  <CardDescription className="text-xs">Deviation from setpoint</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-[180px] w-full">
+                    <AreaChart data={fullHistory} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
+                      <defs>
+                        <linearGradient id="errorGradientFS" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="time"
+                        tickFormatter={(v) => `${(v / 1000).toFixed(0)}s`}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 11 }}
+                      />
+                      <YAxis domain={[0, 200]} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <ReferenceLine y={50} stroke="#10b981" strokeDasharray="3 3" label={{ value: 'Target', fontSize: 10 }} />
+                      <ReferenceLine y={100} stroke="#f59e0b" strokeDasharray="3 3" />
+                      <Area
+                        dataKey="error"
+                        stroke="#ef4444"
+                        fill="url(#errorGradientFS)"
+                        strokeWidth={2}
+                        type="monotone"
+                        isAnimationActive={false}
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
 
