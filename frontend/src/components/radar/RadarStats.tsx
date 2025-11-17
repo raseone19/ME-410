@@ -18,9 +18,10 @@ interface RadarStatsProps {
     motor3: MotorData[];
     motor4: MotorData[];
   };
+  sectors: Array<{ min: number | 'ERR'; max: number | 'ERR' }>;
 }
 
-export const RadarStats = memo(function RadarStats({ currentData, motorHistory }: RadarStatsProps) {
+export const RadarStats = memo(function RadarStats({ currentData, motorHistory, sectors }: RadarStatsProps) {
   // Memoize all distance calculations
   const stats = useMemo(() => {
     // Calculate minimum distance across all sectors
@@ -43,12 +44,12 @@ export const RadarStats = memo(function RadarStats({ currentData, motorHistory }
 
     // Get closest sector
     const closestSectorIndex = distances.indexOf(minDistance);
-    const closestSectorRanges = [
-      '0°-30°',
-      '31°-60°',
-      '61°-90°',
-      '91°-120°',
-    ];
+    const closestSectorRanges = sectors.map((sector) => {
+      if (sector.min === 'ERR' || sector.max === 'ERR') {
+        return 'ERR';
+      }
+      return `${sector.min}°-${sector.max}°`;
+    });
 
     return {
       minDistance,
@@ -58,7 +59,7 @@ export const RadarStats = memo(function RadarStats({ currentData, motorHistory }
       closestSectorIndex,
       closestSectorRanges,
     };
-  }, [currentData]);
+  }, [currentData, sectors]);
 
   const {
     minDistance,

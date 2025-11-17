@@ -18,19 +18,12 @@ interface RadarChartProps {
     motor4: MotorData[];
   };
   scanHistory: RadarScanPoint[];
+  sectors: Array<{ min: number | 'ERR'; max: number | 'ERR' }>;
 }
-
-// Sector configuration (sensors cover 0-120° of the 180° display)
-const SECTORS = [
-  { motor: 1, minAngle: 0, maxAngle: 30, label: 'M1', color: '#00ff00' },
-  { motor: 2, minAngle: 31, maxAngle: 60, label: 'M2', color: '#00ff00' },
-  { motor: 3, minAngle: 61, maxAngle: 90, label: 'M3', color: '#00ff00' },
-  { motor: 4, minAngle: 91, maxAngle: 120, label: 'M4', color: '#00ff00' },
-];
 
 const MAX_DISTANCE = 300;
 
-export const RadarChart = memo(function RadarChart({ currentData, motorHistory, scanHistory }: RadarChartProps) {
+export const RadarChart = memo(function RadarChart({ currentData, motorHistory, scanHistory, sectors }: RadarChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
   const lastFrameRef = useRef(0);
@@ -169,7 +162,17 @@ export const RadarChart = memo(function RadarChart({ currentData, motorHistory, 
       }
 
       // Draw sector boundaries (motor divisions) - highlighted lines
-      const sectorBoundaries = [0, 30, 60, 90, 120];
+      // Build boundary angles from sector configuration
+      const sectorBoundaries: number[] = [];
+      sectors.forEach((sector) => {
+        if (typeof sector.min === 'number' && !sectorBoundaries.includes(sector.min)) {
+          sectorBoundaries.push(sector.min);
+        }
+        if (typeof sector.max === 'number' && !sectorBoundaries.includes(sector.max)) {
+          sectorBoundaries.push(sector.max);
+        }
+      });
+
       ctx.strokeStyle = 'rgba(0, 255, 0, 0.4)';
       ctx.lineWidth = 2;
       ctx.setLineDash([5, 3]);
@@ -306,7 +309,7 @@ export const RadarChart = memo(function RadarChart({ currentData, motorHistory, 
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [angleToCanvas]); // Only recreate animation loop on mount, not on data changes
+  }, [angleToCanvas, sectors]); // Recreate when sectors configuration changes
 
   return (
     <div className="flex items-center justify-center w-full bg-black rounded-lg p-2">

@@ -11,8 +11,8 @@ import { useEffect, useRef, memo, useCallback } from 'react';
 
 interface MiniMotorRadarProps {
   motorNumber: number;
-  sectorMin: number;
-  sectorMax: number;
+  sectorMin: number | 'ERR';
+  sectorMax: number | 'ERR';
   currentData: MotorData | null;
   scanHistory: RadarScanPoint[];
 }
@@ -136,44 +136,54 @@ export const MiniMotorRadar = memo(function MiniMotorRadar({
       }
 
       // Sector boundaries for THIS motor - highlighted
-      ctx.strokeStyle = 'rgba(0, 255, 0, 0.6)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 3]);
+      if (typeof sectorMin === 'number' && typeof sectorMax === 'number') {
+        ctx.strokeStyle = 'rgba(0, 255, 0, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 3]);
 
-      for (const angle of [sectorMin, sectorMax]) {
-        const displayAngle = 180 - angle;
-        const rad = (displayAngle * Math.PI) / 180;
+        for (const angle of [sectorMin, sectorMax]) {
+          const displayAngle = 180 - angle;
+          const rad = (displayAngle * Math.PI) / 180;
+          ctx.beginPath();
+          ctx.moveTo(centerX, centerY);
+          ctx.lineTo(
+            centerX + maxRadius * Math.cos(rad),
+            centerY - maxRadius * Math.sin(rad)
+          );
+          ctx.stroke();
+
+          // Angle labels
+          ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+          ctx.font = 'bold 11px monospace';
+          const labelR = maxRadius + 15;
+          const x = centerX + labelR * Math.cos(rad);
+          const y = centerY - labelR * Math.sin(rad);
+          ctx.textAlign = 'center';
+          ctx.fillText(`${angle}°`, x, y + 4);
+        }
+        ctx.setLineDash([]);
+      } else {
+        // Show error state
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+        ctx.font = 'bold 20px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('CONFIG ERR', centerX, centerY - 20);
+      }
+
+      // Sector fill (highlight this motor's area) - only if valid config
+      if (typeof sectorMin === 'number' && typeof sectorMax === 'number') {
+        const minDisplayAngle = 180 - sectorMax;
+        const maxDisplayAngle = 180 - sectorMin;
+        const minRad = (minDisplayAngle * Math.PI) / 180;
+        const maxRad = (maxDisplayAngle * Math.PI) / 180;
+
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.05)';
         ctx.beginPath();
         ctx.moveTo(centerX, centerY);
-        ctx.lineTo(
-          centerX + maxRadius * Math.cos(rad),
-          centerY - maxRadius * Math.sin(rad)
-        );
-        ctx.stroke();
-
-        // Angle labels
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
-        ctx.font = 'bold 11px monospace';
-        const labelR = maxRadius + 15;
-        const x = centerX + labelR * Math.cos(rad);
-        const y = centerY - labelR * Math.sin(rad);
-        ctx.textAlign = 'center';
-        ctx.fillText(`${angle}°`, x, y + 4);
+        ctx.arc(centerX, centerY, maxRadius, minRad, maxRad);
+        ctx.lineTo(centerX, centerY);
+        ctx.fill();
       }
-      ctx.setLineDash([]);
-
-      // Sector fill (highlight this motor's area)
-      const minDisplayAngle = 180 - sectorMax;
-      const maxDisplayAngle = 180 - sectorMin;
-      const minRad = (minDisplayAngle * Math.PI) / 180;
-      const maxRad = (maxDisplayAngle * Math.PI) / 180;
-
-      ctx.fillStyle = 'rgba(0, 255, 0, 0.05)';
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.arc(centerX, centerY, maxRadius, minRad, maxRad);
-      ctx.lineTo(centerX, centerY);
-      ctx.fill();
 
       // Outer arc
       ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
@@ -186,9 +196,9 @@ export const MiniMotorRadar = memo(function MiniMotorRadar({
 
       // === HISTORY TRAILS (Filter to this motor's sector only) ===
       const currentScanHistory = scanHistoryRef.current;
-      const sectorPoints = currentScanHistory.filter(
-        (point) => point.angle >= sectorMin && point.angle <= sectorMax
-      );
+      const sectorPoints = typeof sectorMin === 'number' && typeof sectorMax === 'number'
+        ? currentScanHistory.filter((point) => point.angle >= sectorMin && point.angle <= sectorMax)
+        : [];
 
       sectorPoints.forEach((point, idx) => {
         const dist = point.distance;
@@ -209,6 +219,7 @@ export const MiniMotorRadar = memo(function MiniMotorRadar({
       // === CURRENT DETECTION (Show when servo is in this motor's sector) ===
       const currentDataNow = currentDataRef.current;
       if (currentDataNow &&
+          typeof sectorMin === 'number' && typeof sectorMax === 'number' &&
           currentDataNow.servo_angle >= sectorMin &&
           currentDataNow.servo_angle <= sectorMax) {
         const angle = currentDataNow.servo_angle;
@@ -251,6 +262,7 @@ export const MiniMotorRadar = memo(function MiniMotorRadar({
 
       // === SCAN LINE (Show when servo is sweeping through this sector) ===
       if (currentDataNow &&
+          typeof sectorMin === 'number' && typeof sectorMax === 'number' &&
           currentDataNow.servo_angle >= sectorMin &&
           currentDataNow.servo_angle <= sectorMax) {
         ctx.save();

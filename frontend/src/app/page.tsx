@@ -25,12 +25,12 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 
-// Sector definitions (must match ESP32 src/config/pins.h)
-const SECTORS = [
-  { motor: 1, minAngle: 0, maxAngle: 30, color: 'rgb(59, 130, 246)' },  // blue
-  { motor: 2, minAngle: 31, maxAngle: 60, color: 'rgb(34, 197, 94)' },  // green
-  { motor: 3, minAngle: 61, maxAngle: 90, color: 'rgb(251, 146, 60)' }, // orange
-  { motor: 4, minAngle: 91, maxAngle: 120, color: 'rgb(168, 85, 247)' }, // purple
+// UI colors for sectors (hardcoded for visual consistency)
+const SECTOR_COLORS = [
+  'rgb(59, 130, 246)',   // blue
+  'rgb(34, 197, 94)',    // green
+  'rgb(251, 146, 60)',   // orange
+  'rgb(168, 85, 247)',   // purple
 ];
 
 export default function DashboardPage() {
@@ -48,6 +48,69 @@ export default function DashboardPage() {
   const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fullscreenRef = useRef<HTMLDivElement>(null);
+
+  // Load sector configuration from ESP32 source (NO FALLBACKS - show ERR if missing)
+  const [espConfig, setEspConfig] = useState<any>(null);
+  const [sectors, setSectors] = useState<Array<{ motor: number; minAngle: number | 'ERR'; maxAngle: number | 'ERR'; color: string }>>([
+    { motor: 1, minAngle: 'ERR', maxAngle: 'ERR', color: SECTOR_COLORS[0] },
+    { motor: 2, minAngle: 'ERR', maxAngle: 'ERR', color: SECTOR_COLORS[1] },
+    { motor: 3, minAngle: 'ERR', maxAngle: 'ERR', color: SECTOR_COLORS[2] },
+    { motor: 4, minAngle: 'ERR', maxAngle: 'ERR', color: SECTOR_COLORS[3] },
+  ]);
+
+  // Fetch ESP32 configuration for sector angles
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch('/api/config');
+        const data = await response.json();
+
+        if (data.success && data.config) {
+          setEspConfig(data.config);
+
+          // Validate and load sectors - NO FALLBACKS, log missing values
+          const loadedSectors = [1, 2, 3, 4].map((motorNum) => {
+            const motorKey = `motor${motorNum}` as const;
+            const sectorData = data.config.sectors?.[motorKey];
+
+            let minAngle: number | 'ERR' = 'ERR';
+            let maxAngle: number | 'ERR' = 'ERR';
+
+            if (!sectorData) {
+              console.error(`[Config Error] Missing sectors.${motorKey} in ESP32 configuration`);
+            } else {
+              if (!sectorData.min) {
+                console.error(`[Config Error] Missing SECTOR_MOTOR_${motorNum}_MIN in src/config/pins.h`);
+              } else {
+                minAngle = parseInt(sectorData.min);
+              }
+
+              if (!sectorData.max) {
+                console.error(`[Config Error] Missing SECTOR_MOTOR_${motorNum}_MAX in src/config/pins.h`);
+              } else {
+                maxAngle = parseInt(sectorData.max);
+              }
+            }
+
+            return {
+              motor: motorNum,
+              minAngle,
+              maxAngle,
+              color: SECTOR_COLORS[motorNum - 1],
+            };
+          });
+
+          setSectors(loadedSectors);
+        } else {
+          console.error('[Config Error] Failed to load configuration from /api/config');
+        }
+      } catch (error) {
+        console.error('[Config Error] Error fetching config:', error);
+      }
+    };
+
+    fetchConfig();
+  }, []);
 
   // Auto-connect on mount
   useEffect(() => {
@@ -132,7 +195,7 @@ export default function DashboardPage() {
         isPaused,
         currentData,
         dataHistory,
-        sectors: SECTORS.map((sector) => ({
+        sectors: sectors.map((sector) => ({
           motor: sector.motor,
           sectorRange: `${sector.minAngle}°-${sector.maxAngle}°`,
           distance: currentData?.[`tof${sector.motor}_cm` as keyof typeof currentData] ?? 0,
@@ -224,25 +287,32 @@ export default function DashboardPage() {
           <CardContent className="p-6">
             <h2 className="mb-4 text-lg font-semibold">Servo Sectors (0° - 120°)</h2>
             <div className="flex h-8 overflow-hidden rounded-lg">
-              {SECTORS.map((sector) => (
-                <div
-                  key={sector.motor}
-                  className="flex items-center justify-center text-xs font-medium text-white"
-                  style={{
-                    backgroundColor: sector.color,
-                    width: `${((sector.maxAngle - sector.minAngle + 1) / 121) * 100}%`,
-                  }}
-                >
-                  M{sector.motor}: {sector.minAngle}°-{sector.maxAngle}°
-                </div>
-              ))}
+              {sectors.map((sector) => {
+                const hasError = sector.minAngle === 'ERR' || sector.maxAngle === 'ERR';
+                const width = hasError
+                  ? '25%' // Equal width for ERR sectors
+                  : `${((sector.maxAngle as number - (sector.minAngle as number) + 1) / 121) * 100}%`;
+
+                return (
+                  <div
+                    key={sector.motor}
+                    className="flex items-center justify-center text-xs font-medium text-white"
+                    style={{
+                      backgroundColor: hasError ? '#dc2626' : sector.color, // Red for errors
+                      width,
+                    }}
+                  >
+                    M{sector.motor}: {sector.minAngle}°-{sector.maxAngle}°
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
 
         {/* Motor Grid (2x2) */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {SECTORS.map((sector) => (
+          {sectors.map((sector) => (
             <ModeBMotorCard
               key={sector.motor}
               motorNumber={sector.motor}
@@ -305,23 +375,24 @@ export default function DashboardPage() {
         ref={fullscreenRef}
         className={`${isFullscreen ? 'fixed inset-0 z-50 bg-background overflow-auto' : 'hidden'}`}
       >
-        <div className="container mx-auto p-6 h-full">
+        <div className="container mx-auto p-3 sm:p-6 h-full">
           {/* Exit Button */}
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-end mb-3 sm:mb-4">
             <Button
               variant="outline"
               size="sm"
               onClick={handleExitFullscreen}
-              className="gap-2"
+              className="gap-1 sm:gap-2"
             >
               <X className="h-4 w-4" />
-              Exit Fullscreen (ESC)
+              <span className="hidden sm:inline">Exit Fullscreen (ESC)</span>
+              <span className="sm:hidden">Exit</span>
             </Button>
           </div>
 
           {/* Motor Cards Grid */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 h-[calc(100%-60px)]">
-            {SECTORS.map((sector) => (
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 h-[calc(100%-50px)] sm:h-[calc(100%-60px)]">
+            {sectors.map((sector) => (
               <ModeBMotorCard
                 key={sector.motor}
                 motorNumber={sector.motor}

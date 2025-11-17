@@ -53,16 +53,6 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 
-// Hardware configuration (should match ESP32 config)
-const PRESSURE_PAD_CHANNELS = [1, 2, 3, 6]; // Multiplexer channels C1, C2, C3, C6
-const PRESSURE_PAD_MIN = 0;     // mV - no pressure
-const PRESSURE_PAD_MAX = 1200;  // mV - maximum expected pressure
-const PRESSURE_PAD_NOMINAL = 600; // mV - typical operating pressure
-const TOF_MIN_DISTANCE = 0;     // cm
-const TOF_MAX_DISTANCE = 300;   // cm
-const SERVO_MIN_ANGLE = 0;      // degrees
-const SERVO_MAX_ANGLE = 120;    // degrees
-
 export default function SensorsPage() {
   const {
     status,
@@ -126,6 +116,65 @@ export default function SensorsPage() {
   const handleTogglePause = useCallback(() => {
     togglePause();
   }, [togglePause]);
+
+  // Extract configuration values (NO FALLBACKS - show ERR if missing)
+  const pressurePadMax = 1200; // UI constant
+
+  // Validate and extract configuration values
+  let pressurePadChannels: number[] | 'ERR' = 'ERR';
+  if (!espConfig?.pressurePads?.channels) {
+    console.error('[Config Error] Missing PP_CHANNELS in src/config/pins.h');
+  } else {
+    pressurePadChannels = espConfig.pressurePads.channels;
+  }
+
+  let tofMaxDistance: number | 'ERR' = 'ERR';
+  if (!espConfig?.tofConstants?.distanceFarMax) {
+    console.error('[Config Error] Missing DISTANCE_FAR_MAX in src/sensors/tof_sensor.h');
+  } else {
+    tofMaxDistance = parseFloat(espConfig.tofConstants.distanceFarMax.replace('f', ''));
+  }
+
+  let servoMinAngle: number | 'ERR' = 'ERR';
+  if (!espConfig?.tof?.servoMinAngle) {
+    console.error('[Config Error] Missing SERVO_MIN_ANGLE in src/config/pins.h');
+  } else {
+    servoMinAngle = parseInt(espConfig.tof.servoMinAngle);
+  }
+
+  let servoMaxAngle: number | 'ERR' = 'ERR';
+  if (!espConfig?.tof?.servoMaxAngle) {
+    console.error('[Config Error] Missing SERVO_MAX_ANGLE in src/config/pins.h');
+  } else {
+    servoMaxAngle = parseInt(espConfig.tof.servoMaxAngle);
+  }
+
+  // Load sector angles from configuration (NO FALLBACKS)
+  const sectorAngles = [1, 2, 3, 4].map((motorNum) => {
+    const motorKey = `motor${motorNum}` as const;
+    const sectorData = espConfig?.sectors?.[motorKey];
+
+    let minAngle: number | 'ERR' = 'ERR';
+    let maxAngle: number | 'ERR' = 'ERR';
+
+    if (!sectorData) {
+      console.error(`[Config Error] Missing sectors.${motorKey} in ESP32 configuration`);
+    } else {
+      if (!sectorData.min) {
+        console.error(`[Config Error] Missing SECTOR_MOTOR_${motorNum}_MIN in src/config/pins.h`);
+      } else {
+        minAngle = parseInt(sectorData.min);
+      }
+
+      if (!sectorData.max) {
+        console.error(`[Config Error] Missing SECTOR_MOTOR_${motorNum}_MAX in src/config/pins.h`);
+      } else {
+        maxAngle = parseInt(sectorData.max);
+      }
+    }
+
+    return { sector: motorNum, motor: motorNum, minAngle, maxAngle };
+  });
 
   // Calculate sensor statistics (noise analysis)
   const calculateSensorStats = useMemo(() => {
@@ -207,7 +256,7 @@ export default function SensorsPage() {
     const stats = calculateSensorStats[`pp${padNumber}` as keyof typeof calculateSensorStats];
 
     // Check for sensor issues
-    if (value < 0 || value > PRESSURE_PAD_MAX) {
+    if (value < 0 || value > pressurePadMax) {
       return { status: 'error', message: 'Out of range', icon: XCircle, color: 'text-red-500' };
     }
     if (stats.stdDev > 50) {
@@ -223,7 +272,10 @@ export default function SensorsPage() {
     const value = currentData?.[`tof${sectorNumber}_cm` as keyof MotorData] as number ?? 0;
     const stats = calculateSensorStats[`tof${sectorNumber}` as keyof typeof calculateSensorStats];
 
-    if (value <= 0 || value > TOF_MAX_DISTANCE) {
+    if (tofMaxDistance === 'ERR') {
+      return { status: 'error', message: 'Config Error', icon: AlertTriangle, color: 'text-red-500' };
+    }
+    if (value <= 0 || value > tofMaxDistance) {
       return { status: 'warning', message: 'Out of range or no reading', icon: AlertTriangle, color: 'text-yellow-500' };
     }
     if (stats.stdDev > 10) {
@@ -377,44 +429,44 @@ export default function SensorsPage() {
                     </h4>
                     <div className="space-y-2 text-xs">
                       <div className="bg-card p-3 rounded border">
-                        <div className="font-semibold mb-1">Pressure Pads ({espConfig.pressurePads.numPads}x)</div>
+                        <div className="font-semibold mb-1">Pressure Pads ({espConfig?.pressurePads?.numPads ?? 'ERR'}x)</div>
                         <div className="space-y-0.5 text-muted-foreground">
-                          <div>Channels: C{espConfig.pressurePads.channels.join(', C')}</div>
-                          <div>ADC Samples: {espConfig.pressurePads.samples} per reading</div>
+                          <div>Channels: {pressurePadChannels === 'ERR' ? 'ERR' : `C${pressurePadChannels.join(', C')}`}</div>
+                          <div>ADC Samples: {espConfig?.pressurePads?.samples ?? 'ERR'} per reading</div>
                         </div>
                       </div>
                       <div className="bg-card p-3 rounded border">
                         <div className="font-semibold mb-1">Multiplexer (CD74HC4067)</div>
                         <div className="space-y-0.5 text-muted-foreground">
-                          <div>S0: GPIO {espConfig.multiplexer.s0} | S1: GPIO {espConfig.multiplexer.s1}</div>
-                          <div>S2: GPIO {espConfig.multiplexer.s2} | S3: GPIO {espConfig.multiplexer.s3}</div>
-                          <div>SIG: GPIO {espConfig.multiplexer.sig} (ADC input)</div>
-                          <div>Settling: {espConfig.multiplexer.settleUs}µs</div>
+                          <div>S0: GPIO {espConfig?.multiplexer?.s0 ?? 'ERR'} | S1: GPIO {espConfig?.multiplexer?.s1 ?? 'ERR'}</div>
+                          <div>S2: GPIO {espConfig?.multiplexer?.s2 ?? 'ERR'} | S3: GPIO {espConfig?.multiplexer?.s3 ?? 'ERR'}</div>
+                          <div>SIG: GPIO {espConfig?.multiplexer?.sig ?? 'ERR'} (ADC input)</div>
+                          <div>Settling: {espConfig?.multiplexer?.settleUs ?? 'ERR'}µs</div>
                         </div>
                       </div>
                       <div className="bg-card p-3 rounded border">
                         <div className="font-semibold mb-1">TOF Sensor + Servo</div>
                         <div className="space-y-0.5 text-muted-foreground">
-                          <div>RX: GPIO {espConfig.tof.rxPin} | TX: GPIO {espConfig.tof.txPin}</div>
-                          <div>Baud Rate: {espConfig.tof.baudrate}</div>
-                          <div>Servo: GPIO {espConfig.tof.servoPin}</div>
-                          <div>Sweep: {espConfig.tof.servoMinAngle}°-{espConfig.tof.servoMaxAngle}° in {espConfig.tof.servoStep}° steps</div>
-                          <div>Settling: {espConfig.tof.servoSettleMs}ms per step</div>
+                          <div>RX: GPIO {espConfig?.tof?.rxPin ?? 'ERR'} | TX: GPIO {espConfig?.tof?.txPin ?? 'ERR'}</div>
+                          <div>Baud Rate: {espConfig?.tof?.baudrate ?? 'ERR'}</div>
+                          <div>Servo: GPIO {espConfig?.tof?.servoPin ?? 'ERR'}</div>
+                          <div>Sweep: {servoMinAngle}°-{servoMaxAngle}° in {espConfig?.tof?.servoStep ?? 'ERR'}° steps</div>
+                          <div>Settling: {espConfig?.tof?.servoSettleMs ?? 'ERR'}ms per step</div>
                         </div>
                       </div>
                       <div className="bg-card p-3 rounded border">
                         <div className="font-semibold mb-1">Sector Assignments</div>
                         <div className="space-y-0.5 text-muted-foreground">
-                          <div>Motor 1: {espConfig.sectors.motor1.min}°-{espConfig.sectors.motor1.max}°</div>
-                          <div>Motor 2: {espConfig.sectors.motor2.min}°-{espConfig.sectors.motor2.max}°</div>
-                          <div>Motor 3: {espConfig.sectors.motor3.min}°-{espConfig.sectors.motor3.max}°</div>
-                          <div>Motor 4: {espConfig.sectors.motor4.min}°-{espConfig.sectors.motor4.max}°</div>
+                          <div>Motor 1: {espConfig?.sectors?.motor1?.min ?? 'ERR'}°-{espConfig?.sectors?.motor1?.max ?? 'ERR'}°</div>
+                          <div>Motor 2: {espConfig?.sectors?.motor2?.min ?? 'ERR'}°-{espConfig?.sectors?.motor2?.max ?? 'ERR'}°</div>
+                          <div>Motor 3: {espConfig?.sectors?.motor3?.min ?? 'ERR'}°-{espConfig?.sectors?.motor3?.max ?? 'ERR'}°</div>
+                          <div>Motor 4: {espConfig?.sectors?.motor4?.min ?? 'ERR'}°-{espConfig?.sectors?.motor4?.max ?? 'ERR'}°</div>
                         </div>
                       </div>
                       <div className="bg-muted p-2 rounded text-xs">
-                        <div><strong>Protocol:</strong> {espConfig.system.protocol}</div>
-                        <div><strong>Data Rate:</strong> {espConfig.system.loggingRate} ({espConfig.system.loggingPeriodMs}ms)</div>
-                        <div><strong>Precision:</strong> {espConfig.system.precision}</div>
+                        <div><strong>Protocol:</strong> {espConfig?.system?.protocol ?? 'ERR'}</div>
+                        <div><strong>Data Rate:</strong> {espConfig?.system?.loggingRate ?? 'ERR'} ({espConfig?.system?.loggingPeriodMs ?? 'ERR'}ms)</div>
+                        <div><strong>Precision:</strong> {espConfig?.system?.precision ?? 'ERR'}</div>
                       </div>
                     </div>
                   </div>
@@ -552,7 +604,7 @@ export default function SensorsPage() {
                   const health = getPressurePadHealth(padNum);
                   const HealthIcon = health.icon;
                   const stats = calculateSensorStats[`pp${padNum}` as keyof typeof calculateSensorStats];
-                  const channel = PRESSURE_PAD_CHANNELS[padNum - 1];
+                  const channel = pressurePadChannels === 'ERR' ? 'ERR' : pressurePadChannels[padNum - 1];
 
                   return (
                     <Card key={padNum} className="border-2">
@@ -573,7 +625,7 @@ export default function SensorsPage() {
                             {value.toFixed(0)}
                             <span className="text-base text-muted-foreground ml-1">mV</span>
                           </div>
-                          <Progress value={(value / PRESSURE_PAD_MAX) * 100} className="h-2 mt-2" />
+                          <Progress value={(value / pressurePadMax) * 100} className="h-2 mt-2" />
                         </div>
 
                         <Separator />
@@ -612,9 +664,10 @@ export default function SensorsPage() {
                         <div className="text-xs space-y-1">
                           <div className="font-semibold">Expected Range:</div>
                           <div className="text-muted-foreground">
-                            • No pressure: ~0 mV<br />
-                            • Nominal: ~{PRESSURE_PAD_NOMINAL} mV<br />
-                            • Maximum: ~{PRESSURE_PAD_MAX} mV
+                            0 - {pressurePadMax} mV
+                          </div>
+                          <div className="text-muted-foreground text-[10px] mt-1">
+                            Higher values = more pressure
                           </div>
                         </div>
                       </CardContent>
@@ -639,19 +692,14 @@ export default function SensorsPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { sector: 1, motor: 1, minAngle: 0, maxAngle: 30 },
-                  { sector: 2, motor: 2, minAngle: 31, maxAngle: 60 },
-                  { sector: 3, motor: 3, minAngle: 61, maxAngle: 90 },
-                  { sector: 4, motor: 4, minAngle: 91, maxAngle: 120 },
-                ].map(({ sector, motor, minAngle, maxAngle }) => {
+                {sectorAngles.map(({ sector, motor, minAngle, maxAngle }) => {
                   const value = currentData?.[`tof${sector}_cm` as keyof MotorData] as number ?? 0;
                   const servoAngle = currentData?.servo_angle ?? 0;
                   const currentDistance = currentData?.tof_current_cm ?? 0;
                   const health = getTOFHealth(sector);
                   const HealthIcon = health.icon;
                   const stats = calculateSensorStats[`tof${sector}` as keyof typeof calculateSensorStats];
-                  const isInSector = servoAngle >= minAngle && servoAngle <= maxAngle;
+                  const isInSector = typeof minAngle === 'number' && typeof maxAngle === 'number' && servoAngle >= minAngle && servoAngle <= maxAngle;
 
                   return (
                     <Card key={sector} className={`border-2 ${isInSector ? 'border-blue-400 bg-blue-50/30' : ''}`}>
@@ -673,7 +721,7 @@ export default function SensorsPage() {
                             {value.toFixed(0)}
                             <span className="text-base text-muted-foreground ml-1">cm</span>
                           </div>
-                          <Progress value={(value / TOF_MAX_DISTANCE) * 100} className="h-2 mt-2" />
+                          <Progress value={tofMaxDistance === 'ERR' ? 0 : (value / tofMaxDistance) * 100} className="h-2 mt-2" />
                         </div>
 
                         {/* Current Reading (if in this sector) */}
@@ -736,13 +784,13 @@ export default function SensorsPage() {
                       {currentData?.servo_angle.toFixed(0) ?? 0}°
                     </div>
                     <Progress
-                      value={((currentData?.servo_angle ?? 0) / SERVO_MAX_ANGLE) * 100}
+                      value={servoMaxAngle === 'ERR' ? 0 : ((currentData?.servo_angle ?? 0) / servoMaxAngle) * 100}
                       className="h-1.5 mt-2"
                     />
                   </div>
                   <div>
                     <div className="text-muted-foreground text-xs">Sweep Range</div>
-                    <div className="text-lg font-semibold">{SERVO_MIN_ANGLE}° - {SERVO_MAX_ANGLE}°</div>
+                    <div className="text-lg font-semibold">{servoMinAngle}° - {servoMaxAngle}°</div>
                     <div className="text-xs text-muted-foreground mt-1">2° steps, 80ms settling</div>
                   </div>
                   <div>

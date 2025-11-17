@@ -33,8 +33,8 @@ import { MotorData } from '@/lib/types';
 
 interface ModeBMotorCardProps {
   motorNumber: number;
-  sectorMin: number;
-  sectorMax: number;
+  sectorMin: number | 'ERR';
+  sectorMax: number | 'ERR';
   sectorColor: string;
   dataHistory: MotorData[];
   currentData: MotorData | null;

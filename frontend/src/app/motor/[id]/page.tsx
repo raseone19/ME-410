@@ -64,6 +64,50 @@ export default function MotorDetailPage() {
   const { status, currentData, dataHistory, scanHistory, connect, isPaused, togglePause, pauseTemporarily } =
     useWebSocketStore();
 
+  // Load sector configuration from ESP32 source (NO FALLBACKS)
+  const [sectorAngles, setSectorAngles] = useState<{ min: number | 'ERR'; max: number | 'ERR' }>({ min: 'ERR', max: 'ERR' });
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch('/api/config');
+        const data = await response.json();
+
+        if (data.success && data.config) {
+          const motorKey = `motor${motorId}` as const;
+          const sectorData = data.config.sectors?.[motorKey];
+
+          let min: number | 'ERR' = 'ERR';
+          let max: number | 'ERR' = 'ERR';
+
+          if (!sectorData) {
+            console.error(`[Config Error] Missing sectors.${motorKey} in ESP32 configuration`);
+          } else {
+            if (!sectorData.min) {
+              console.error(`[Config Error] Missing SECTOR_MOTOR_${motorId}_MIN in src/config/pins.h`);
+            } else {
+              min = parseInt(sectorData.min);
+            }
+
+            if (!sectorData.max) {
+              console.error(`[Config Error] Missing SECTOR_MOTOR_${motorId}_MAX in src/config/pins.h`);
+            } else {
+              max = parseInt(sectorData.max);
+            }
+          }
+
+          setSectorAngles({ min, max });
+        } else {
+          console.error('[Config Error] Failed to load configuration from /api/config');
+        }
+      } catch (error) {
+        console.error('[Config Error] Error fetching config:', error);
+      }
+    };
+
+    fetchConfig();
+  }, [motorId]);
+
   // Throttled display values (update every 300ms for readability)
   const [displayData, setDisplayData] = useState(currentData);
   const lastDisplayUpdateRef = useRef(0);
@@ -177,14 +221,6 @@ export default function MotorDetailPage() {
   const dutyKey = `duty${motorId}_pct` as keyof MotorData;
   const setpointKey = `sp${motorId}_mv` as keyof MotorData;
   const tofKey = `tof${motorId}_cm` as keyof MotorData;
-
-  // Sector angles for this motor
-  const sectorAngles = [
-    { min: 0, max: 30 },    // Motor 1
-    { min: 31, max: 60 },   // Motor 2
-    { min: 61, max: 90 },   // Motor 3
-    { min: 91, max: 120 },  // Motor 4
-  ][motorId - 1];
 
   // Current values (using throttled data for display)
   const currentPressure = displayData ? (displayData[pressureKey] as number) : 0;
@@ -536,46 +572,62 @@ export default function MotorDetailPage() {
         ref={fullscreenRef}
         className={`${isFullscreen ? 'fixed inset-0 z-50 bg-background overflow-auto' : 'hidden'}`}
       >
-        <div className="container mx-auto p-6 h-full">
+        <div className="container mx-auto p-3 sm:p-6 h-full">
           {/* Fullscreen Controls */}
-          <div className="flex justify-between items-center mb-4">
-            {/* Navigation Buttons */}
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-3 sm:mb-4">
+            {/* Top Row on Mobile: Navigation + Exit */}
+            <div className="flex justify-between items-center gap-2">
+              {/* Navigation Buttons */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreviousMotor}
+                  className="gap-1 sm:gap-2 flex-shrink-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">Motor {motorId === 1 ? 4 : motorId - 1}</span>
+                  <span className="sm:hidden">M{motorId === 1 ? 4 : motorId - 1}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextMotor}
+                  className="gap-1 sm:gap-2 flex-shrink-0"
+                >
+                  <span className="hidden sm:inline">Motor {motorId === 4 ? 1 : motorId + 1}</span>
+                  <span className="sm:hidden">M{motorId === 4 ? 1 : motorId + 1}</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Exit Button - On mobile, show on same row */}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handlePreviousMotor}
-                className="gap-2"
+                onClick={handleExitFullscreen}
+                className="gap-1 sm:gap-2 flex-shrink-0 sm:hidden"
               >
-                <ChevronLeft className="h-4 w-4" />
-                Motor {motorId === 1 ? 4 : motorId - 1}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextMotor}
-                className="gap-2"
-              >
-                Motor {motorId === 4 ? 1 : motorId + 1}
-                <ChevronRight className="h-4 w-4" />
+                <X className="h-4 w-4" />
+                <span>Exit</span>
               </Button>
             </div>
 
-            {/* Center Title */}
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold">Motor {motorId} Analysis</h2>
+            {/* Center Title - Second row on mobile */}
+            <div className="flex items-center gap-2 justify-center sm:justify-start">
+              <h2 className="text-lg sm:text-xl font-bold">Motor {motorId} Analysis</h2>
               <Badge variant={isOnTarget ? 'default' : 'secondary'} className="text-xs">
                 <Activity className="mr-1 h-3 w-3" />
                 {isOnTarget ? 'On Target' : 'Adjusting'}
               </Badge>
             </div>
 
-            {/* Exit Button */}
+            {/* Exit Button - Desktop only (hidden on mobile) */}
             <Button
               variant="outline"
               size="sm"
               onClick={handleExitFullscreen}
-              className="gap-2"
+              className="gap-2 hidden sm:flex"
             >
               <X className="h-4 w-4" />
               Exit Fullscreen (ESC)
@@ -583,7 +635,7 @@ export default function MotorDetailPage() {
           </div>
 
           {/* Fullscreen Content - Same layout as main view */}
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {/* Compact Status Overview */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
               {/* TOF Distance */}

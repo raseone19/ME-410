@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useWebSocketStore } from '@/lib/websocket-store';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { PerformanceMonitor } from '@/components/debug/PerformanceMonitor';
@@ -36,6 +36,60 @@ export default function RadarPage() {
     togglePause,
     resetSimulation,
   } = useWebSocketStore();
+
+  // Load sector configuration from ESP32 source (NO FALLBACKS)
+  const [sectors, setSectors] = useState<Array<{ min: number | 'ERR'; max: number | 'ERR' }>>([
+    { min: 'ERR', max: 'ERR' },
+    { min: 'ERR', max: 'ERR' },
+    { min: 'ERR', max: 'ERR' },
+    { min: 'ERR', max: 'ERR' },
+  ]);
+
+  // Fetch ESP32 configuration for sector angles
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch('/api/config');
+        const data = await response.json();
+
+        if (data.success && data.config) {
+          const loadedSectors = [1, 2, 3, 4].map((motorNum) => {
+            const motorKey = `motor${motorNum}` as const;
+            const sectorData = data.config.sectors?.[motorKey];
+
+            let min: number | 'ERR' = 'ERR';
+            let max: number | 'ERR' = 'ERR';
+
+            if (!sectorData) {
+              console.error(`[Config Error] Missing sectors.${motorKey} in ESP32 configuration`);
+            } else {
+              if (!sectorData.min) {
+                console.error(`[Config Error] Missing SECTOR_MOTOR_${motorNum}_MIN in src/config/pins.h`);
+              } else {
+                min = parseInt(sectorData.min);
+              }
+
+              if (!sectorData.max) {
+                console.error(`[Config Error] Missing SECTOR_MOTOR_${motorNum}_MAX in src/config/pins.h`);
+              } else {
+                max = parseInt(sectorData.max);
+              }
+            }
+
+            return { min, max };
+          });
+
+          setSectors(loadedSectors);
+        } else {
+          console.error('[Config Error] Failed to load configuration from /api/config');
+        }
+      } catch (error) {
+        console.error('[Config Error] Error fetching config:', error);
+      }
+    };
+
+    fetchConfig();
+  }, []);
 
   // Auto-connect on mount
   useEffect(() => {
@@ -108,6 +162,7 @@ export default function RadarPage() {
               currentData={currentData}
               motorHistory={motorHistory}
               scanHistory={scanHistory}
+              sectors={sectors}
             />
           </CardContent>
         </Card>
@@ -115,7 +170,7 @@ export default function RadarPage() {
         {/* Stats Panel - Full Width Below */}
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <RadarStats currentData={currentData} motorHistory={motorHistory} />
+            <RadarStats currentData={currentData} motorHistory={motorHistory} sectors={sectors} />
           </div>
         </div>
 
@@ -123,13 +178,7 @@ export default function RadarPage() {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((motor) => {
-            const sectorRanges = [
-              { min: 0, max: 30 },
-              { min: 31, max: 60 },
-              { min: 61, max: 90 },
-              { min: 91, max: 120 },
-            ];
-            const sector = sectorRanges[motor - 1];
+            const sector = sectors[motor - 1];
             const distance = currentData?.[`tof${motor}_cm` as keyof typeof currentData] as number ?? 0;
             const pressure = currentData?.[`pp${motor}_mv` as keyof typeof currentData] as number ?? 0;
             const duty = currentData?.[`duty${motor}_pct` as keyof typeof currentData] as number ?? 0;

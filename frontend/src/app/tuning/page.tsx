@@ -48,11 +48,7 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 
-// Default PI gains (should match ESP32 defaults)
-const DEFAULT_KP = 0.15;
-const DEFAULT_KI = 0.01;
-
-// Performance thresholds
+// Performance thresholds (hardcoded UI constants)
 const SETTLING_THRESHOLD = 50; // mV - within this range is considered settled
 const OVERSHOOT_THRESHOLD = 10; // % - acceptable overshoot percentage
 
@@ -68,9 +64,50 @@ export default function TuningPage() {
     resetSimulation,
   } = useWebSocketStore();
 
-  // PI Gains state (in real application, these would be sent to ESP32)
-  const [kp, setKp] = useState(DEFAULT_KP);
-  const [ki, setKi] = useState(DEFAULT_KI);
+  // Configuration state (loaded from ESP32 source)
+  const [espConfig, setEspConfig] = useState<any>(null);
+  const [configLoading, setConfigLoading] = useState(true);
+
+  // PI Gains state (initialized from ESP32 config, not hardcoded)
+  const [kp, setKp] = useState(0.15); // Will be updated from config
+  const [ki, setKi] = useState(0.60); // Will be updated from config
+
+  // Fetch ESP32 configuration
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        setConfigLoading(true);
+        const response = await fetch('/api/config');
+        const data = await response.json();
+
+        if (data.success && data.config) {
+          setEspConfig(data.config);
+          // Set default gains from ESP32 source (NO FALLBACKS)
+          if (!data.config.piController?.kp) {
+            console.error('[Config Error] Missing Kp in src/control/pi_controller.cpp');
+            setKp(NaN); // Set to NaN to show ERR
+          } else {
+            setKp(parseFloat(data.config.piController.kp));
+          }
+
+          if (!data.config.piController?.ki) {
+            console.error('[Config Error] Missing Ki in src/control/pi_controller.cpp');
+            setKi(NaN); // Set to NaN to show ERR
+          } else {
+            setKi(parseFloat(data.config.piController.ki));
+          }
+        } else {
+          console.error('[Config Error] Failed to load configuration from /api/config');
+        }
+      } catch (error) {
+        console.error('[Config Error] Error fetching config:', error);
+      } finally {
+        setConfigLoading(false);
+      }
+    };
+
+    fetchConfig();
+  }, []);
 
   // Auto-connect on mount
   useEffect(() => {
@@ -95,9 +132,21 @@ export default function TuningPage() {
   }, [togglePause]);
 
   const handleResetGains = useCallback(() => {
-    setKp(DEFAULT_KP);
-    setKi(DEFAULT_KI);
-  }, []);
+    // Reset to ESP32 defaults (NO FALLBACKS)
+    if (!espConfig?.piController?.kp) {
+      console.error('[Config Error] Missing Kp in src/control/pi_controller.cpp');
+      setKp(NaN);
+    } else {
+      setKp(parseFloat(espConfig.piController.kp));
+    }
+
+    if (!espConfig?.piController?.ki) {
+      console.error('[Config Error] Missing Ki in src/control/pi_controller.cpp');
+      setKi(NaN);
+    } else {
+      setKi(parseFloat(espConfig.piController.ki));
+    }
+  }, [espConfig]);
 
   // Calculate performance metrics for a motor
   const calculateMotorMetrics = (motorNumber: number) => {
@@ -401,7 +450,7 @@ export default function TuningPage() {
                     </p>
                   </div>
                   <Badge variant="outline" className="text-lg font-mono">
-                    {kp.toFixed(3)}
+                    {isNaN(kp) ? 'ERR' : kp.toFixed(3)}
                   </Badge>
                 </div>
                 <Slider
@@ -433,7 +482,7 @@ export default function TuningPage() {
                     </p>
                   </div>
                   <Badge variant="outline" className="text-lg font-mono">
-                    {ki.toFixed(4)}
+                    {isNaN(ki) ? 'ERR' : ki.toFixed(4)}
                   </Badge>
                 </div>
                 <Slider
@@ -455,8 +504,12 @@ export default function TuningPage() {
 
               {/* Action Buttons */}
               <div className="flex gap-2">
-                <Button onClick={handleResetGains} variant="outline">
-                  Reset to Defaults (Kp={DEFAULT_KP}, Ki={DEFAULT_KI})
+                <Button onClick={handleResetGains} variant="outline" disabled={configLoading}>
+                  {espConfig?.piController ? (
+                    <>Reset to ESP32 Defaults (Kp={espConfig.piController.kp}, Ki={espConfig.piController.ki})</>
+                  ) : (
+                    <>Reset to Defaults</>
+                  )}
                 </Button>
                 <Button variant="secondary" disabled>
                   <Info className="h-4 w-4 mr-2" />
