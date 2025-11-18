@@ -311,7 +311,7 @@ void servoSweepTask(void* parameter) {
             }
 
             // Small delay between readings
-            vTaskDelay(pdMS_TO_TICKS(20));
+            vTaskDelay(pdMS_TO_TICKS(5));
         }
 
         // Position servo at center position (60°) for next sweep
