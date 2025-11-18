@@ -13,10 +13,12 @@ export async function GET() {
     const projectRoot = path.join(process.cwd(), '..');
     const pinsFilePath = path.join(projectRoot, 'src', 'config', 'pins.h');
     const systemConfigPath = path.join(projectRoot, 'src', 'config', 'system_config.h');
+    const tofSensorPath = path.join(projectRoot, 'src', 'sensors', 'tof_sensor.h');
 
     // Read files
     const pinsContent = fs.readFileSync(pinsFilePath, 'utf-8');
     const systemConfigContent = fs.readFileSync(systemConfigPath, 'utf-8');
+    const tofSensorContent = fs.readFileSync(tofSensorPath, 'utf-8');
 
     // Helper function to extract constexpr values
     const extractValue = (content: string, varName: string): string | null => {
@@ -120,6 +122,19 @@ export async function GET() {
       samples: extractValue(pinsContent, 'PP_SAMPLES'),
     };
 
+    // Parse tof_sensor.h for distance ranges and constants
+    const tofConstants = {
+      distanceFarMin: extractValue(tofSensorContent, 'DISTANCE_FAR_MIN'),
+      distanceFarMax: extractValue(tofSensorContent, 'DISTANCE_FAR_MAX'),
+      distanceMediumMin: extractValue(tofSensorContent, 'DISTANCE_MEDIUM_MIN'),
+      distanceMediumMax: extractValue(tofSensorContent, 'DISTANCE_MEDIUM_MAX'),
+      distanceCloseMin: extractValue(tofSensorContent, 'DISTANCE_CLOSE_MIN'),
+      distanceCloseMax: extractValue(tofSensorContent, 'DISTANCE_CLOSE_MAX'),
+      securityOffsetMv: extractValue(tofSensorContent, 'SECURITY_OFFSET_MV'),
+      setpointMediumMv: extractValue(tofSensorContent, 'SETPOINT_MEDIUM_MV'),
+      setpointCloseMv: extractValue(tofSensorContent, 'SETPOINT_CLOSE_MV'),
+    };
+
     // Parse system_config.h
     const protocol = extractDefine(systemConfigContent, ['PROTOCOL_CSV', 'PROTOCOL_BINARY']);
     const loggingRate = extractDefine(systemConfigContent, [
@@ -155,6 +170,7 @@ export async function GET() {
       config: {
         motors: motorPins,
         tof: tofPins,
+        tofConstants,
         sectors,
         multiplexer,
         pressurePads,
@@ -163,6 +179,7 @@ export async function GET() {
       filePaths: {
         pinsFile: pinsFilePath,
         systemConfigFile: systemConfigPath,
+        tofSensorFile: tofSensorPath,
       },
       timestamp: new Date().toISOString(),
     });
