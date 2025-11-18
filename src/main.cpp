@@ -173,7 +173,7 @@ void loop() {
                 far_range_baseline_mv[i] = pressure_pads_mv[i];
                 far_range_baseline_captured[i] = true;
             }
-
+            
             // Step 5: Calculate setpoint for this motor
             if (current_range[i] == RANGE_FAR && far_range_baseline_captured[i]) {
                 // FAR range: Individual setpoint (baseline + offset)
