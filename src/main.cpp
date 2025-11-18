@@ -168,9 +168,18 @@ void loop() {
                 continue;
             }
 
-            // Step 4: Detect range transitions and capture baseline for FAR range
+            // Step 4: Detect range transitions
+            // Capture baseline pressure when entering FAR range from any other range
             if (current_range[i] != previous_range[i] && current_range[i] == RANGE_FAR) {
-                far_range_baseline_mv[i] = pressure_pads_mv[i];
+                if (previous_range[i] == RANGE_MEDIUM) {
+                    // Transition from MEDIUM to FAR: use fixed baseline to achieve 550mV setpoint
+                    // Since setpoint = baseline + SECURITY_OFFSET_MV (50mV)
+                    // We want setpoint = 550mV, so baseline = 500mV
+                    far_range_baseline_mv[i] = 500.0f;
+                } else {
+                    // Coming from other ranges: use current pressure as baseline
+                    far_range_baseline_mv[i] = pressure_pads_mv[i];
+                }
                 far_range_baseline_captured[i] = true;
             }
             
@@ -284,8 +293,9 @@ void loop() {
                 duty_cycles[i] = temp_duties[i];
                 // PI controller already applied motor commands in controlStep
             }
-            else if (current_state[i] == OUT_OF_RANGE_DEFLATING || current_state[i] == OUT_OF_RANGE_RELEASING) {
-                // Override with deflation/release command (both reverse)
+            else if (current_state[i] == OUT_OF_RANGE_DEFLATING ||
+                     current_state[i] == OUT_OF_RANGE_RELEASING) {
+                // Override with deflation/release command (all reverse)
                 motorReverse(i, REVERSE_DUTY_PCT);
             }
             else {

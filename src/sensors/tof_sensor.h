@@ -33,8 +33,8 @@ constexpr float DISTANCE_CLOSE_MAX = 100.0f;    // Close range end (cm)
 // Note: FAR range setpoint is calculated dynamically (baseline + offset)
 // where baseline is captured when entering FAR range to account for friction variations
 constexpr float SECURITY_OFFSET_MV = 50.0f;     // Offset added to baseline in FAR range
-constexpr float SETPOINT_MEDIUM_MV = 780.0f;    // Setpoint for medium range (100-200cm)
-constexpr float SETPOINT_CLOSE_MV = 1100.0f;    // Setpoint for close range (50-100cm)
+constexpr float SETPOINT_MEDIUM_MV = 700.0f;    // Setpoint for medium range (100-200cm)
+constexpr float SETPOINT_CLOSE_MV = 1500.0f;    // Setpoint for close range (50-100cm)
 
 // Out-of-range safety parameters
 constexpr float SAFE_PRESSURE_THRESHOLD_MV = 700.0f;  // Pressure must drop below this before release
