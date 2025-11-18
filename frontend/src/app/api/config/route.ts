@@ -14,11 +14,13 @@ export async function GET() {
     const pinsFilePath = path.join(projectRoot, 'src', 'config', 'pins.h');
     const systemConfigPath = path.join(projectRoot, 'src', 'config', 'system_config.h');
     const tofSensorPath = path.join(projectRoot, 'src', 'sensors', 'tof_sensor.h');
+    const servoConfigPath = path.join(projectRoot, 'src', 'config', 'servo_config.h');
 
     // Read files
     const pinsContent = fs.readFileSync(pinsFilePath, 'utf-8');
     const systemConfigContent = fs.readFileSync(systemConfigPath, 'utf-8');
     const tofSensorContent = fs.readFileSync(tofSensorPath, 'utf-8');
+    const servoConfigContent = fs.readFileSync(servoConfigPath, 'utf-8');
 
     // Helper function to extract constexpr values
     const extractValue = (content: string, varName: string): string | null => {
@@ -82,28 +84,28 @@ export async function GET() {
       txPin: extractValue(pinsContent, 'TOF_TX_PIN'),
       baudrate: extractValue(pinsContent, 'TOF_BAUDRATE'),
       servoPin: extractValue(pinsContent, 'SERVO_PIN'),
-      servoMinAngle: extractValue(pinsContent, 'SERVO_MIN_ANGLE'),
-      servoMaxAngle: extractValue(pinsContent, 'SERVO_MAX_ANGLE'),
-      servoStep: extractValue(pinsContent, 'SERVO_STEP'),
-      servoSettleMs: extractValue(pinsContent, 'SERVO_SETTLE_MS'),
+      servoMinAngle: extractValue(servoConfigContent, 'SERVO_MIN_ANGLE'),
+      servoMaxAngle: extractValue(servoConfigContent, 'SERVO_MAX_ANGLE'),
+      servoStep: extractValue(servoConfigContent, 'SERVO_STEP'),
+      servoSettleMs: extractValue(servoConfigContent, 'SERVO_SETTLE_MS'),
     };
 
     const sectors = {
       motor1: {
-        min: extractValue(pinsContent, 'SECTOR_MOTOR_1_MIN'),
-        max: extractValue(pinsContent, 'SECTOR_MOTOR_1_MAX'),
+        min: extractValue(servoConfigContent, 'SECTOR_MOTOR_1_MIN'),
+        max: extractValue(servoConfigContent, 'SECTOR_MOTOR_1_MAX'),
       },
       motor2: {
-        min: extractValue(pinsContent, 'SECTOR_MOTOR_2_MIN'),
-        max: extractValue(pinsContent, 'SECTOR_MOTOR_2_MAX'),
+        min: extractValue(servoConfigContent, 'SECTOR_MOTOR_2_MIN'),
+        max: extractValue(servoConfigContent, 'SECTOR_MOTOR_2_MAX'),
       },
       motor3: {
-        min: extractValue(pinsContent, 'SECTOR_MOTOR_3_MIN'),
-        max: extractValue(pinsContent, 'SECTOR_MOTOR_3_MAX'),
+        min: extractValue(servoConfigContent, 'SECTOR_MOTOR_3_MIN'),
+        max: extractValue(servoConfigContent, 'SECTOR_MOTOR_3_MAX'),
       },
       motor4: {
-        min: extractValue(pinsContent, 'SECTOR_MOTOR_4_MIN'),
-        max: extractValue(pinsContent, 'SECTOR_MOTOR_4_MAX'),
+        min: extractValue(servoConfigContent, 'SECTOR_MOTOR_4_MIN'),
+        max: extractValue(servoConfigContent, 'SECTOR_MOTOR_4_MAX'),
       },
     };
 
@@ -180,6 +182,7 @@ export async function GET() {
         pinsFile: pinsFilePath,
         systemConfigFile: systemConfigPath,
         tofSensorFile: tofSensorPath,
+        servoConfigFile: servoConfigPath,
       },
       timestamp: new Date().toISOString(),
     });

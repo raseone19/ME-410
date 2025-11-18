@@ -19,6 +19,7 @@ import {
   getSimulatorStatus,
   getConfig,
 } from './enhanced-simulator';
+import { loadBackendConfigFromFile } from './simulator-config';
 import type { MotorData } from '../src/lib/types';
 import type { ScenarioType } from './simulator-config';
 
@@ -252,7 +253,11 @@ process.on('SIGINT', () => {
 /**
  * Server startup
  */
-wss.on('listening', () => {
+wss.on('listening', async () => {
+  // Load backend configuration from ESP32 source files
+  console.log('📂 Loading ESP32 configuration from source files...');
+  await loadBackendConfigFromFile();
+
   const config = getConfig();
 
   console.log('┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓');

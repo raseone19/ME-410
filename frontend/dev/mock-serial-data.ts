@@ -18,15 +18,13 @@ export interface MotorData {
   tof_dist_cm: number;
 }
 
+// Import backend config loader
+import { getSetpointValues } from './simulator-config';
+
 // Distance range thresholds (matching ESP32 logic)
 const DISTANCE_CLOSE_MAX = 50; // cm
 const DISTANCE_MEDIUM_MAX = 150; // cm
 const DISTANCE_FAR_MAX = 300; // cm
-
-// Setpoint values for different distance ranges
-const SETPOINT_CLOSE = 900; // mV
-const SETPOINT_MEDIUM = 850; // mV
-const SETPOINT_FAR = 800; // mV
 
 // Simulation state
 let currentTime = 0;
@@ -38,14 +36,17 @@ let dutyTargets = [0, 0, 0, 0]; // Target duty cycles
 
 /**
  * Get setpoint based on TOF distance (matching ESP32 logic)
+ * Uses values from backend configuration
  */
 function getSetpointForDistance(distance: number): number {
+  const setpoints = getSetpointValues();
+
   if (distance <= DISTANCE_CLOSE_MAX) {
-    return SETPOINT_CLOSE;
+    return setpoints.SETPOINT_CLOSE;
   } else if (distance <= DISTANCE_MEDIUM_MAX) {
-    return SETPOINT_MEDIUM;
+    return setpoints.SETPOINT_MEDIUM;
   } else {
-    return SETPOINT_FAR;
+    return setpoints.SETPOINT_FAR;
   }
 }
 

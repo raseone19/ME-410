@@ -45,6 +45,10 @@ export default function RadarPage() {
     { min: 'ERR', max: 'ERR' },
   ]);
 
+  // Load servo angle range from ESP32 source
+  const [servoMinAngle, setServoMinAngle] = useState<number>(0);
+  const [servoMaxAngle, setServoMaxAngle] = useState<number>(180);
+
   // Fetch ESP32 configuration for sector angles
   useEffect(() => {
     const fetchConfig = async () => {
@@ -53,6 +57,7 @@ export default function RadarPage() {
         const data = await response.json();
 
         if (data.success && data.config) {
+          // Load sector angles
           const loadedSectors = [1, 2, 3, 4].map((motorNum) => {
             const motorKey = `motor${motorNum}` as const;
             const sectorData = data.config.sectors?.[motorKey];
@@ -64,13 +69,13 @@ export default function RadarPage() {
               console.error(`[Config Error] Missing sectors.${motorKey} in ESP32 configuration`);
             } else {
               if (!sectorData.min) {
-                console.error(`[Config Error] Missing SECTOR_MOTOR_${motorNum}_MIN in src/config/pins.h`);
+                console.error(`[Config Error] Missing SECTOR_MOTOR_${motorNum}_MIN in src/config/servo_config.h`);
               } else {
                 min = parseInt(sectorData.min);
               }
 
               if (!sectorData.max) {
-                console.error(`[Config Error] Missing SECTOR_MOTOR_${motorNum}_MAX in src/config/pins.h`);
+                console.error(`[Config Error] Missing SECTOR_MOTOR_${motorNum}_MAX in src/config/servo_config.h`);
               } else {
                 max = parseInt(sectorData.max);
               }
@@ -80,6 +85,14 @@ export default function RadarPage() {
           });
 
           setSectors(loadedSectors);
+
+          // Load servo angle range
+          if (data.config.tof?.servoMinAngle) {
+            setServoMinAngle(parseInt(data.config.tof.servoMinAngle));
+          }
+          if (data.config.tof?.servoMaxAngle) {
+            setServoMaxAngle(parseInt(data.config.tof.servoMaxAngle));
+          }
         } else {
           console.error('[Config Error] Failed to load configuration from /api/config');
         }
@@ -136,7 +149,7 @@ export default function RadarPage() {
               TOF Radar Visualization
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground">
-              Real-time object detection across 4 sectors (0°-120° sweep)
+              Real-time object detection across 4 sectors ({servoMinAngle}°-{servoMaxAngle}° sweep)
             </p>
           </div>
 
@@ -155,7 +168,7 @@ export default function RadarPage() {
         {/* Radar Visualization - Full Width */}
         <Card>
           <CardHeader>
-            <CardTitle>Radar Sweep (0° - 120°)</CardTitle>
+            <CardTitle>Radar Sweep ({servoMinAngle}° - {servoMaxAngle}°)</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <RadarChart
@@ -163,6 +176,8 @@ export default function RadarPage() {
               motorHistory={motorHistory}
               scanHistory={scanHistory}
               sectors={sectors}
+              servoMinAngle={servoMinAngle}
+              servoMaxAngle={servoMaxAngle}
             />
           </CardContent>
         </Card>

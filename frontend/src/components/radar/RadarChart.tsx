@@ -19,11 +19,13 @@ interface RadarChartProps {
   };
   scanHistory: RadarScanPoint[];
   sectors: Array<{ min: number | 'ERR'; max: number | 'ERR' }>;
+  servoMinAngle: number;
+  servoMaxAngle: number;
 }
 
 const MAX_DISTANCE = 300;
 
-export const RadarChart = memo(function RadarChart({ currentData, motorHistory, scanHistory, sectors }: RadarChartProps) {
+export const RadarChart = memo(function RadarChart({ currentData, motorHistory, scanHistory, sectors, servoMinAngle, servoMaxAngle }: RadarChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
   const lastFrameRef = useRef(0);
@@ -220,7 +222,7 @@ export const RadarChart = memo(function RadarChart({ currentData, motorHistory, 
 
       // === CURRENT DETECTION (Show live servo position and distance) ===
       const currentDataNow = currentDataRef.current;
-      if (currentDataNow && currentDataNow.servo_angle >= 0 && currentDataNow.servo_angle <= 120) {
+      if (currentDataNow && currentDataNow.servo_angle >= servoMinAngle && currentDataNow.servo_angle <= servoMaxAngle) {
         const angle = currentDataNow.servo_angle;
         const dist = currentDataNow.tof_current_cm;  // Use live TOF reading at current servo angle
 
@@ -259,7 +261,7 @@ export const RadarChart = memo(function RadarChart({ currentData, motorHistory, 
       }
 
       // === SCAN LINE (Synced with actual servo position) ===
-      if (currentDataNow && currentDataNow.servo_angle >= 0 && currentDataNow.servo_angle <= 120) {
+      if (currentDataNow && currentDataNow.servo_angle >= servoMinAngle && currentDataNow.servo_angle <= servoMaxAngle) {
         ctx.save();
         const scanDisplayAngle = 180 - currentDataNow.servo_angle; // Flip for 0° = West
         const scanRad = (scanDisplayAngle * Math.PI) / 180;
@@ -309,7 +311,7 @@ export const RadarChart = memo(function RadarChart({ currentData, motorHistory, 
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [angleToCanvas, sectors]); // Recreate when sectors configuration changes
+  }, [angleToCanvas, sectors, servoMinAngle, servoMaxAngle]); // Recreate when sectors or servo range changes
 
   return (
     <div className="flex items-center justify-center w-full bg-black rounded-lg p-2">
