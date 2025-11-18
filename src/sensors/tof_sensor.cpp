@@ -6,6 +6,7 @@
 #include "tof_sensor.h"
 #include "../config/pins.h"
 #include "../config/system_config.h"
+#include "../config/servo_config.h"
 
 // ============================================================================
 // Internal Variables
@@ -236,6 +237,12 @@ void servoSweepTask(void* parameter) {
         // Motor 3: 61° - 90°
         // Motor 4: 91° - 120°
         // ====================================================================
+
+#ifdef SWEEP_MODE_FORWARD
+        // ====================================================================
+        // FORWARD SWEEP MODE: 0° to 120°, then restart at 0°
+        // ====================================================================
+
         // Track minimum distance per sector (one per motor)
         float min_distance_sector[4] = {999.0f, 999.0f, 999.0f, 999.0f};
         int angle_of_min_sector[4] = {SECTOR_MOTOR_1_MIN, SECTOR_MOTOR_2_MIN,
@@ -264,15 +271,16 @@ void servoSweepTask(void* parameter) {
             shared_tof_current = distance;
 
             // Determine which sector (motor) this angle belongs to
+            // Use semi-open intervals [MIN, MAX) to avoid boundary ambiguity
             int sector_index = -1;
-            if (angle >= SECTOR_MOTOR_1_MIN && angle <= SECTOR_MOTOR_1_MAX) {
-                sector_index = 0;  // Motor 1 sector
-            } else if (angle >= SECTOR_MOTOR_2_MIN && angle <= SECTOR_MOTOR_2_MAX) {
-                sector_index = 1;  // Motor 2 sector
-            } else if (angle >= SECTOR_MOTOR_3_MIN && angle <= SECTOR_MOTOR_3_MAX) {
-                sector_index = 2;  // Motor 3 sector
+            if (angle >= SECTOR_MOTOR_1_MIN && angle < SECTOR_MOTOR_1_MAX) {
+                sector_index = 0;  // Motor 1 sector: [5, 45)
+            } else if (angle >= SECTOR_MOTOR_2_MIN && angle < SECTOR_MOTOR_2_MAX) {
+                sector_index = 1;  // Motor 2 sector: [45, 90)
+            } else if (angle >= SECTOR_MOTOR_3_MIN && angle < SECTOR_MOTOR_3_MAX) {
+                sector_index = 2;  // Motor 3 sector: [90, 135)
             } else if (angle >= SECTOR_MOTOR_4_MIN && angle <= SECTOR_MOTOR_4_MAX) {
-                sector_index = 3;  // Motor 4 sector
+                sector_index = 3;  // Motor 4 sector: [135, 175]
             }
 
             // Update shared TOF distance for the corresponding sector (for live radar display)
@@ -288,19 +296,20 @@ void servoSweepTask(void* parameter) {
                 angle_of_min_sector[sector_index] = angle;
             }
 
-            // Check if we just completed a sector (transitioning to next or end of sweep)
+            // FORWARD sweep: update when reaching/passing MAX angle OR when leaving sector
+            // Handle cases where SERVO_STEP doesn't align with MAX angles
             int completed_sector = -1;
-            if (angle == SECTOR_MOTOR_1_MAX && !sector_updated[0]) {
+            if ((angle >= SECTOR_MOTOR_1_MAX || angle + SERVO_STEP > SECTOR_MOTOR_1_MAX) && !sector_updated[0]) {
                 completed_sector = 0;  // Motor 1 sector completed
-            } else if (angle == SECTOR_MOTOR_2_MAX && !sector_updated[1]) {
+            } else if ((angle >= SECTOR_MOTOR_2_MAX || angle + SERVO_STEP > SECTOR_MOTOR_2_MAX) && !sector_updated[1]) {
                 completed_sector = 1;  // Motor 2 sector completed
-            } else if (angle == SECTOR_MOTOR_3_MAX && !sector_updated[2]) {
+            } else if ((angle >= SECTOR_MOTOR_3_MAX || angle + SERVO_STEP > SECTOR_MOTOR_3_MAX) && !sector_updated[2]) {
                 completed_sector = 2;  // Motor 3 sector completed
-            } else if (angle == SECTOR_MOTOR_4_MAX && !sector_updated[3]) {
+            } else if ((angle >= SECTOR_MOTOR_4_MAX || angle + SERVO_STEP > SECTOR_MOTOR_4_MAX) && !sector_updated[3]) {
                 completed_sector = 3;  // Motor 4 sector completed
             }
 
-            // Update shared variable immediately when sector completes
+            // Update shared variable when sector sweep completes (at MAX angle)
             if (completed_sector >= 0 && min_distance_sector[completed_sector] < 999.0f) {
                 if (xSemaphoreTake(distanceMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
                     shared_min_distance[completed_sector] = min_distance_sector[completed_sector];
@@ -311,7 +320,7 @@ void servoSweepTask(void* parameter) {
             }
 
             // Small delay between readings
-            vTaskDelay(pdMS_TO_TICKS(5));
+            vTaskDelay(pdMS_TO_TICKS(SERVO_READING_DELAY_MS));
         }
 
         // Position servo at center position (60°) for next sweep
@@ -320,5 +329,174 @@ void servoSweepTask(void* parameter) {
 
         // Brief pause before starting next sweep
         vTaskDelay(pdMS_TO_TICKS(100));
+
+#endif // SWEEP_MODE_FORWARD
+
+#ifdef SWEEP_MODE_BIDIRECTIONAL
+        // ====================================================================
+        // BIDIRECTIONAL SWEEP MODE: 0° to 120° to 0°
+        // ====================================================================
+
+        // Track minimum distance per sector (one per motor)
+        float min_distance_sector[4] = {999.0f, 999.0f, 999.0f, 999.0f};
+        int angle_of_min_sector[4] = {SECTOR_MOTOR_1_MIN, SECTOR_MOTOR_2_MIN,
+                                       SECTOR_MOTOR_3_MIN, SECTOR_MOTOR_4_MIN};
+
+        // Track which sectors have been updated during forward and backward sweeps
+        bool sector_updated_forward[4] = {false, false, false, false};
+        bool sector_updated_backward[4] = {false, false, false, false};
+
+        // FORWARD SWEEP: 0° to 120° (update min at max angle of each sector)
+        for (int angle = SERVO_MIN_ANGLE; angle <= SERVO_MAX_ANGLE; angle += SERVO_STEP) {
+            // Move servo to current angle
+            tofServo.write(angle);
+
+            // Update shared servo angle (for live radar display)
+            extern volatile int shared_servo_angle;
+            extern volatile float shared_tof_current;
+            shared_servo_angle = angle;
+
+            // Wait for servo to settle
+            vTaskDelay(pdMS_TO_TICKS(SERVO_SETTLE_MS));
+
+            // Read TOF distance at this angle
+            float distance = tofGetDistance();
+
+            // Update live TOF reading for radar display
+            shared_tof_current = distance;
+
+            // Determine which sector (motor) this angle belongs to
+            // Use semi-open intervals [MIN, MAX) to avoid boundary ambiguity
+            int sector_index = -1;
+            if (angle >= SECTOR_MOTOR_1_MIN && angle < SECTOR_MOTOR_1_MAX) {
+                sector_index = 0;  // Motor 1 sector: [5, 45)
+            } else if (angle >= SECTOR_MOTOR_2_MIN && angle < SECTOR_MOTOR_2_MAX) {
+                sector_index = 1;  // Motor 2 sector: [45, 90)
+            } else if (angle >= SECTOR_MOTOR_3_MIN && angle < SECTOR_MOTOR_3_MAX) {
+                sector_index = 2;  // Motor 3 sector: [90, 135)
+            } else if (angle >= SECTOR_MOTOR_4_MIN && angle <= SECTOR_MOTOR_4_MAX) {
+                sector_index = 3;  // Motor 4 sector: [135, 175]
+            }
+
+            // Update shared TOF distance for the corresponding sector (for live radar display)
+            if (sector_index >= 0 && distance > 0) {
+                extern volatile float shared_tof_distances[4];
+                shared_tof_distances[sector_index] = distance;
+            }
+
+            // Update minimum distance for this sector
+            if (sector_index >= 0 && distance > 0 && distance < min_distance_sector[sector_index]) {
+                min_distance_sector[sector_index] = distance;
+                angle_of_min_sector[sector_index] = angle;
+            }
+
+            // FORWARD sweep: update when reaching/passing MAX angle OR when leaving sector
+            // Handle cases where SERVO_STEP doesn't align with MAX angles
+            int completed_sector = -1;
+            if ((angle >= SECTOR_MOTOR_1_MAX || angle + SERVO_STEP > SECTOR_MOTOR_1_MAX) && !sector_updated_forward[0]) {
+                completed_sector = 0;  // Motor 1 sector completed
+            } else if ((angle >= SECTOR_MOTOR_2_MAX || angle + SERVO_STEP > SECTOR_MOTOR_2_MAX) && !sector_updated_forward[1]) {
+                completed_sector = 1;  // Motor 2 sector completed
+            } else if ((angle >= SECTOR_MOTOR_3_MAX || angle + SERVO_STEP > SECTOR_MOTOR_3_MAX) && !sector_updated_forward[2]) {
+                completed_sector = 2;  // Motor 3 sector completed
+            } else if ((angle >= SECTOR_MOTOR_4_MAX || angle + SERVO_STEP > SECTOR_MOTOR_4_MAX) && !sector_updated_forward[3]) {
+                completed_sector = 3;  // Motor 4 sector completed
+            }
+
+            // Update shared variable when sector sweep completes (at MAX angle)
+            if (completed_sector >= 0 && min_distance_sector[completed_sector] < 999.0f) {
+                if (xSemaphoreTake(distanceMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+                    shared_min_distance[completed_sector] = min_distance_sector[completed_sector];
+                    shared_best_angle[completed_sector] = angle_of_min_sector[completed_sector];
+                    xSemaphoreGive(distanceMutex);
+                    sector_updated_forward[completed_sector] = true;
+                }
+            }
+
+            // Small delay between readings
+            vTaskDelay(pdMS_TO_TICKS(SERVO_READING_DELAY_MS));
+        }
+
+        // Reset sector tracking for backward sweep
+        for (int i = 0; i < 4; i++) {
+            min_distance_sector[i] = 999.0f;
+            angle_of_min_sector[i] = SERVO_MAX_ANGLE;  // Will be updated during backward sweep
+        }
+
+        // BACKWARD SWEEP: 120° to 0° (update min at min angle of each sector)
+        for (int angle = SERVO_MAX_ANGLE; angle >= SERVO_MIN_ANGLE; angle -= SERVO_STEP) {
+            // Move servo to current angle
+            tofServo.write(angle);
+
+            // Update shared servo angle (for live radar display)
+            extern volatile int shared_servo_angle;
+            extern volatile float shared_tof_current;
+            shared_servo_angle = angle;
+
+            // Wait for servo to settle
+            vTaskDelay(pdMS_TO_TICKS(SERVO_SETTLE_MS));
+
+            // Read TOF distance at this angle
+            float distance = tofGetDistance();
+
+            // Update live TOF reading for radar display
+            shared_tof_current = distance;
+
+            // Determine which sector (motor) this angle belongs to
+            // Use semi-open intervals [MIN, MAX) to avoid boundary ambiguity
+            int sector_index = -1;
+            if (angle >= SECTOR_MOTOR_1_MIN && angle < SECTOR_MOTOR_1_MAX) {
+                sector_index = 0;  // Motor 1 sector: [5, 45)
+            } else if (angle >= SECTOR_MOTOR_2_MIN && angle < SECTOR_MOTOR_2_MAX) {
+                sector_index = 1;  // Motor 2 sector: [45, 90)
+            } else if (angle >= SECTOR_MOTOR_3_MIN && angle < SECTOR_MOTOR_3_MAX) {
+                sector_index = 2;  // Motor 3 sector: [90, 135)
+            } else if (angle >= SECTOR_MOTOR_4_MIN && angle <= SECTOR_MOTOR_4_MAX) {
+                sector_index = 3;  // Motor 4 sector: [135, 175]
+            }
+
+            // Update shared TOF distance for the corresponding sector (for live radar display)
+            if (sector_index >= 0 && distance > 0) {
+                extern volatile float shared_tof_distances[4];
+                shared_tof_distances[sector_index] = distance;
+            }
+
+            // Update minimum distance for this sector
+            if (sector_index >= 0 && distance > 0 && distance < min_distance_sector[sector_index]) {
+                min_distance_sector[sector_index] = distance;
+                angle_of_min_sector[sector_index] = angle;
+            }
+
+            // BACKWARD sweep: update when reaching/passing MIN angle OR when leaving sector
+            // Handle cases where SERVO_STEP doesn't align with MIN angles
+            int completed_sector = -1;
+            if ((angle <= SECTOR_MOTOR_4_MIN || angle - SERVO_STEP < SECTOR_MOTOR_4_MIN) && !sector_updated_backward[3]) {
+                completed_sector = 3;  // Motor 4 sector completed at min angle
+            } else if ((angle <= SECTOR_MOTOR_3_MIN || angle - SERVO_STEP < SECTOR_MOTOR_3_MIN) && !sector_updated_backward[2]) {
+                completed_sector = 2;  // Motor 3 sector completed at min angle
+            } else if ((angle <= SECTOR_MOTOR_2_MIN || angle - SERVO_STEP < SECTOR_MOTOR_2_MIN) && !sector_updated_backward[1]) {
+                completed_sector = 1;  // Motor 2 sector completed at min angle
+            } else if ((angle <= SECTOR_MOTOR_1_MIN || angle - SERVO_STEP < SECTOR_MOTOR_1_MIN) && !sector_updated_backward[0]) {
+                completed_sector = 0;  // Motor 1 sector completed at min angle
+            }
+
+            // Update shared variable when reaching min angle of sector
+            if (completed_sector >= 0 && min_distance_sector[completed_sector] < 999.0f) {
+                if (xSemaphoreTake(distanceMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+                    shared_min_distance[completed_sector] = min_distance_sector[completed_sector];
+                    shared_best_angle[completed_sector] = angle_of_min_sector[completed_sector];
+                    xSemaphoreGive(distanceMutex);
+                    sector_updated_backward[completed_sector] = true;
+                }
+            }
+
+            // Small delay between readings
+            vTaskDelay(pdMS_TO_TICKS(SERVO_READING_DELAY_MS));
+        }
+
+        // Brief pause before starting next sweep (already at min angle)
+        vTaskDelay(pdMS_TO_TICKS(100));
+
+#endif // SWEEP_MODE_BIDIRECTIONAL
     }
 }

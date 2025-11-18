@@ -85,11 +85,12 @@ This document provides complete hardware specifications, pin mappings, and wirin
 - UART: Serial1 (UART1)
 
 **Servo Configuration:**
-- Sweep Range: 0° to 120° (4 sectors of 30° each)
-- Step Size: 2° per movement
+- Sweep Range: 5° to 175° (4 sectors, configured in servo_config.h)
+- Step Size: 3° per movement
 - Settling Time: 80 ms per step
 - PWM Timer: Timer 2 (separate from motor PWM to avoid conflicts)
 - Frequency: 50 Hz (standard servo)
+- Sweep Modes: Forward-only or Bidirectional (selectable)
 
 ---
 
@@ -283,11 +284,12 @@ Servo Motor:
     ├──────────────┤
 VCC │←─────────────│ 5V (separate power recommended)
 GND │←─────────────│ Common Ground
-SIG │←─────────────│ ESP32 GPIO 2 (PWM)
+SIG │←─────────────│ ESP32 GPIO 22 (PWM)
     └──────────────┘
 
-- Sweep Range: 30° to 90°
-- Uses ESP32Servo library
+- Sweep Range: 5° to 175° (configured in servo_config.h)
+- Uses ESP32Servo library with Timer 2
+- Supports forward-only and bidirectional sweep modes
 ```
 
 ---
@@ -400,27 +402,28 @@ SIG │←─────────────│ ESP32 GPIO 2 (PWM)
 
 | GPIO | Function | Type | Notes |
 |------|----------|------|-------|
-| 2 | Servo PWM | Output | |
+| 2 | M4_IN2 | Output | |
 | 3 | MUX_S3 | Output | RX0 pin |
-| 4 | M3_IN1 | Output | |
-| 5 | M4_PWM | Output | PWM channel |
-| 12 | M2_IN2 | Output | Boot config pin |
-| 13 | M2_PWM | Output | PWM channel |
-| 14 | M2_IN1 | Output | |
-| 15 | M3_PWM | Output | PWM channel, Boot config pin |
-| 16 | M4_IN1 | Output | |
-| 17 | M4_IN2 | Output | |
-| 18 | TOF_RX | Input | Serial1 RX |
+| 4 | M4_IN1 | Output | |
+| 5 | M3_PWM | Output | PWM channel |
+| 12 | M1_IN2 | Output | Boot config pin |
+| 13 | M1_PWM | Output | PWM channel |
+| 14 | M1_IN1 | Output | |
+| 15 | M4_PWM | Output | PWM channel, Boot config pin |
+| 16 | M3_IN1 | Output | |
+| 17 | M3_IN2 | Output | |
+| 18 | TOF_TX | Output | Serial1 TX |
+| 22 | Servo PWM | Output | Timer 2 |
 | 23 | MUX_S0 | Output | |
-| 25 | M1_PWM | Output | PWM channel |
-| 26 | M1_IN2 | Output | |
-| 27 | M1_IN1 | Output | |
+| 25 | M2_PWM | Output | PWM channel |
+| 26 | M2_IN2 | Output | |
+| 27 | M2_IN1 | Output | |
 | 32 | MUX_S2 | Output | |
 | 33 | MUX_S1 | Output | |
-| 34 | TOF_TX | Input-only | Serial1 TX (if bidirectional needed, use different pin) |
+| 34 | TOF_RX | Input-only | Serial1 RX |
 | 35 | MUX_SIG | Input-only | ADC1_CH7 |
 
-**Total GPIOs Used:** 18 pins
+**Total GPIOs Used:** 19 pins
 
 ---
 

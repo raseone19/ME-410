@@ -17,9 +17,10 @@ This document describes the overall system architecture, data flow, and module i
 The system uses an ESP32 dual-core microcontroller to manage:
 - **4 independent motors** with PI control
 - **4 pressure pad sensors** for feedback
-- **1 TOF distance sensor** with servo sweep (0°-120° divided into 4 sectors)
+- **1 TOF distance sensor** with servo sweep (5°-175° divided into 4 sectors)
+- **Configurable sweep modes** (forward-only or bidirectional)
 - **Real-time data logging** via Serial (Binary or CSV protocol)
-- **Web dashboard** with real-time visualization
+- **Web dashboard** with real-time visualization and dynamic configuration loading
 
 ```mermaid
 graph TB
@@ -82,14 +83,18 @@ The ESP32's dual cores are utilized to separate time-critical control from data 
 
 **Tasks:**
 1. **Servo Sweep Task** (Priority 2)
-   - Sweeps servo from 0° to 120° in steps
+   - Sweeps servo from 5° to 175° in 3° steps
+   - Supports two sweep modes (configured in servo_config.h):
+     - **SWEEP_MODE_FORWARD**: Continuous forward sweep (5°→175°, reset to 5°)
+     - **SWEEP_MODE_BIDIRECTIONAL**: Forward and backward sweep (5°→175°→5°)
    - Reads TOF distance at each angle
    - Tracks minimum distance independently for 4 sectors:
-     - Sector 1 (Motor 1): 0° - 30°
-     - Sector 2 (Motor 2): 31° - 60°
-     - Sector 3 (Motor 3): 61° - 90°
-     - Sector 4 (Motor 4): 91° - 120°
-   - Updates shared variables (mutex-protected) immediately when each sector completes
+     - Sector 1 (Motor 1): 5° - 45°
+     - Sector 2 (Motor 2): 45° - 90°
+     - Sector 3 (Motor 3): 90° - 135°
+     - Sector 4 (Motor 4): 135° - 175°
+   - Updates shared variables (mutex-protected) when each sector completes
+   - Handles sector completion correctly even when SERVO_STEP doesn't align with sector boundaries
    - Runs continuously
 
 2. **Serial Print Task** (Priority 1)
@@ -255,6 +260,7 @@ sequenceDiagram
 graph TD
     Main[main.cpp] --> Config[config/system_config.h]
     Main --> Pins[config/pins.h]
+    Main --> ServoConfig[config/servo_config.h<br/>NEW]
     Main --> TOF[sensors/tof_sensor]
     Main --> PP[sensors/pressure_pads]
     Main --> Motors[actuators/motors]
@@ -263,6 +269,7 @@ graph TD
 
     TOF --> Pins
     TOF --> Config
+    TOF --> ServoConfig
     TOF --> ESP32PWM[ESP32PWM.h<br/>Timer allocation]
     PP --> Pins
     PP --> MUX[utils/multiplexer]
@@ -295,7 +302,8 @@ graph TD
 | **main.cpp** | System orchestration, 4-motor control loop | All modules |
 | **config/pins.h** | Pin definitions | None (base) |
 | **config/system_config.h** | Protocol and logging configuration | None (base) |
-| **sensors/tof_sensor** | TOF reading, servo sweep (4 sectors) | pins.h, system_config.h, ESP32PWM |
+| **config/servo_config.h** | Servo sweep configuration (NEW) | None (base) |
+| **sensors/tof_sensor** | TOF reading, servo sweep (4 sectors) | pins.h, system_config.h, servo_config.h, ESP32PWM |
 | **sensors/pressure_pads** | Pressure pad reading (4 pads) | pins.h, multiplexer |
 | **utils/multiplexer** | Analog multiplexer control | pins.h |
 | **actuators/motors** | Motor PWM control (4 motors) | pins.h |
@@ -331,11 +339,11 @@ graph TD
 | Task | Frequency | Period | Execution Time | Core |
 |------|-----------|--------|----------------|------|
 | PI Control Loop (4 motors) | 50 Hz | 20 ms | ~10-12 ms | Core 1 |
-| Servo Sweep (0°-120°) | Continuous | ~6-8 s per full sweep | Variable | Core 0 |
+| Servo Sweep (5°-175°) | Continuous | ~10-12 s per full sweep | Variable | Core 0 |
 | Serial Logger | 10-100 Hz | 10-100 ms | ~3-5 ms | Core 0 |
 | Pressure Pad Read (4 pads) | 50 Hz | 20 ms | ~3-4 ms | Core 1 |
 | TOF Single Read | Variable | N/A | ~50-100 ms | Core 0 |
-| Sector Update | ~4× per sweep | ~1.5-2 s | Immediate | Core 0 |
+| Sector Update | ~4× per sweep | ~2.5-3 s | Immediate | Core 0 |
 
 ### Critical Timing Constraints
 
@@ -477,12 +485,13 @@ graph TB
 ![Motor Detail - Charts](Motor_detailed_2.png)
 
 **Radar Visualization (`/radar`):**
-- Live TOF sweep visualization (0°-120°)
-- 4 sectors color-coded by motor
+- Live TOF sweep visualization (5°-175° dynamic range)
+- 4 sectors color-coded by motor (boundaries loaded from backend)
 - Real-time servo angle indicator
 - Current distance reading per sector
 - Polar coordinate display
 - Sector statistics (min distance, best angle)
+- Dynamically adapts to servo configuration changes
 
 ![Radar View - Polar Plot](Radar_1.png)
 ![Radar View - Statistics](Radar_2.png)
@@ -522,12 +531,13 @@ graph TB
 
 The architecture leverages the ESP32's dual cores to achieve:
 - **Real-time control** at 50 Hz on Core 1 for 4 independent motors
-- **Parallel data acquisition** on Core 0 with servo sweep and sector-based distance tracking
+- **Parallel data acquisition** on Core 0 with configurable servo sweep modes (forward/bidirectional) and sector-based distance tracking (5°-175° range)
 - **Thread-safe communication** via mutex-protected shared variables
-- **Modular design** for easy maintenance and extension
+- **Modular design** for easy maintenance and extension with separate configuration files
 - **Independent motor control** with per-motor state machines and setpoints
 - **Flexible output** supporting both binary (70-byte packets) and CSV protocols
-- **Web dashboard** with real-time visualization, historical charts, and radar display
+- **Web dashboard** with real-time visualization, historical charts, and adaptive radar display
 - **WebSocket bridge** for seamless ESP32-to-browser communication
+- **Dynamic configuration loading** from ESP32 source files to frontend (no hardcoded values)
 
-This design ensures deterministic control loop timing while maintaining continuous sensor scanning, independent motor control, and real-time data logging/visualization through a modern web interface.
+This design ensures deterministic control loop timing while maintaining continuous sensor scanning with configurable sweep patterns, independent motor control, and real-time data logging/visualization through a modern web interface that automatically adapts to backend configuration changes.

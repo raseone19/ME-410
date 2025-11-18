@@ -129,19 +129,20 @@ The system defines three operating ranges:
 
 | Range | Distance (cm) | Setpoint (mV) | Behavior |
 |-------|---------------|---------------|----------|
-| **CLOSE** | 50 - 100 | 1150 mV (fixed) | High pressure for strong contact |
-| **MEDIUM** | 100 - 200 | 800 mV (fixed) | Moderate pressure |
-| **FAR** | 200 - 300 | Dynamic (PP + 50 mV) | Gentle touch, adaptive |
+| **CLOSE** | 50 - 100 | 1500 mV (fixed) | High pressure for strong contact |
+| **MEDIUM** | 100 - 200 | 700 mV (fixed) | Moderate pressure |
+| **FAR** | 200 - 300 | 550 mV (fixed baseline + offset) | Gentle touch, uses fixed 500mV baseline + 50mV offset |
 | **OUT OF BOUNDS** | < 50 or > 300 | Invalid | Triggers safety reversal |
 
 ### Setpoint Calculation Logic
 
 ```cpp
-float calculateSetpoint(DistanceRange range, float current_pressure_mv) {
+float calculateSetpoint(DistanceRange range, float baseline_pressure_mv) {
     switch (range) {
         case RANGE_FAR:
-            // Dynamic: maintain current pressure + small offset
-            return current_pressure_mv + SECURITY_OFFSET_MV;
+            // Fixed baseline approach: 500mV baseline + 50mV security offset
+            // This accounts for friction variations between motors over time
+            return baseline_pressure_mv + SECURITY_OFFSET_MV;
 
         case RANGE_MEDIUM:
             // Fixed medium setpoint
@@ -157,13 +158,14 @@ float calculateSetpoint(DistanceRange range, float current_pressure_mv) {
 }
 ```
 
-### Rationale for Dynamic FAR Setpoint
+### Rationale for FAR Range Baseline
 
 When the obstacle is far away (200-300 cm):
-- We don't want to apply excessive force
-- We want gentle, exploratory contact
-- The setpoint tracks the current pressure + a small safety offset (50 mV)
-- This prevents sudden jumps when transitioning ranges
+- We use a fixed baseline pressure (500 mV) captured when entering FAR range
+- A security offset (50 mV) is added for gentle contact
+- This approach accounts for friction variations between different motors
+- The baseline is reset on each MEDIUM→FAR transition to adapt to changing conditions
+- Target setpoint: 550 mV (500 mV baseline + 50 mV offset)
 
 ---
 

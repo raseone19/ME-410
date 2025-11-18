@@ -20,11 +20,11 @@ export interface MotorData {
   duty2_pct: number;
   duty3_pct: number;
   duty4_pct: number;
-  tof1_cm: number;  // Motor 1 sector distance (0°-30°)
-  tof2_cm: number;  // Motor 2 sector distance (31°-60°)
-  tof3_cm: number;  // Motor 3 sector distance (61°-90°)
-  tof4_cm: number;  // Motor 4 sector distance (91°-120°)
-  servo_angle: number;  // Current servo position in degrees (0-120°)
+  tof1_cm: number;  // Motor 1 sector distance (configured in servo_config.h)
+  tof2_cm: number;  // Motor 2 sector distance (configured in servo_config.h)
+  tof3_cm: number;  // Motor 3 sector distance (configured in servo_config.h)
+  tof4_cm: number;  // Motor 4 sector distance (configured in servo_config.h)
+  servo_angle: number;  // Current servo position in degrees (configured range in servo_config.h)
   tof_current_cm: number;  // TOF distance at current servo angle (real-time)
 }
 
@@ -32,7 +32,7 @@ export interface MotorData {
  * Radar scan point - angle and distance pair
  */
 export interface RadarScanPoint {
-  angle: number;      // Servo angle in degrees (0-120°)
+  angle: number;      // Servo angle in degrees (configured range in servo_config.h)
   distance: number;   // TOF distance in cm
   timestamp: number;  // Time when reading was taken
 }

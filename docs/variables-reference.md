@@ -51,25 +51,32 @@ This document provides a comprehensive reference of all variables used in the 4-
 | `MUX_S3` | 35 | Multiplexer select bit 3 (MSB) |
 | `MUX_SIG` | 36 | Multiplexer signal pin (ADC) |
 
-#### Servo Configuration
+#### Servo Configuration (from `servo_config.h`)
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `SERVO_MIN_ANGLE` | 0 | Minimum sweep angle (degrees) |
-| `SERVO_MAX_ANGLE` | 120 | Maximum sweep angle (degrees) |
-| `SERVO_STEP` | 2 | Angle increment per step (degrees) |
+| `SERVO_MIN_ANGLE` | 5 | Minimum sweep angle (degrees) |
+| `SERVO_MAX_ANGLE` | 175 | Maximum sweep angle (degrees) |
+| `SERVO_STEP` | 3 | Angle increment per step (degrees) |
 | `SERVO_SETTLE_MS` | 80 | Settling time per angle (milliseconds) |
+| `SERVO_READING_DELAY_MS` | 10 | Delay between TOF readings (milliseconds) |
 
-#### Sector Definitions
+#### Sweep Mode Configuration
+| Mode | Description |
+|------|-------------|
+| `SWEEP_MODE_FORWARD` | Forward-only sweep (5°→175°, reset to 5°) |
+| `SWEEP_MODE_BIDIRECTIONAL` | Bidirectional sweep (5°→175°→5°) |
+
+#### Sector Definitions (from `servo_config.h`)
 | Constant | Min | Max | Description |
 |----------|-----|-----|-------------|
-| `SECTOR_MOTOR_1_MIN` | 0 | - | Motor 1 sector start |
-| `SECTOR_MOTOR_1_MAX` | 30 | - | Motor 1 sector end |
-| `SECTOR_MOTOR_2_MIN` | 31 | - | Motor 2 sector start |
-| `SECTOR_MOTOR_2_MAX` | 60 | - | Motor 2 sector end |
-| `SECTOR_MOTOR_3_MIN` | 61 | - | Motor 3 sector start |
-| `SECTOR_MOTOR_3_MAX` | 90 | - | Motor 3 sector end |
-| `SECTOR_MOTOR_4_MIN` | 91 | - | Motor 4 sector start |
-| `SECTOR_MOTOR_4_MAX` | 120 | - | Motor 4 sector end |
+| `SECTOR_MOTOR_1_MIN` | 5 | - | Motor 1 sector start |
+| `SECTOR_MOTOR_1_MAX` | 45 | - | Motor 1 sector end |
+| `SECTOR_MOTOR_2_MIN` | 45 | - | Motor 2 sector start |
+| `SECTOR_MOTOR_2_MAX` | 90 | - | Motor 2 sector end |
+| `SECTOR_MOTOR_3_MIN` | 90 | - | Motor 3 sector start |
+| `SECTOR_MOTOR_3_MAX` | 135 | - | Motor 3 sector end |
+| `SECTOR_MOTOR_4_MIN` | 135 | - | Motor 4 sector start |
+| `SECTOR_MOTOR_4_MAX` | 175 | - | Motor 4 sector end |
 
 #### Multiplexer Channels
 | Constant | Value | Description |
@@ -121,9 +128,10 @@ This document provides a comprehensive reference of all variables used in the 4-
 #### Setpoints
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `SETPOINT_CLOSE_MV` | 1100.0f | Close range pressure setpoint (mV) |
-| `SETPOINT_MEDIUM_MV` | 780.0f | Medium range pressure setpoint (mV) |
+| `SETPOINT_CLOSE_MV` | 1500.0f | Close range pressure setpoint (mV) |
+| `SETPOINT_MEDIUM_MV` | 700.0f | Medium range pressure setpoint (mV) |
 | `SECURITY_OFFSET_MV` | 50.0f | Far range baseline offset (mV) |
+| `FAR_RANGE_BASELINE_MV` | 500.0f | Fixed baseline for FAR range (mV) |
 
 #### Safety Thresholds
 | Constant | Value | Description |
@@ -180,10 +188,16 @@ Defined in `src/sensors/tof_sensor.cpp`:
 | `shared_best_angle[4]` | `volatile int` | Global | Angle of minimum distance per sector (degrees) |
 | `sweep_active` | `volatile bool` | Global | Flag indicating if sweep is active (unused in current implementation) |
 
+**Sector Mapping:**
+- Index 0: Motor 1 (5° - 45°)
+- Index 1: Motor 2 (45° - 90°)
+- Index 2: Motor 3 (90° - 135°)
+- Index 3: Motor 4 (135° - 175°)
+
 **Access Pattern:**
 - **Written by:** Core 0 (Servo Sweep Task) with mutex
 - **Read by:** Core 1 (Main Loop) with mutex
-- **Update Frequency:** When each sector completes (~1.5-2s per sector)
+- **Update Frequency:** When each sector completes (~2.5-3s per sector)
 
 ### Control Data (Volatile, No Mutex)
 

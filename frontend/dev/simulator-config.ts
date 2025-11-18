@@ -127,32 +127,212 @@ export const DISTANCE_MEDIUM_MAX = 150;  // cm
 export const DISTANCE_FAR_MAX = 300;     // cm
 
 /**
- * Setpoint values for different distance ranges (mV)
+ * Backend configuration values (loaded from API)
  */
-export const SETPOINT_CLOSE = 900;
-export const SETPOINT_MEDIUM = 850;
-export const SETPOINT_FAR = 800;
+interface BackendConfig {
+  setpointCloseMv: number;
+  setpointMediumMv: number;
+  securityOffsetMv: number;
+  distanceCloseMax: number;
+  distanceMediumMax: number;
+  distanceFarMax: number;
+  servoMinAngle: number;
+  servoMaxAngle: number;
+  sectors: {
+    motor1: { min: number; max: number };
+    motor2: { min: number; max: number };
+    motor3: { min: number; max: number };
+    motor4: { min: number; max: number };
+  };
+}
+
+let backendConfig: BackendConfig | null = null;
+
+/**
+ * Load configuration from backend API (browser environment)
+ */
+export async function loadBackendConfig(): Promise<void> {
+  try {
+    const response = await fetch('/api/config');
+    const data = await response.json();
+
+    if (data.success && data.config.tofConstants) {
+      const tofConstants = data.config.tofConstants;
+      const tof = data.config.tof;
+      const sectors = data.config.sectors;
+
+      backendConfig = {
+        setpointCloseMv: parseFloat(tofConstants.setpointCloseMv) || 950,
+        setpointMediumMv: parseFloat(tofConstants.setpointMediumMv) || 700,
+        securityOffsetMv: parseFloat(tofConstants.securityOffsetMv) || 50,
+        distanceCloseMax: parseFloat(tofConstants.distanceCloseMax) || 100,
+        distanceMediumMax: parseFloat(tofConstants.distanceMediumMax) || 200,
+        distanceFarMax: parseFloat(tofConstants.distanceFarMax) || 300,
+        servoMinAngle: parseFloat(tof.servoMinAngle) || 5,
+        servoMaxAngle: parseFloat(tof.servoMaxAngle) || 175,
+        sectors: {
+          motor1: {
+            min: parseFloat(sectors.motor1.min) || 5,
+            max: parseFloat(sectors.motor1.max) || 45,
+          },
+          motor2: {
+            min: parseFloat(sectors.motor2.min) || 45,
+            max: parseFloat(sectors.motor2.max) || 90,
+          },
+          motor3: {
+            min: parseFloat(sectors.motor3.min) || 90,
+            max: parseFloat(sectors.motor3.max) || 135,
+          },
+          motor4: {
+            min: parseFloat(sectors.motor4.min) || 135,
+            max: parseFloat(sectors.motor4.max) || 175,
+          },
+        },
+      };
+      console.log('[Simulator] Loaded backend config from API:', backendConfig);
+    }
+  } catch (error) {
+    console.warn('[Simulator] Failed to load backend config from API, using defaults:', error);
+    // Use fallback defaults if API call fails
+    backendConfig = {
+      setpointCloseMv: 950,
+      setpointMediumMv: 700,
+      securityOffsetMv: 50,
+      distanceCloseMax: 100,
+      distanceMediumMax: 200,
+      distanceFarMax: 300,
+      servoMinAngle: 5,
+      servoMaxAngle: 175,
+      sectors: {
+        motor1: { min: 5, max: 45 },
+        motor2: { min: 45, max: 90 },
+        motor3: { min: 90, max: 135 },
+        motor4: { min: 135, max: 175 },
+      },
+    };
+  }
+}
+
+/**
+ * Load configuration from file (Node.js environment)
+ */
+export async function loadBackendConfigFromFile(): Promise<void> {
+  try {
+    // Dynamic import for Node.js fs module
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // Path to ESP32 source files (relative to frontend/dev directory)
+    const tofSensorPath = path.join(__dirname, '..', '..', 'src', 'sensors', 'tof_sensor.h');
+    const servoConfigPath = path.join(__dirname, '..', '..', 'src', 'config', 'servo_config.h');
+
+    // Read files
+    const tofSensorContent = fs.readFileSync(tofSensorPath, 'utf-8');
+    const servoConfigContent = fs.readFileSync(servoConfigPath, 'utf-8');
+
+    // Extract values using regex
+    const extractValue = (content: string, varName: string): number => {
+      const regex = new RegExp(`constexpr\\s+\\w+\\s+${varName}\\s*=\\s*([\\d.]+)f?;`, 'm');
+      const match = content.match(regex);
+      return match ? parseFloat(match[1]) : 0;
+    };
+
+    backendConfig = {
+      setpointCloseMv: extractValue(tofSensorContent, 'SETPOINT_CLOSE_MV') || 950,
+      setpointMediumMv: extractValue(tofSensorContent, 'SETPOINT_MEDIUM_MV') || 700,
+      securityOffsetMv: extractValue(tofSensorContent, 'SECURITY_OFFSET_MV') || 50,
+      distanceCloseMax: extractValue(tofSensorContent, 'DISTANCE_CLOSE_MAX') || 100,
+      distanceMediumMax: extractValue(tofSensorContent, 'DISTANCE_MEDIUM_MAX') || 200,
+      distanceFarMax: extractValue(tofSensorContent, 'DISTANCE_FAR_MAX') || 300,
+      servoMinAngle: extractValue(servoConfigContent, 'SERVO_MIN_ANGLE') || 5,
+      servoMaxAngle: extractValue(servoConfigContent, 'SERVO_MAX_ANGLE') || 175,
+      sectors: {
+        motor1: {
+          min: extractValue(servoConfigContent, 'SECTOR_MOTOR_1_MIN') || 5,
+          max: extractValue(servoConfigContent, 'SECTOR_MOTOR_1_MAX') || 45,
+        },
+        motor2: {
+          min: extractValue(servoConfigContent, 'SECTOR_MOTOR_2_MIN') || 45,
+          max: extractValue(servoConfigContent, 'SECTOR_MOTOR_2_MAX') || 90,
+        },
+        motor3: {
+          min: extractValue(servoConfigContent, 'SECTOR_MOTOR_3_MIN') || 90,
+          max: extractValue(servoConfigContent, 'SECTOR_MOTOR_3_MAX') || 135,
+        },
+        motor4: {
+          min: extractValue(servoConfigContent, 'SECTOR_MOTOR_4_MIN') || 135,
+          max: extractValue(servoConfigContent, 'SECTOR_MOTOR_4_MAX') || 175,
+        },
+      },
+    };
+
+    console.log('[Simulator] Loaded backend config from file:', backendConfig);
+  } catch (error) {
+    console.warn('[Simulator] Failed to load backend config from file, using defaults:', error);
+    // Use fallback defaults if file read fails
+    backendConfig = {
+      setpointCloseMv: 950,
+      setpointMediumMv: 700,
+      securityOffsetMv: 50,
+      distanceCloseMax: 100,
+      distanceMediumMax: 200,
+      distanceFarMax: 300,
+      servoMinAngle: 5,
+      servoMaxAngle: 175,
+      sectors: {
+        motor1: { min: 5, max: 45 },
+        motor2: { min: 45, max: 90 },
+        motor3: { min: 90, max: 135 },
+        motor4: { min: 135, max: 175 },
+      },
+    };
+  }
+}
+
+/**
+ * Get setpoint values (dynamically from backend or defaults)
+ */
+export function getSetpointValues() {
+  const config = backendConfig || {
+    setpointCloseMv: 950,
+    setpointMediumMv: 700,
+    securityOffsetMv: 50,
+    distanceCloseMax: 100,
+    distanceMediumMax: 200,
+    distanceFarMax: 300,
+  };
+
+  return {
+    SETPOINT_CLOSE: config.setpointCloseMv,
+    SETPOINT_MEDIUM: config.setpointMediumMv,
+    SETPOINT_FAR: 500 + config.securityOffsetMv, // Baseline (500) + offset
+  };
+}
 
 /**
  * Sector definitions for MODE B (degrees)
+ * These are fallback defaults - actual values loaded from backend
  */
 export const SECTORS = {
-  motor1: { min: 0, max: 30 },
-  motor2: { min: 31, max: 60 },
-  motor3: { min: 61, max: 90 },
-  motor4: { min: 91, max: 120 },
+  motor1: { min: 5, max: 45 },
+  motor2: { min: 45, max: 90 },
+  motor3: { min: 90, max: 135 },
+  motor4: { min: 135, max: 175 },
 } as const;
 
 /**
  * Get setpoint based on TOF distance (matching ESP32 logic)
+ * Uses values from backend configuration
  */
 export function getSetpointForDistance(distance: number): number {
+  const setpoints = getSetpointValues();
+
   if (distance <= DISTANCE_CLOSE_MAX) {
-    return SETPOINT_CLOSE;
+    return setpoints.SETPOINT_CLOSE;
   } else if (distance <= DISTANCE_MEDIUM_MAX) {
-    return SETPOINT_MEDIUM;
+    return setpoints.SETPOINT_MEDIUM;
   } else {
-    return SETPOINT_FAR;
+    return setpoints.SETPOINT_FAR;
   }
 }
 
