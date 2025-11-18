@@ -155,8 +155,8 @@
  */
 
 // Uncomment ONE of the following lines:
-//#define SWEEP_MODE_FORWARD        // Default: forward sweep only
-#define SWEEP_MODE_BIDIRECTIONAL  // Bidirectional sweep
+#define SWEEP_MODE_FORWARD        // Default: forward sweep only
+//#define SWEEP_MODE_BIDIRECTIONAL  // Bidirectional sweep
 
 // Validate sweep mode selection
 #if (defined(SWEEP_MODE_FORWARD) + defined(SWEEP_MODE_BIDIRECTIONAL)) != 1

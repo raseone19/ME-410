@@ -296,16 +296,16 @@ void servoSweepTask(void* parameter) {
                 angle_of_min_sector[sector_index] = angle;
             }
 
-            // FORWARD sweep: update when reaching/passing MAX angle (sector completed)
-            // Use >= to handle cases where SERVO_STEP doesn't align with MAX angles
+            // FORWARD sweep: update when reaching/passing MAX angle OR when leaving sector
+            // Handle cases where SERVO_STEP doesn't align with MAX angles
             int completed_sector = -1;
-            if (angle >= SECTOR_MOTOR_1_MAX && !sector_updated[0]) {
+            if ((angle >= SECTOR_MOTOR_1_MAX || angle + SERVO_STEP > SECTOR_MOTOR_1_MAX) && !sector_updated[0]) {
                 completed_sector = 0;  // Motor 1 sector completed
-            } else if (angle >= SECTOR_MOTOR_2_MAX && !sector_updated[1]) {
+            } else if ((angle >= SECTOR_MOTOR_2_MAX || angle + SERVO_STEP > SECTOR_MOTOR_2_MAX) && !sector_updated[1]) {
                 completed_sector = 1;  // Motor 2 sector completed
-            } else if (angle >= SECTOR_MOTOR_3_MAX && !sector_updated[2]) {
+            } else if ((angle >= SECTOR_MOTOR_3_MAX || angle + SERVO_STEP > SECTOR_MOTOR_3_MAX) && !sector_updated[2]) {
                 completed_sector = 2;  // Motor 3 sector completed
-            } else if (angle >= SECTOR_MOTOR_4_MAX && !sector_updated[3]) {
+            } else if ((angle >= SECTOR_MOTOR_4_MAX || angle + SERVO_STEP > SECTOR_MOTOR_4_MAX) && !sector_updated[3]) {
                 completed_sector = 3;  // Motor 4 sector completed
             }
 
@@ -390,16 +390,16 @@ void servoSweepTask(void* parameter) {
                 angle_of_min_sector[sector_index] = angle;
             }
 
-            // FORWARD sweep: update when reaching/passing MAX angle (sector completed)
-            // Use >= to handle cases where SERVO_STEP doesn't align with MAX angles
+            // FORWARD sweep: update when reaching/passing MAX angle OR when leaving sector
+            // Handle cases where SERVO_STEP doesn't align with MAX angles
             int completed_sector = -1;
-            if (angle >= SECTOR_MOTOR_1_MAX && !sector_updated_forward[0]) {
+            if ((angle >= SECTOR_MOTOR_1_MAX || angle + SERVO_STEP > SECTOR_MOTOR_1_MAX) && !sector_updated_forward[0]) {
                 completed_sector = 0;  // Motor 1 sector completed
-            } else if (angle >= SECTOR_MOTOR_2_MAX && !sector_updated_forward[1]) {
+            } else if ((angle >= SECTOR_MOTOR_2_MAX || angle + SERVO_STEP > SECTOR_MOTOR_2_MAX) && !sector_updated_forward[1]) {
                 completed_sector = 1;  // Motor 2 sector completed
-            } else if (angle >= SECTOR_MOTOR_3_MAX && !sector_updated_forward[2]) {
+            } else if ((angle >= SECTOR_MOTOR_3_MAX || angle + SERVO_STEP > SECTOR_MOTOR_3_MAX) && !sector_updated_forward[2]) {
                 completed_sector = 2;  // Motor 3 sector completed
-            } else if (angle >= SECTOR_MOTOR_4_MAX && !sector_updated_forward[3]) {
+            } else if ((angle >= SECTOR_MOTOR_4_MAX || angle + SERVO_STEP > SECTOR_MOTOR_4_MAX) && !sector_updated_forward[3]) {
                 completed_sector = 3;  // Motor 4 sector completed
             }
 
@@ -467,16 +467,16 @@ void servoSweepTask(void* parameter) {
                 angle_of_min_sector[sector_index] = angle;
             }
 
-            // BACKWARD sweep: update when reaching/passing MIN angle (sector completed)
-            // Use <= to handle cases where SERVO_STEP doesn't align with MIN angles
+            // BACKWARD sweep: update when reaching/passing MIN angle OR when leaving sector
+            // Handle cases where SERVO_STEP doesn't align with MIN angles
             int completed_sector = -1;
-            if (angle <= SECTOR_MOTOR_4_MIN && !sector_updated_backward[3]) {
+            if ((angle <= SECTOR_MOTOR_4_MIN || angle - SERVO_STEP < SECTOR_MOTOR_4_MIN) && !sector_updated_backward[3]) {
                 completed_sector = 3;  // Motor 4 sector completed at min angle
-            } else if (angle <= SECTOR_MOTOR_3_MIN && !sector_updated_backward[2]) {
+            } else if ((angle <= SECTOR_MOTOR_3_MIN || angle - SERVO_STEP < SECTOR_MOTOR_3_MIN) && !sector_updated_backward[2]) {
                 completed_sector = 2;  // Motor 3 sector completed at min angle
-            } else if (angle <= SECTOR_MOTOR_2_MIN && !sector_updated_backward[1]) {
+            } else if ((angle <= SECTOR_MOTOR_2_MIN || angle - SERVO_STEP < SECTOR_MOTOR_2_MIN) && !sector_updated_backward[1]) {
                 completed_sector = 1;  // Motor 2 sector completed at min angle
-            } else if (angle <= SECTOR_MOTOR_1_MIN && !sector_updated_backward[0]) {
+            } else if ((angle <= SECTOR_MOTOR_1_MIN || angle - SERVO_STEP < SECTOR_MOTOR_1_MIN) && !sector_updated_backward[0]) {
                 completed_sector = 0;  // Motor 1 sector completed at min angle
             }
 
