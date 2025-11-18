@@ -105,10 +105,14 @@ xTaskCreatePinnedToCore(
 ```
 
 **Responsibilities:**
-- Continuously sweep servo from 0° to 120°
+- Sweep servo from 5° to 175° in 3° steps
+- Support two sweep modes (configured in servo_config.h):
+  - SWEEP_MODE_FORWARD: Continuous forward sweep (5°→175°, reset)
+  - SWEEP_MODE_BIDIRECTIONAL: Forward and backward sweep (5°→175°→5°)
 - Read TOF distance at each angle
-- Track minimum distance for each of 4 sectors (0-30°, 31-60°, 61-90°, 91-120°)
+- Track minimum distance for each of 4 sectors (5-45°, 45-90°, 90-135°, 135-175°)
 - Update `shared_min_distance[4]` and `shared_best_angle[4]` (mutex-protected) when each sector completes
+- Handle sector completion correctly when SERVO_STEP doesn't align with sector boundaries
 - Update `shared_servo_angle` and `shared_tof_current` for live radar display
 
 **Execution Flow:**
@@ -197,10 +201,16 @@ These variables are written by Core 0 (servo sweep task) and read by Core 1 (mai
 ```cpp
 // Declared in tof_sensor.cpp
 SemaphoreHandle_t distanceMutex = NULL;
-volatile float shared_min_distance = 999.0f;
-volatile int shared_best_angle = SERVO_MIN_ANGLE;
+volatile float shared_min_distance[4] = {999.0f, 999.0f, 999.0f, 999.0f};
+volatile int shared_best_angle[4] = {SERVO_MIN_ANGLE, SERVO_MIN_ANGLE, SERVO_MIN_ANGLE, SERVO_MIN_ANGLE};
 volatile bool sweep_active = false;
 ```
+
+**Sector Definitions (from servo_config.h):**
+- Sector 0 (Motor 1): 5° - 45°
+- Sector 1 (Motor 2): 45° - 90°
+- Sector 2 (Motor 3): 90° - 135°
+- Sector 3 (Motor 4): 135° - 175°
 
 **Access Pattern:**
 

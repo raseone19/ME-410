@@ -20,7 +20,9 @@ MovingTof_OneMotor_OK/
 └── src/                              # Source code
     ├── main.cpp                      # Main orchestration
     ├── config/
-    │   └── pins.h                    # Pin definitions
+    │   ├── pins.h                    # Pin definitions
+    │   ├── system_config.h           # System config
+    │   └── servo_config.h            # Servo sweep config (NEW)
     ├── sensors/
     │   ├── tof_sensor.cpp/.h         # TOF + servo
     │   └── pressure_pads.cpp/.h      # Pressure sensors
@@ -29,7 +31,8 @@ MovingTof_OneMotor_OK/
     ├── control/
     │   └── pi_controller.cpp/.h      # PI algorithm
     ├── utils/
-    │   └── multiplexer.cpp/.h        # Utilities
+    │   ├── multiplexer.cpp/.h        # Multiplexer utilities
+    │   └── binary_protocol.h         # Binary data protocol
     └── tasks/
         └── core0_tasks.cpp/.h        # FreeRTOS tasks
 ```
@@ -44,13 +47,18 @@ Each folder in `src/` represents a **logical component** with clear responsibili
 
 | Component | Responsibility | Layer |
 |-----------|----------------|-------|
-| **config/** | Hardware configuration | Foundation |
-| **utils/** | Generic utilities | Foundation |
+| **config/** | Hardware & system configuration | Foundation |
+| **utils/** | Generic utilities & protocols | Foundation |
 | **sensors/** | Read physical inputs | Input Layer |
 | **actuators/** | Control physical outputs | Output Layer |
 | **control/** | Control algorithms | Business Logic |
 | **tasks/** | RTOS orchestration | Application Layer |
 | **main.cpp** | System initialization | Entry Point |
+
+**Note:** The `config/` folder now contains three separate configuration files:
+- `pins.h` - GPIO pin assignments
+- `system_config.h` - Protocol and logging configuration
+- `servo_config.h` - Servo sweep parameters and sector definitions (NEW)
 
 ### 2. Separation of Concerns
 
