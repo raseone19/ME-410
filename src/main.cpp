@@ -83,6 +83,8 @@ void setup() {
     Serial.println(PROTOCOL_NAME);
     Serial.print("Logging Rate: ");
     Serial.println(LOGGING_RATE_NAME);
+    Serial.print("Sweep Mode: ");
+    Serial.println(SWEEP_MODE_NAME);
     Serial.println("========================================");
     Serial.println();
 

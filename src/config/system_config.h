@@ -133,4 +133,42 @@
     constexpr uint8_t CSV_DECIMAL_PLACES = 0;
 #endif
 
+// ============================================================================
+// SERVO SWEEP MODE CONFIGURATION
+// ============================================================================
+
+/**
+ * Servo sweep mode selection:
+ *
+ * SWEEP_MODE_FORWARD:      Forward sweep only (0° to 120°, then restart at 0°)
+ *   - Sweeps from min to max angle
+ *   - Returns to min angle to start next sweep
+ *   - Updates min distance at max angle of each sector
+ *   - Simple and fast
+ *
+ * SWEEP_MODE_BIDIRECTIONAL: Bidirectional sweep (0° to 120° to 0°)
+ *   - Sweeps forward from min to max angle
+ *   - Then sweeps backward from max to min angle
+ *   - Updates min distance at max angle during forward sweep
+ *   - Updates min distance at min angle during backward sweep
+ *   - More complete coverage, no need to return to start position
+ */
+
+// Uncomment ONE of the following lines:
+//#define SWEEP_MODE_FORWARD        // Default: forward sweep only
+#define SWEEP_MODE_BIDIRECTIONAL  // Bidirectional sweep
+
+// Validate sweep mode selection
+#if (defined(SWEEP_MODE_FORWARD) + defined(SWEEP_MODE_BIDIRECTIONAL)) != 1
+    #error "ERROR: Select exactly ONE sweep mode!"
+#endif
+
+#ifdef SWEEP_MODE_FORWARD
+    constexpr const char* SWEEP_MODE_NAME = "Forward";
+#endif
+
+#ifdef SWEEP_MODE_BIDIRECTIONAL
+    constexpr const char* SWEEP_MODE_NAME = "Bidirectional";
+#endif
+
 #endif // SYSTEM_CONFIG_H
