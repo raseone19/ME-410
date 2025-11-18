@@ -14,7 +14,10 @@
     "build": "next build",
     "start": "next start",
     "start:mock": "tsx dev/mock-ws-server.ts & next start -p 3000",
+    "start:serial": "SERIAL_PORT=/dev/cu.usbserial-10 tsx dev/serial-ws-bridge.ts & next start -p 3000",
+    "prod:start": "pnpm build && pnpm start",
     "prod:mock": "pnpm build && pnpm start:mock",
+    "prod:serial": "pnpm build && pnpm start:serial",
     "lint": "eslint"
   },
   "dependencies": {

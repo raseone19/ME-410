@@ -120,61 +120,76 @@ export default function SensorsPage() {
   // Extract configuration values (NO FALLBACKS - show ERR if missing)
   const pressurePadMax = 1200; // UI constant
 
-  // Validate and extract configuration values
-  let pressurePadChannels: number[] | 'ERR' = 'ERR';
-  if (!espConfig?.pressurePads?.channels) {
-    console.error('[Config Error] Missing PP_CHANNELS in src/config/pins.h');
-  } else {
-    pressurePadChannels = espConfig.pressurePads.channels;
-  }
+  // Validate and extract configuration values (only runs when config changes)
+  const configValues = useMemo(() => {
+    let pressurePadChannels: number[] | 'ERR' = 'ERR';
+    let tofMaxDistance: number | 'ERR' = 'ERR';
+    let servoMinAngle: number | 'ERR' = 'ERR';
+    let servoMaxAngle: number | 'ERR' = 'ERR';
 
-  let tofMaxDistance: number | 'ERR' = 'ERR';
-  if (!espConfig?.tofConstants?.distanceFarMax) {
-    console.error('[Config Error] Missing DISTANCE_FAR_MAX in src/sensors/tof_sensor.h');
-  } else {
-    tofMaxDistance = parseFloat(espConfig.tofConstants.distanceFarMax.replace('f', ''));
-  }
-
-  let servoMinAngle: number | 'ERR' = 'ERR';
-  if (!espConfig?.tof?.servoMinAngle) {
-    console.error('[Config Error] Missing SERVO_MIN_ANGLE in src/config/pins.h');
-  } else {
-    servoMinAngle = parseInt(espConfig.tof.servoMinAngle);
-  }
-
-  let servoMaxAngle: number | 'ERR' = 'ERR';
-  if (!espConfig?.tof?.servoMaxAngle) {
-    console.error('[Config Error] Missing SERVO_MAX_ANGLE in src/config/pins.h');
-  } else {
-    servoMaxAngle = parseInt(espConfig.tof.servoMaxAngle);
-  }
-
-  // Load sector angles from configuration (NO FALLBACKS)
-  const sectorAngles = [1, 2, 3, 4].map((motorNum) => {
-    const motorKey = `motor${motorNum}` as const;
-    const sectorData = espConfig?.sectors?.[motorKey];
-
-    let minAngle: number | 'ERR' = 'ERR';
-    let maxAngle: number | 'ERR' = 'ERR';
-
-    if (!sectorData) {
-      console.error(`[Config Error] Missing sectors.${motorKey} in ESP32 configuration`);
-    } else {
-      if (!sectorData.min) {
-        console.error(`[Config Error] Missing SECTOR_MOTOR_${motorNum}_MIN in src/config/pins.h`);
+    // Only validate if config is loaded
+    if (espConfig) {
+      if (!espConfig?.pressurePads?.channels) {
+        console.error('[Config Error] Missing PP_CHANNELS in src/config/pins.h');
       } else {
-        minAngle = parseInt(sectorData.min);
+        pressurePadChannels = espConfig.pressurePads.channels;
       }
 
-      if (!sectorData.max) {
-        console.error(`[Config Error] Missing SECTOR_MOTOR_${motorNum}_MAX in src/config/pins.h`);
+      if (!espConfig?.tofConstants?.distanceFarMax) {
+        console.error('[Config Error] Missing DISTANCE_FAR_MAX in src/sensors/tof_sensor.h');
       } else {
-        maxAngle = parseInt(sectorData.max);
+        tofMaxDistance = parseFloat(espConfig.tofConstants.distanceFarMax.replace('f', ''));
+      }
+
+      if (!espConfig?.tof?.servoMinAngle) {
+        console.error('[Config Error] Missing SERVO_MIN_ANGLE in src/config/pins.h');
+      } else {
+        servoMinAngle = parseInt(espConfig.tof.servoMinAngle);
+      }
+
+      if (!espConfig?.tof?.servoMaxAngle) {
+        console.error('[Config Error] Missing SERVO_MAX_ANGLE in src/config/pins.h');
+      } else {
+        servoMaxAngle = parseInt(espConfig.tof.servoMaxAngle);
       }
     }
 
-    return { sector: motorNum, motor: motorNum, minAngle, maxAngle };
-  });
+    return { pressurePadChannels, tofMaxDistance, servoMinAngle, servoMaxAngle };
+  }, [espConfig]);
+
+  const { pressurePadChannels, tofMaxDistance, servoMinAngle, servoMaxAngle } = configValues;
+
+  // Load sector angles from configuration (NO FALLBACKS)
+  const sectorAngles = useMemo(() => {
+    return [1, 2, 3, 4].map((motorNum) => {
+      const motorKey = `motor${motorNum}` as const;
+      const sectorData = espConfig?.sectors?.[motorKey];
+
+      let minAngle: number | 'ERR' = 'ERR';
+      let maxAngle: number | 'ERR' = 'ERR';
+
+      // Only validate if config is loaded
+      if (espConfig) {
+        if (!sectorData) {
+          console.error(`[Config Error] Missing sectors.${motorKey} in ESP32 configuration`);
+        } else {
+          if (!sectorData.min) {
+            console.error(`[Config Error] Missing SECTOR_MOTOR_${motorNum}_MIN in src/config/pins.h`);
+          } else {
+            minAngle = parseInt(sectorData.min);
+          }
+
+          if (!sectorData.max) {
+            console.error(`[Config Error] Missing SECTOR_MOTOR_${motorNum}_MAX in src/config/pins.h`);
+          } else {
+            maxAngle = parseInt(sectorData.max);
+          }
+        }
+      }
+
+      return { sector: motorNum, motor: motorNum, minAngle, maxAngle };
+    });
+  }, [espConfig]);
 
   // Calculate sensor statistics (noise analysis)
   const calculateSensorStats = useMemo(() => {
