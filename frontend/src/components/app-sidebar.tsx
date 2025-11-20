@@ -8,7 +8,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Gauge, Radar, Grid3x3, Activity, Stethoscope, Settings } from 'lucide-react';
+import { Gauge, Radar, Grid3x3, Activity, Stethoscope, Settings, BookOpen } from 'lucide-react';
 import { useWebSocketStore, TRANSITION_PAUSE_MS } from '@/lib/websocket-store';
 
 import {
@@ -25,81 +25,101 @@ import {
   SidebarRail,
 } from '@/components/ui/sidebar';
 
+// Feature flags from environment variables
+const SHOW_TUNING = process.env.NEXT_PUBLIC_SHOW_TUNING === 'true';
+const SHOW_DIAGNOSTICS = process.env.NEXT_PUBLIC_SHOW_DIAGNOSTICS === 'true';
+
 // Navigation data for the motor control dashboard
+const allNavItems = [
+  {
+    title: 'Dashboard',
+    url: '/',
+    icon: Gauge,
+    items: [
+      {
+        title: 'Overview',
+        url: '/',
+      },
+    ],
+  },
+  {
+    title: 'Visualization',
+    url: '#',
+    icon: Radar,
+    items: [
+      {
+        title: 'Radar View',
+        url: '/radar',
+      },
+    ],
+  },
+  {
+    title: 'Motors',
+    url: '#',
+    icon: Grid3x3,
+    items: [
+      {
+        title: 'Motor 1',
+        url: '/motor/1',
+      },
+      {
+        title: 'Motor 2',
+        url: '/motor/2',
+      },
+      {
+        title: 'Motor 3',
+        url: '/motor/3',
+      },
+      {
+        title: 'Motor 4',
+        url: '/motor/4',
+      },
+    ],
+  },
+  {
+    title: 'Documentation',
+    url: '#',
+    icon: BookOpen,
+    items: [
+      {
+        title: 'Browse Docs',
+        url: '/docs',
+      },
+    ],
+  },
+  {
+    title: 'Tuning',
+    url: '#',
+    icon: Settings,
+    enabled: SHOW_TUNING,
+    items: [
+      {
+        title: 'PI Controller',
+        url: '/tuning',
+      },
+    ],
+  },
+  {
+    title: 'Diagnostics',
+    url: '#',
+    icon: Stethoscope,
+    enabled: SHOW_DIAGNOSTICS,
+    items: [
+      {
+        title: 'System Health',
+        url: '/diagnostics',
+      },
+      {
+        title: 'Sensor Debug',
+        url: '/sensors',
+      },
+    ],
+  },
+];
+
+// Filter navigation based on feature flags
 const data = {
-  navMain: [
-    {
-      title: 'Dashboard',
-      url: '/',
-      icon: Gauge,
-      items: [
-        {
-          title: 'Overview',
-          url: '/',
-        },
-      ],
-    },
-    {
-      title: 'Visualization',
-      url: '#',
-      icon: Radar,
-      items: [
-        {
-          title: 'Radar View',
-          url: '/radar',
-        },
-      ],
-    },
-    {
-      title: 'Motors',
-      url: '#',
-      icon: Grid3x3,
-      items: [
-        {
-          title: 'Motor 1',
-          url: '/motor/1',
-        },
-        {
-          title: 'Motor 2',
-          url: '/motor/2',
-        },
-        {
-          title: 'Motor 3',
-          url: '/motor/3',
-        },
-        {
-          title: 'Motor 4',
-          url: '/motor/4',
-        },
-      ],
-    },
-    {
-      title: 'Tuning',
-      url: '#',
-      icon: Settings,
-      items: [
-        {
-          title: 'PI Controller',
-          url: '/tuning',
-        },
-      ],
-    },
-    {
-      title: 'Diagnostics',
-      url: '#',
-      icon: Stethoscope,
-      items: [
-        {
-          title: 'System Health',
-          url: '/diagnostics',
-        },
-        {
-          title: 'Sensor Debug',
-          url: '/sensors',
-        },
-      ],
-    },
-  ],
+  navMain: allNavItems.filter(item => item.enabled !== false),
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {

@@ -51,6 +51,7 @@ export default function DiagnosticsPage() {
   const {
     status,
     diagnostics,
+    currentData,
     isPaused,
     connect,
     disconnect,
@@ -542,6 +543,188 @@ export default function DiagnosticsPage() {
                 <div>
                   <div className="text-muted-foreground">Protocol</div>
                   <div className="font-medium">Binary (70 bytes/packet)</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Binary Protocol Documentation */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Understanding the Data
+              </CardTitle>
+              <CardDescription>
+                How binary packets flow from ESP32 to your screen (50 times per second)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Current Packet Example */}
+              {currentData && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="default">Live Packet</Badge>
+                    <span className="text-sm text-muted-foreground">
+                      Received {formatTime(currentData.time_ms)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-mono bg-muted p-4 rounded-lg">
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-2">MOTOR 1 DATA</div>
+                      <div className="space-y-1">
+                        <div>Target: <span className="text-blue-600 font-semibold">{currentData.sp1_mv.toFixed(1)} mV</span></div>
+                        <div>Actual: <span className={currentData.pp1_mv < currentData.sp1_mv ? "text-orange-600" : "text-green-600"}>{currentData.pp1_mv} mV</span></div>
+                        <div>Power: <span className="text-purple-600">{currentData.duty1_pct.toFixed(1)}%</span></div>
+                        <div>Distance: <span className="text-cyan-600">{currentData.tof1_cm.toFixed(1)} cm</span></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-2">SENSOR STATUS</div>
+                      <div className="space-y-1">
+                        <div>Servo: <span className="text-indigo-600">{currentData.servo_angle}°</span></div>
+                        <div>Live TOF: <span className="text-cyan-600">{currentData.tof_current_cm.toFixed(1)} cm</span></div>
+                        <div>Timestamp: <span className="text-gray-600">{currentData.time_ms} ms</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Field Explanations */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm">What Each Value Means</h4>
+
+                <div className="space-y-3 text-sm">
+                  <div className="flex gap-3">
+                    <div className="w-32 flex-shrink-0 font-medium text-blue-600">Target (mV)</div>
+                    <div className="text-muted-foreground">
+                      Desired pressure for each motor. Calculated based on distance sensor.
+                      <br/>
+                      <span className="text-xs">Far away = 500mV (soft), Close = 600mV (firm)</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="w-32 flex-shrink-0 font-medium text-orange-600">Actual (mV)</div>
+                    <div className="text-muted-foreground">
+                      Current pressure reading from pressure pad sensor.
+                      <br/>
+                      <span className="text-xs">0-300 = Deflated, 400-600 = Normal, 700+ = High</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="w-32 flex-shrink-0 font-medium text-purple-600">Power (%)</div>
+                    <div className="text-muted-foreground">
+                      Motor speed controlled by PI algorithm.
+                      <br/>
+                      <span className="text-xs">Positive = Inflating, Negative = Deflating, 0 = Stopped</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="w-32 flex-shrink-0 font-medium text-cyan-600">Distance (cm)</div>
+                    <div className="text-muted-foreground">
+                      TOF sensor reading for each sector (servo sweeps 4 zones).
+                      <br/>
+                      <span className="text-xs">10-300 cm range, determines target pressure</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="w-32 flex-shrink-0 font-medium text-indigo-600">Servo (°)</div>
+                    <div className="text-muted-foreground">
+                      Current angle of TOF sensor servo (0-180°).
+                      <br/>
+                      <span className="text-xs">Continuously sweeps to scan environment</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Packet Journey */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm">Data Journey (Every 20ms)</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-950/20 p-3 rounded">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-xs">1</div>
+                    <div>
+                      <div className="font-medium">ESP32-S3 Firmware</div>
+                      <div className="text-xs text-muted-foreground">Creates 70-byte binary packet with CRC-16 checksum</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 bg-purple-50 dark:bg-purple-950/20 p-3 rounded">
+                    <div className="flex-shrink-0 w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold text-xs">2</div>
+                    <div>
+                      <div className="font-medium">USB Serial (115200 baud)</div>
+                      <div className="text-xs text-muted-foreground">Transmits packet in ~6ms</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 bg-orange-50 dark:bg-orange-950/20 p-3 rounded">
+                    <div className="flex-shrink-0 w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold text-xs">3</div>
+                    <div>
+                      <div className="font-medium">Serial Bridge (Node.js)</div>
+                      <div className="text-xs text-muted-foreground">Parses binary, verifies CRC, converts to JSON</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 bg-green-50 dark:bg-green-950/20 p-3 rounded">
+                    <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-xs">4</div>
+                    <div>
+                      <div className="font-medium">WebSocket (Port 3001)</div>
+                      <div className="text-xs text-muted-foreground">Broadcasts to all connected browsers</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 bg-cyan-50 dark:bg-cyan-950/20 p-3 rounded">
+                    <div className="flex-shrink-0 w-8 h-8 bg-cyan-500 text-white rounded-full flex items-center justify-center font-bold text-xs">5</div>
+                    <div>
+                      <div className="font-medium">Your Browser</div>
+                      <div className="text-xs text-muted-foreground">Updates React UI in real-time</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-muted p-3 rounded text-sm">
+                  <div className="font-medium mb-1">Total Latency: ~25ms</div>
+                  <div className="text-xs text-muted-foreground">
+                    From sensor reading to screen update. At 50 Hz (20ms period), you get real-time updates with minimal lag!
+                  </div>
+                </div>
+              </div>
+
+              {/* Common Scenarios */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm">Understanding the System States</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div className="border rounded p-3 space-y-1">
+                    <div className="font-medium text-green-600">✓ Stable</div>
+                    <div className="text-xs text-muted-foreground">Target: 550mV, Actual: 548mV, Power: 2%</div>
+                    <div className="text-xs">System maintaining pressure, gentle correction</div>
+                  </div>
+
+                  <div className="border rounded p-3 space-y-1">
+                    <div className="font-medium text-blue-600">⬆ Inflating</div>
+                    <div className="text-xs text-muted-foreground">Target: 650mV, Actual: 540mV, Power: 75%</div>
+                    <div className="text-xs">Object detected close, increasing firmness</div>
+                  </div>
+
+                  <div className="border rounded p-3 space-y-1">
+                    <div className="font-medium text-orange-600">⬇ Deflating</div>
+                    <div className="text-xs text-muted-foreground">Target: 500mV, Actual: 650mV, Power: -50%</div>
+                    <div className="text-xs">Object moved away, reducing to softer state</div>
+                  </div>
+
+                  <div className="border rounded p-3 space-y-1">
+                    <div className="font-medium text-red-600">⚠ Emergency</div>
+                    <div className="text-xs text-muted-foreground">Target: -1mV, Actual: 850mV, Power: -100%</div>
+                    <div className="text-xs">Safety mode: too close, full deflate</div>
+                  </div>
                 </div>
               </div>
             </CardContent>
