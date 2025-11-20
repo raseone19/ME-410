@@ -36,7 +36,7 @@ A robust ESP32-S3-based control system that independently controls 5 DC motors u
 See [docs/hardware.md](docs/hardware.md) for complete wiring diagram and pin mappings.
 
 **Quick Reference:**
-- Servo: GPIO 22 (PWM, timer 2)
+- Servo: GPIO 6 (PWM, timer 2)
 - TOF Sensor: RX on GPIO 34, TX on GPIO 18
 - Pressure Pads: Multiplexer channels C1, C2, C3, C6, C8
 - Motors: H-bridge connections via GPIOs (see hardware.md)
