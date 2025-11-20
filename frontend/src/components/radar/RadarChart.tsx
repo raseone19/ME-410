@@ -216,7 +216,7 @@ export const RadarChart = memo(function RadarChart({ currentData, motorHistory, 
         const alpha = 0.15 + (idx / currentScanHistory.length) * 0.25;
         ctx.fillStyle = `rgba(0, 255, 0, ${alpha})`;
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, 2.5, 0, Math.PI * 2);
+        ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
         ctx.fill();
       });
 
@@ -230,24 +230,24 @@ export const RadarChart = memo(function RadarChart({ currentData, motorHistory, 
           const pos = angleToCanvas(angle, dist, centerX, centerY, maxRadius);
 
           // Glow
-          const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 15);
+          const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 18);
           glow.addColorStop(0, 'rgba(0, 255, 0, 0.8)');
           glow.addColorStop(1, 'rgba(0, 255, 0, 0)');
           ctx.fillStyle = glow;
           ctx.beginPath();
-          ctx.arc(pos.x, pos.y, 15, 0, Math.PI * 2);
+          ctx.arc(pos.x, pos.y, 18, 0, Math.PI * 2);
           ctx.fill();
 
           // Bright dot
           ctx.fillStyle = '#0f0';
           ctx.beginPath();
-          ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+          ctx.arc(pos.x, pos.y, 7, 0, Math.PI * 2);
           ctx.fill();
 
           // Center
           ctx.fillStyle = '#fff';
           ctx.beginPath();
-          ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
+          ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
           ctx.fill();
 
           // Label

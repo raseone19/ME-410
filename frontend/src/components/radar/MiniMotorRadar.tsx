@@ -212,7 +212,7 @@ export const MiniMotorRadar = memo(function MiniMotorRadar({
         const alpha = 0.15 + (idx / Math.max(sectorPoints.length, 1)) * 0.35;
         ctx.fillStyle = `rgba(0, 255, 0, ${alpha})`;
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, 2.5, 0, Math.PI * 2);
+        ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
         ctx.fill();
       });
 

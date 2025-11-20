@@ -20,9 +20,9 @@
 
 
 // Motor 1
-constexpr uint8_t M1_PWM  = 19;   // PWM speed control (changed from 19 for ESP32-S3 USB compatibility)
+constexpr uint8_t M1_PWM  = 13;   // PWM speed control (changed from 19 for ESP32-S3 USB compatibility)
 constexpr uint8_t M1_IN1  = 21;  // H-bridge input 1
-constexpr uint8_t M1_IN2  = 20;  // H-bridge input 2 (changed from 20 for ESP32-S3 USB compatibility)
+constexpr uint8_t M1_IN2  = 14;  // H-bridge input 2 (changed from 20 for ESP32-S3 USB compatibility)
 
 // Motor 2
 constexpr uint8_t M2_PWM  = 35;  // PWM speed control
