@@ -1,11 +1,11 @@
 /**
  * Serial to WebSocket Bridge
- * Reads CSV data from ESP32 via USB serial port and broadcasts to WebSocket clients
+ * Reads binary data from ESP32 via USB serial port and broadcasts to WebSocket clients
+ * Binary protocol only - 70 bytes per packet with CRC-16 checksum
  */
 
 import { WebSocketServer, WebSocket } from 'ws';
 import { SerialPort } from 'serialport';
-import { ReadlineParser } from '@serialport/parser-readline';
 import type { MotorData } from '../src/lib/types';
 
 const WS_PORT = 3001;
@@ -26,7 +26,6 @@ let isRecording = false;
 
 // Initialize serial port
 let serialPort: SerialPort;
-let parser: ReadlineParser;
 let binaryBuffer = Buffer.alloc(0);
 
 /**
@@ -185,11 +184,9 @@ function initSerial() {
       baudRate: BAUD_RATE,
     });
 
-    parser = serialPort.pipe(new ReadlineParser({ delimiter: '\n' }));
-
     serialPort.on('open', () => {
       console.log(`✅ Serial port opened: ${SERIAL_PORT} @ ${BAUD_RATE} baud`);
-      console.log('🔍 Auto-detecting protocol (CSV or Binary)...');
+      console.log('📡 Binary protocol mode (70-byte packets with CRC-16)');
     });
 
     serialPort.on('error', (err) => {
@@ -203,66 +200,9 @@ function initSerial() {
       console.log('   - On Windows: Port usually COM3, COM4, etc.');
     });
 
-    let isFirstLine = true;
-    let protocolDetected = false;
-    let useBinaryProtocol = false;
-
-    // Listen for raw binary data
+    // Listen for raw binary data only
     serialPort.on('data', (chunk: Buffer) => {
-      // Auto-detect protocol on first data
-      if (!protocolDetected) {
-        // Check if starts with binary header (0xAA55)
-        if (chunk.length >= 2) {
-          const header = chunk.readUInt16LE(0);
-          if (header === HEADER_WORD) {
-            useBinaryProtocol = true;
-            protocolDetected = true;
-            console.log('✅ Binary protocol detected');
-            // Stop CSV parser
-            parser.removeAllListeners('data');
-          }
-        }
-      }
-
-      // Process binary data if binary protocol
-      if (useBinaryProtocol) {
-        processBinaryData(chunk);
-      }
-    });
-
-    // CSV parser (will be disabled if binary detected)
-    parser.on('data', (line: string) => {
-      const trimmed = line.trim();
-
-      // Auto-detect CSV protocol
-      if (!protocolDetected && trimmed.includes(',')) {
-        protocolDetected = true;
-        useBinaryProtocol = false;
-        console.log('✅ CSV protocol detected');
-      }
-
-      // Skip header line
-      if (isFirstLine) {
-        console.log('📋 CSV Header:', trimmed);
-        isFirstLine = false;
-        return;
-      }
-
-      // Skip empty lines
-      if (!trimmed) return;
-
-      // Only process if using CSV protocol
-      if (!useBinaryProtocol) {
-        try {
-          const motorData = parseCSVLine(trimmed);
-          if (motorData) {
-            broadcastData(motorData);
-          }
-        } catch (error) {
-          console.error('❌ Parse error:', error);
-          console.log('   Line:', trimmed);
-        }
-      }
+      processBinaryData(chunk);
     });
   } catch (error) {
     console.error('❌ Failed to open serial port:', error);
@@ -270,47 +210,6 @@ function initSerial() {
   }
 }
 
-/**
- * Parse CSV line from ESP32
- * Format: time_ms,sp1_mv,sp2_mv,sp3_mv,sp4_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,tof1_cm,tof2_cm,tof3_cm,tof4_cm,servo_angle
- *
- * NOTE: CSV mode is deprecated. Binary protocol is the primary communication method.
- */
-function parseCSVLine(line: string): MotorData | null {
-  const parts = line.split(',').map((s) => s.trim());
-
-  if (parts.length !== 18) {
-    console.warn('⚠️  Invalid CSV line (expected 18 fields, got', parts.length, '):', line);
-    return null;
-  }
-
-  try {
-    return {
-      time_ms: parseInt(parts[0]),
-      sp1_mv: parseFloat(parts[1]),
-      sp2_mv: parseFloat(parts[2]),
-      sp3_mv: parseFloat(parts[3]),
-      sp4_mv: parseFloat(parts[4]),
-      pp1_mv: parseFloat(parts[5]),
-      pp2_mv: parseFloat(parts[6]),
-      pp3_mv: parseFloat(parts[7]),
-      pp4_mv: parseFloat(parts[8]),
-      duty1_pct: parseFloat(parts[9]),
-      duty2_pct: parseFloat(parts[10]),
-      duty3_pct: parseFloat(parts[11]),
-      duty4_pct: parseFloat(parts[12]),
-      tof1_cm: parseFloat(parts[13]),
-      tof2_cm: parseFloat(parts[14]),
-      tof3_cm: parseFloat(parts[15]),
-      tof4_cm: parseFloat(parts[16]),
-      servo_angle: parseFloat(parts[17]),
-      tof_current_cm: 0,  // Not available in CSV mode
-    };
-  } catch (error) {
-    console.error('❌ Failed to parse numbers from:', line);
-    return null;
-  }
-}
 
 /**
  * Broadcast data to all connected WebSocket clients

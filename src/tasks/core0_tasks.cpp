@@ -7,10 +7,7 @@
 #include "../sensors/tof_sensor.h"
 #include "../config/pins.h"
 #include "../config/system_config.h"
-
-#ifdef PROTOCOL_BINARY
 #include "../utils/binary_protocol.h"
-#endif
 
 // ============================================================================
 // Shared Variables (Extern declarations in header)
@@ -28,11 +25,6 @@ volatile float shared_tof_current = 0.0f;
 // ============================================================================
 
 void serialPrintTask(void* parameter) {
-#ifdef PROTOCOL_CSV
-    // Print CSV header once at startup
-    Serial.println("time_ms,sp1_mv,sp2_mv,sp3_mv,sp4_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,tof1_cm,tof2_cm,tof3_cm,tof4_cm,servo_angle");
-#endif
-
     TickType_t lastWakeTime = xTaskGetTickCount();
     const TickType_t frequency = pdMS_TO_TICKS(LOGGING_PERIOD_MS);
 
@@ -57,43 +49,6 @@ void serialPrintTask(void* parameter) {
         servo_angle = shared_servo_angle;
         tof_current = shared_tof_current;
 
-#ifdef PROTOCOL_CSV
-        // ====================================================================
-        // CSV Protocol Output
-        // ====================================================================
-        Serial.print(time_ms);
-        Serial.print(",");
-
-        // Print all 4 setpoints
-        for (int i = 0; i < NUM_MOTORS; ++i) {
-            Serial.print(setpoints[i], CSV_DECIMAL_PLACES);
-            Serial.print(",");
-        }
-
-        // Print all 4 pressure pad values
-        for (int i = 0; i < NUM_MOTORS; ++i) {
-            Serial.print(pp_mv[i]);
-            Serial.print(",");
-        }
-
-        // Print all 4 duty cycles
-        for (int i = 0; i < NUM_MOTORS; ++i) {
-            Serial.print(duty[i], CSV_DECIMAL_PLACES);
-            Serial.print(",");
-        }
-
-        // Print all 4 TOF distances
-        for (int i = 0; i < NUM_MOTORS; ++i) {
-            Serial.print(tof_dist[i], CSV_DECIMAL_PLACES);
-            Serial.print(",");
-        }
-
-        // Print servo angle
-        Serial.print(servo_angle);
-
-        Serial.println();
-
-#else
         // ====================================================================
         // Binary Protocol Output
         // ====================================================================
@@ -102,7 +57,6 @@ void serialPrintTask(void* parameter) {
         uint8_t mode_byte = 1;
         buildDataPacket(&packet, time_ms, setpoints, pp_mv, duty, tof_dist, (uint8_t)servo_angle, tof_current, mode_byte);
         sendBinaryPacket(&packet);
-#endif
 
         // Wait for next period
         vTaskDelayUntil(&lastWakeTime, frequency);

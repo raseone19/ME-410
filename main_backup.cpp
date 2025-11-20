@@ -96,105 +96,54 @@ void setup() {
     Serial.println();
     Serial.flush();
 
-    // ========================================================================
-    // HARDWARE INITIALIZATION - DIAGNOSTIC MODE
-    // ========================================================================
-    // Enable/disable components one by one to find the issue
-    // Set to true to enable, false to skip
-    // ========================================================================
-
-    const bool ENABLE_TOF = true;           // Test 1: TOF sensor and servo
-    const bool ENABLE_PRESSURE_PADS = true; // Test 2: Pressure pads
-    const bool ENABLE_MOTORS = true;        // Test 3: Motors
-    const bool ENABLE_PI = true;            // Test 4: PI controllers
-    const bool ENABLE_CORE0_TASKS = true;   // Test 5: Core 0 tasks
-
-    Serial.println("\n========================================");
-    Serial.println("DIAGNOSTIC MODE - Hardware Test");
-    Serial.println("========================================");
-    Serial.print("TOF Sensor:     "); Serial.println(ENABLE_TOF ? "ENABLED" : "DISABLED");
-    Serial.print("Pressure Pads:  "); Serial.println(ENABLE_PRESSURE_PADS ? "ENABLED" : "DISABLED");
-    Serial.print("Motors:         "); Serial.println(ENABLE_MOTORS ? "ENABLED" : "DISABLED");
-    Serial.print("PI Controllers: "); Serial.println(ENABLE_PI ? "ENABLED" : "DISABLED");
-    Serial.print("Core 0 Tasks:   "); Serial.println(ENABLE_CORE0_TASKS ? "ENABLED" : "DISABLED");
-    Serial.println("========================================\n");
-    Serial.flush();
-    delay(1000);
-
     // Initialize hardware modules
-    Serial.println("Initializing hardware...\n");
+    Serial.println("Initializing hardware...");
     Serial.flush();
     delay(100);
 
-    // Test 1: TOF sensor and servo
-    if (ENABLE_TOF) {
-        Serial.print("  [1/5] TOF sensor and servo... ");
-        Serial.flush();
-        initTOFSensor();
-        Serial.println("OK");
-        Serial.flush();
-        delay(500);
-    } else {
-        Serial.println("  [1/5] TOF sensor: SKIPPED");
-        Serial.flush();
-        delay(100);
-    }
+    // Initialize TOF sensor and servo
+    Serial.print("  - TOF sensor... ");
+    Serial.flush();
+    initTOFSensor();
+    Serial.println("OK");
+    Serial.flush();
+    delay(100);
 
-    // Test 2: Pressure pads (and multiplexer)
-    if (ENABLE_PRESSURE_PADS) {
-        Serial.print("  [2/5] Pressure pads... ");
-        Serial.flush();
-        initPressurePads();
-        Serial.println("OK");
-        Serial.flush();
-        delay(500);
-    } else {
-        Serial.println("  [2/5] Pressure pads: SKIPPED");
-        Serial.flush();
-        delay(100);
-    }
+    // Initialize pressure pads (and multiplexer)
+    Serial.print("  - Pressure pads... ");
+    Serial.flush();
+    initPressurePads();
+    Serial.println("OK");
+    Serial.flush();
+    delay(100);
 
-    // Test 3: Motors
-    if (ENABLE_MOTORS) {
-        Serial.print("  [3/5] Motors... ");
-        Serial.flush();
-        initMotorSystem();
-        Serial.println("OK");
-        Serial.flush();
-        delay(500);
-    } else {
-        Serial.println("  [3/5] Motors: SKIPPED");
-        Serial.flush();
-        delay(100);
-    }
+    // Initialize motors
+    Serial.print("  - Motors... ");
+    Serial.flush();
+    initMotorSystem();
+    Serial.println("OK");
+    Serial.flush();
+    delay(100);
 
-    // Test 4: PI controllers
-    if (ENABLE_PI) {
-        Serial.print("  [4/5] PI controllers... ");
-        Serial.flush();
-        initPIController();
-        Serial.println("OK");
-        Serial.flush();
-        delay(500);
-    } else {
-        Serial.println("  [4/5] PI controllers: SKIPPED");
-        Serial.flush();
-        delay(100);
-    }
+    // Initialize PI controllers
+    Serial.print("  - PI controllers... ");
+    Serial.flush();
+    initPIController();
+    Serial.println("OK");
+    Serial.flush();
+    delay(100);
 
-    // Test 5: Core 0 tasks
-    if (ENABLE_CORE0_TASKS) {
-        Serial.println("\n  [5/5] Starting Core 0 tasks...");
-        Serial.flush();
-        initCore0Tasks();
-        Serial.println("       Core 0 tasks: OK");
-        Serial.flush();
-        delay(500);
-    } else {
-        Serial.println("  [5/5] Core 0 tasks: SKIPPED");
-        Serial.flush();
-        delay(100);
-    }
+    Serial.println();
+    Serial.println("Starting Core 0 tasks...");
+    Serial.flush();
+
+    // Start Core 0 tasks (servo sweep + logger)
+    initCore0Tasks();
+
+    Serial.println("  - Servo sweep task started on Core 0");
+    Serial.println("  - Serial print task started on Core 0");
+    Serial.flush();
+    delay(100);
 
     Serial.println();
     Serial.println("Initialization complete!");

@@ -20,9 +20,9 @@
 
 
 // Motor 1
-constexpr uint8_t M1_PWM  = 19;  // PWM speed control
+constexpr uint8_t M1_PWM  = 5;   // PWM speed control (changed from 19 for ESP32-S3 USB compatibility)
 constexpr uint8_t M1_IN1  = 21;  // H-bridge input 1
-constexpr uint8_t M1_IN2  = 20;  // H-bridge input 2
+constexpr uint8_t M1_IN2  = 14;  // H-bridge input 2 (changed from 20 for ESP32-S3 USB compatibility)
 
 // Motor 2
 constexpr uint8_t M2_PWM  = 35;  // PWM speed control
@@ -49,8 +49,8 @@ constexpr uint8_t PWM_RES_BITS = 10;      // 10-bit resolution (0-1023)
 // TOF SENSOR PINS (Serial Communication + Servo)
 // ============================================================================
 
-constexpr uint8_t TOF_RX_PIN = 44;        // Serial RX (changed from 16)
-constexpr uint8_t TOF_TX_PIN = 43;        // Serial TX (changed from 17)
+constexpr uint8_t TOF_RX_PIN = 9;         // Serial RX (GPIO 9 for ESP32-S3)
+constexpr uint8_t TOF_TX_PIN = 10;        // Serial TX (GPIO 10 for ESP32-S3)
 constexpr uint32_t TOF_BAUDRATE = 921600; // TOF sensor baud rate
 
 // Servo for TOF scanning
@@ -86,7 +86,7 @@ constexpr uint8_t PP_CHANNELS[NUM_PRESSURE_PADS] = {
     0,  // Pressure Pad 1 -> Channel C1
     2,  // Pressure Pad 2 -> Channel C2
     4,  // Pressure Pad 3 -> Channel C3
-    6,   // Pressure Pad 4 -> Channel C6
+    6   // Pressure Pad 4 -> Channel C6
 };
 
 // Number of ADC samples to average per reading

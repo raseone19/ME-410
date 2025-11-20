@@ -14,37 +14,15 @@
 // ============================================================================
 
 /**
- * Serial output protocol selection:
- *
- * PROTOCOL_CSV:    Human-readable CSV format
- *   - Easy to debug with serial monitor
- *   - Larger data size (~65 bytes/line)
- *   - Slower parsing (string processing)
- *   - Compatible with any serial terminal
- *
- * PROTOCOL_BINARY: High-performance binary format
- *   - 35% smaller (70 bytes/packet vs ~100 bytes CSV)
- *   - 3-5x faster parsing
- *   - CRC error detection
+ * Binary protocol only:
+ *   - High-performance binary format (70 bytes/packet)
+ *   - CRC-16 error detection
+ *   - 3-5x faster than CSV
  *   - Requires binary parser (included in Node bridge)
  */
 
-// Uncomment ONE of the following lines:
-//#define PROTOCOL_CSV
-#define PROTOCOL_BINARY  // Recommended for real-time visualization
-
-// Validate protocol selection
-#if (defined(PROTOCOL_CSV) + defined(PROTOCOL_BINARY)) != 1
-    #error "ERROR: Select exactly ONE protocol (CSV or BINARY)!"
-#endif
-
-#ifdef PROTOCOL_CSV
-    constexpr const char* PROTOCOL_NAME = "CSV";
-#endif
-
-#ifdef PROTOCOL_BINARY
-    constexpr const char* PROTOCOL_NAME = "Binary";
-#endif
+#define PROTOCOL_BINARY
+constexpr const char* PROTOCOL_NAME = "Binary";
 
 // ============================================================================
 // DATA LOGGING CONFIGURATION
@@ -91,47 +69,6 @@
     constexpr const char* LOGGING_RATE_NAME = "100 Hz";
 #endif
 
-// ============================================================================
-// CSV OUTPUT CONFIGURATION
-// ============================================================================
-
-/**
- * Decimal precision for CSV output:
- * Lower precision = smaller data size = faster transmission = better real-time performance
- *
- * PRECISION_HIGH:   3 decimals (e.g., 123.456) - Maximum detail
- * PRECISION_MEDIUM: 2 decimals (e.g., 123.46)  - Good balance (recommended)
- * PRECISION_LOW:    1 decimal  (e.g., 123.5)   - Fastest, still useful
- * PRECISION_INT:    0 decimals (e.g., 123)     - Integer only
- */
-
-// Uncomment ONE of the following lines:
-//#define PRECISION_HIGH
-#define PRECISION_MEDIUM  // Recommended for real-time visualization
-//#define PRECISION_LOW
-//#define PRECISION_INT
-
-// Validate precision selection
-#if (defined(PRECISION_HIGH) + defined(PRECISION_MEDIUM) + defined(PRECISION_LOW) + defined(PRECISION_INT)) != 1
-    #error "ERROR: Select exactly ONE precision level!"
-#endif
-
-// Define decimal places based on selected precision
-#ifdef PRECISION_HIGH
-    constexpr uint8_t CSV_DECIMAL_PLACES = 3;
-#endif
-
-#ifdef PRECISION_MEDIUM
-    constexpr uint8_t CSV_DECIMAL_PLACES = 2;
-#endif
-
-#ifdef PRECISION_LOW
-    constexpr uint8_t CSV_DECIMAL_PLACES = 1;
-#endif
-
-#ifdef PRECISION_INT
-    constexpr uint8_t CSV_DECIMAL_PLACES = 0;
-#endif
 
 // ============================================================================
 // SERVO SWEEP MODE CONFIGURATION

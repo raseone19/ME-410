@@ -72,9 +72,17 @@ static size_t tof_readN(uint8_t* buf, size_t len, uint16_t timeout = 1500) {
 // ============================================================================
 
 void initTOFSensor() {
+    Serial.println("    [Step 1/5] Starting TOF Serial...");
+    Serial.flush();
+
     // Initialize TOF serial communication
     tofSerial.begin(TOF_BAUDRATE, SERIAL_8N1, TOF_RX_PIN, TOF_TX_PIN);
     delay(100);
+    Serial.println("    [Step 1/5] TOF Serial: OK");
+    Serial.flush();
+
+    Serial.println("    [Step 2/5] Allocating PWM timer...");
+    Serial.flush();
 
     // Allocate timer for servo (motors use default timers)
     // This prevents PWM channel conflicts between motors and servo
@@ -82,12 +90,31 @@ void initTOFSensor() {
         ESP32PWM::allocateTimer(2);  // Use timer 2 for servo
         servo_channels_allocated = true;
     }
+    Serial.println("    [Step 2/5] PWM Timer: OK");
+    Serial.flush();
+
+    Serial.println("    [Step 3/5] Setting servo frequency...");
+    Serial.flush();
 
     // Initialize servo using ESP32Servo library
     tofServo.setPeriodHertz(50);    // Standard 50Hz servo
+    Serial.println("    [Step 3/5] Servo frequency: OK");
+    Serial.flush();
+
+    Serial.println("    [Step 4/5] Attaching servo to pin...");
+    Serial.flush();
+
     tofServo.attach(SERVO_PIN);
+    Serial.println("    [Step 4/5] Servo attached: OK");
+    Serial.flush();
+
+    Serial.println("    [Step 5/5] Writing servo position...");
+    Serial.flush();
+
     tofServo.write(SERVO_MIN_ANGLE);  // Start at minimum sweep angle
     delay(500);
+    Serial.println("    [Step 5/5] Servo position: OK");
+    Serial.flush();
 
     // Create mutex for thread-safe access to shared variables
     distanceMutex = xSemaphoreCreateMutex();
