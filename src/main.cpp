@@ -1,20 +1,20 @@
 /**
  * @file main.cpp
- * @brief 4-Motor Independent PI Control with Dynamic TOF Setpoint
+ * @brief 5-Motor Independent PI Control with Dynamic TOF Setpoint
  *
- * This project implements independent PI control for 4 motors, each with its own
+ * This project implements independent PI control for 5 motors, each with its own
  * pressure pad sensor. A TOF sensor with servo sweep determines the minimum distance,
  * which is used to calculate a dynamic setpoint applied to all motors.
  *
  * Architecture:
  * - Core 0: Servo sweep task (TOF scanning), Serial print task (CSV logging)
- * - Core 1: Main loop (PI control at 50 Hz for 4 motors)
+ * - Core 1: Main loop (PI control at 50 Hz for 5 motors)
  *
  * Hardware:
- * - 4 DC motors with H-bridge drivers
- * - 4 pressure pads via CD74HC4067 multiplexer
+ * - 5 DC motors with H-bridge drivers
+ * - 5 pressure pads via CD74HC4067 multiplexer
  * - TOF distance sensor with servo sweep mechanism
- * - ESP32 Dev Module
+ * - ESP32-S3-DevKitC-1U
  */
 
 #if !defined(ARDUINO_ARCH_ESP32)
@@ -43,19 +43,19 @@ constexpr uint32_t CTRL_DT_MS = 1000 / CTRL_FREQ_HZ;
 // State Machine for Out-of-Range Handling (Per Motor)
 // ============================================================================
 
-static SystemState current_state[NUM_MOTORS] = {NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION};
-static uint32_t reverse_start_time[NUM_MOTORS] = {0, 0, 0, 0};
+static SystemState current_state[NUM_MOTORS] = {NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION};
+static uint32_t reverse_start_time[NUM_MOTORS] = {0, 0, 0, 0, 0};
 
 // ============================================================================
 // Distance Range Tracking (Per Motor)
 // ============================================================================
 
-static DistanceRange current_range[NUM_MOTORS] = {RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN};
-static DistanceRange previous_range[NUM_MOTORS] = {RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN};
+static DistanceRange current_range[NUM_MOTORS] = {RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN};
+static DistanceRange previous_range[NUM_MOTORS] = {RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN};
 
 // Baseline pressure captured when entering FAR range (per motor, for dynamic setpoint calculation)
-static float far_range_baseline_mv[NUM_MOTORS] = {0.0f, 0.0f, 0.0f, 0.0f};
-static bool far_range_baseline_captured[NUM_MOTORS] = {false, false, false, false};
+static float far_range_baseline_mv[NUM_MOTORS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+static bool far_range_baseline_captured[NUM_MOTORS] = {false, false, false, false, false};
 
 // ============================================================================
 // Local Variables (Core 1)
@@ -76,7 +76,7 @@ void setup() {
     delay(2000);  // Allow time to open serial monitor
 
     Serial.println("========================================");
-    Serial.println("4-Motor Independent PI Control System");
+    Serial.println("5-Motor Independent PI Control System");
     Serial.println("With Servo Sweep and TOF Distance Sensing");
     Serial.println("========================================");
     Serial.print("Protocol: ");
@@ -141,7 +141,7 @@ void loop() {
         last_control_ms = current_time;
 
         // ====================================================================
-        // Step 1: Read all 4 pressure pads
+        // Step 1: Read all 5 pressure pads
         // ====================================================================
 
         readAllPadsMilliVolts(pressure_pads_mv, PP_SAMPLES);
@@ -204,7 +204,7 @@ void loop() {
         // Prepare arrays for PI control (only motors in NORMAL_OPERATION)
         float temp_setpoints[NUM_MOTORS];
         uint16_t temp_pressures[NUM_MOTORS];
-        float temp_duties[NUM_MOTORS] = {0.0f, 0.0f, 0.0f, 0.0f};
+        float temp_duties[NUM_MOTORS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
         // Track state transitions for each motor
         for (int i = 0; i < NUM_MOTORS; ++i) {

@@ -7,9 +7,9 @@
 #include "../config/pins.h"
 
 // Motor pin configuration arrays
-static const uint8_t MOTOR_PWM_PINS[NUM_MOTORS] = {M1_PWM, M2_PWM, M3_PWM, M4_PWM};
-static const uint8_t MOTOR_IN1_PINS[NUM_MOTORS] = {M1_IN1, M2_IN1, M3_IN1, M4_IN1};
-static const uint8_t MOTOR_IN2_PINS[NUM_MOTORS] = {M1_IN2, M2_IN2, M3_IN2, M4_IN2};
+static const uint8_t MOTOR_PWM_PINS[NUM_MOTORS] = {M1_PWM, M2_PWM, M3_PWM, M4_PWM, M5_PWM};
+static const uint8_t MOTOR_IN1_PINS[NUM_MOTORS] = {M1_IN1, M2_IN1, M3_IN1, M4_IN1, M5_IN1};
+static const uint8_t MOTOR_IN2_PINS[NUM_MOTORS] = {M1_IN2, M2_IN2, M3_IN2, M4_IN2, M5_IN2};
 
 // PWM channel tracking for automatic assignment
 struct PwmChannelMap {

@@ -73,9 +73,9 @@ enum SystemState {
 extern SemaphoreHandle_t distanceMutex;
 
 // MODE_A: Single distance/angle for fixed servo
-// MODE_B: Array of 4 distances/angles (one per motor sector)
-extern volatile float shared_min_distance[4];  // Minimum distance per motor sector
-extern volatile int shared_best_angle[4];      // Angle of minimum distance per motor sector
+// MODE_B: Array of 5 distances/angles (one per motor sector)
+extern volatile float shared_min_distance[5];  // Minimum distance per motor sector
+extern volatile int shared_best_angle[5];      // Angle of minimum distance per motor sector
 extern volatile bool sweep_active;
 
 // ============================================================================

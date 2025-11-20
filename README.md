@@ -1,33 +1,34 @@
-# 4-Motor Independent PI Control with Servo Sweep TOF Sensing
+# 5-Motor Independent PI Control with Servo Sweep TOF Sensing
 
-A robust ESP32-based control system that independently controls 4 DC motors using PI controllers, with dynamic setpoints calculated from TOF (Time-of-Flight) distance sensor readings across 4 sectors using servo sweep.
+A robust ESP32-S3-based control system that independently controls 5 DC motors using PI controllers, with dynamic setpoints calculated from TOF (Time-of-Flight) distance sensor readings across 5 sectors using servo sweep.
 
 ## Features
 
-- **4 Independent Motors**: Each motor has its own pressure pad sensor and PI controller
-- **Sector-Based Distance Sensing**: Servo sweeps 0°-120° divided into 4 sectors (one per motor)
-  - Motor 1: 0° - 30° sector
-  - Motor 2: 31° - 60° sector
-  - Motor 3: 61° - 90° sector
-  - Motor 4: 91° - 120° sector
+- **5 Independent Motors**: Each motor has its own pressure pad sensor and PI controller
+- **Sector-Based Distance Sensing**: Servo sweeps 5°-175° divided into 5 sectors (one per motor)
+  - Motor 1: 5° - 39° sector (34° range)
+  - Motor 2: 39° - 73° sector (34° range)
+  - Motor 3: 73° - 107° sector (34° range)
+  - Motor 4: 107° - 141° sector (34° range)
+  - Motor 5: 141° - 175° sector (34° range)
 - **Dynamic Setpoints**: Each motor calculates its setpoint based on minimum distance in its sector
-- **Multi-Core Architecture**: Utilizes both ESP32 cores for parallel processing
+- **Multi-Core Architecture**: Utilizes both ESP32-S3 cores for parallel processing
   - Core 0: Servo sweep, TOF scanning, and data logging
-  - Core 1: Real-time PI control at 50 Hz for all 4 motors
+  - Core 1: Real-time PI control at 50 Hz for all 5 motors
 - **Adaptive Range Control**: Different control strategies for CLOSE (50-100cm), MEDIUM (100-200cm), and FAR (200-300cm) distance ranges
 - **Out-of-Range Protection**: Automatic deflation when object distance is invalid or out of bounds
-- **Real-time Data Streaming**: Binary protocol (70 bytes) or CSV format for visualization and analysis
+- **Real-time Data Streaming**: Binary protocol (86 bytes) or CSV format for visualization and analysis
 - **Web Dashboard**: Real-time visualization with React/Next.js frontend including radar display
 
 ## Hardware Requirements
 
 ### Main Components
 
-- **ESP32 Dev Module** (dual-core microcontroller)
-- **4× DC Motors** with H-bridge drivers (L298N, TB6612, or similar)
-- **4× Pressure Pad Sensors** (FSR or similar analog sensors)
+- **ESP32-S3-DevKitC-1U** (dual-core microcontroller)
+- **5× DC Motors** with H-bridge drivers (L298N, TB6612, or similar)
+- **5× Pressure Pad Sensors** (FSR or similar analog sensors)
 - **1× TOF Distance Sensor** (serial UART interface, 921600 baud)
-- **1× Servo Motor** (for TOF scanning mechanism, 0°-120° sweep)
+- **1× Servo Motor** (for TOF scanning mechanism, 5°-175° sweep)
 - **1× CD74HC4067** 16-channel analog multiplexer
 
 ### Pin Connections
@@ -36,16 +37,16 @@ See [docs/hardware.md](docs/hardware.md) for complete wiring diagram and pin map
 
 **Quick Reference:**
 - Servo: GPIO 22 (PWM, timer 2)
-- TOF Sensor: RX on GPIO 34 (input-only), TX on GPIO 18
-- Pressure Pads: Multiplexer channels C1, C2, C3, C6
+- TOF Sensor: RX on GPIO 34, TX on GPIO 18
+- Pressure Pads: Multiplexer channels C1, C2, C3, C6, C8
 - Motors: H-bridge connections via GPIOs (see hardware.md)
 
 ## Quick Start
 
 ### 1. Hardware Setup
 
-1. Connect the 4 motors to H-bridge drivers
-2. Wire pressure pads to multiplexer channels (C1, C2, C3, C6)
+1. Connect the 5 motors to H-bridge drivers
+2. Wire pressure pads to multiplexer channels (C1, C2, C3, C6, C8)
 3. Connect TOF sensor to Serial1 (RX=GPIO34, TX=GPIO18)
 4. Attach servo to GPIO22 (3.3V or 5V power, depending on servo specs)
 5. Connect multiplexer control pins (S0-S3) and signal pin
@@ -104,7 +105,7 @@ pnpm run dev:serial
 ```
 
 Open browser to `http://localhost:3000` to view:
-- **Main Dashboard**: 4-motor overview with live pressure, duty cycle, and distance data
+- **Main Dashboard**: 5-motor overview with live pressure, duty cycle, and distance data
 - **Radar Page**: Real-time TOF sweep visualization showing detected objects
 - **Mode B Page**: Alternative motor view with sector-specific data
 
@@ -116,7 +117,7 @@ After uploading, you should see:
 
 ```
 ========================================
-4-Motor Independent PI Control System
+5-Motor Independent PI Control System
 With Servo Sweep and TOF Distance Sensing
 ========================================
 Protocol: Binary
@@ -158,12 +159,12 @@ Project/
 │   │   ├── pins.h                    # Pin definitions
 │   │   └── system_config.h           # Protocol and logging configuration
 │   ├── sensors/
-│   │   ├── tof_sensor.cpp/.h         # TOF + servo sweep (4 sectors)
+│   │   ├── tof_sensor.cpp/.h         # TOF + servo sweep (5 sectors)
 │   │   └── pressure_pads.cpp/.h      # Pressure pad reading via multiplexer
 │   ├── actuators/
-│   │   └── motors.cpp/.h             # Motor control (4 motors)
+│   │   └── motors.cpp/.h             # Motor control (5 motors)
 │   ├── control/
-│   │   └── pi_controller.cpp/.h      # PI controllers (4 independent)
+│   │   └── pi_controller.cpp/.h      # PI controllers (5 independent)
 │   ├── utils/
 │   │   ├── multiplexer.cpp/.h        # Multiplexer functions
 │   │   └── binary_protocol.cpp/.h    # Binary data packet encoding
@@ -248,20 +249,21 @@ constexpr float SECURITY_OFFSET_MV = 50.0f;    // Far range offset
 
 ### Servo Sweep and Distance Tracking (Core 0)
 
-1. Servo continuously sweeps from 0° to 120° in steps
+1. Servo continuously sweeps from 5° to 175° in steps (bidirectional mode supported)
 2. At each angle, TOF sensor reads distance
-3. Minimum distance is tracked independently for each of 4 sectors:
-   - Motor 1 sector: 0° - 30°
-   - Motor 2 sector: 31° - 60°
-   - Motor 3 sector: 61° - 90°
-   - Motor 4 sector: 91° - 120°
+3. Minimum distance is tracked independently for each of 5 sectors:
+   - Motor 1 sector: 5° - 39° (34° range)
+   - Motor 2 sector: 39° - 73° (34° range)
+   - Motor 3 sector: 73° - 107° (34° range)
+   - Motor 4 sector: 107° - 141° (34° range)
+   - Motor 5 sector: 141° - 175° (34° range)
 4. When a sector completes, its minimum distance is immediately shared with Core 1 (via mutex-protected variable)
 5. Sweep continues indefinitely
 
 ### PI Control Loop (Core 1)
 
 1. Runs at 50 Hz (every 20 ms)
-2. Reads all 4 pressure pads via multiplexer
+2. Reads all 5 pressure pads via multiplexer
 3. For each motor independently:
    - Get minimum distance from its sector
    - Classify distance into range (CLOSE, MEDIUM, FAR)
@@ -285,26 +287,26 @@ Each motor has an independent state machine:
 
 ## Data Format
 
-### Binary Protocol (70 bytes)
+### Binary Protocol (86 bytes)
 
 ```
 [0-1]   Header: 0xAA 0x55
 [2-5]   Timestamp (uint32_t, milliseconds)
-[6-21]  Setpoints: 4× float (sp1, sp2, sp3, sp4)
-[22-29] Pressure Pads: 4× uint16_t (pp1, pp2, pp3, pp4)
-[30-45] Duty Cycles: 4× float (duty1, duty2, duty3, duty4)
-[46-61] TOF Distances: 4× float (tof1, tof2, tof3, tof4)
-[62]    Servo Angle (uint8_t, 0-120)
-[63-66] Current TOF Reading: float
-[67]    Mode Byte (always 1 = sweep mode)
-[68-69] CRC-16
+[6-25]  Setpoints: 5× float (sp1, sp2, sp3, sp4, sp5)
+[26-35] Pressure Pads: 5× uint16_t (pp1, pp2, pp3, pp4, pp5)
+[36-55] Duty Cycles: 5× float (duty1, duty2, duty3, duty4, duty5)
+[56-75] TOF Distances: 5× float (tof1, tof2, tof3, tof4, tof5)
+[76]    Servo Angle (uint8_t, 5-175)
+[77-80] Current TOF Reading: float
+[81]    Mode Byte (always 1 = sweep mode)
+[82-83] CRC-16
 ```
 
 ### CSV Protocol
 
 ```
-time_ms,sp1_mv,sp2_mv,sp3_mv,sp4_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,tof1_cm,tof2_cm,tof3_cm,tof4_cm,servo_angle
-1234,850.0,850.0,850.0,850.0,820,835,845,830,45.23,38.67,42.11,41.89,156.78,142.34,165.23,158.91,45
+time_ms,sp1_mv,sp2_mv,sp3_mv,sp4_mv,sp5_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,pp5_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,duty5_pct,tof1_cm,tof2_cm,tof3_cm,tof4_cm,tof5_cm,servo_angle
+1234,850.0,850.0,850.0,850.0,850.0,820,835,845,830,825,45.23,38.67,42.11,41.89,43.50,156.78,142.34,165.23,158.91,160.45,90
 ```
 
 ## Safety Features
@@ -356,13 +358,13 @@ time_ms,sp1_mv,sp2_mv,sp3_mv,sp4_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_
 The web dashboard provides real-time visualization of all system data:
 
 ### Main Dashboard
-Overview of all 4 motors with live pressure, duty cycle, distance, and setpoint data.
+Overview of all 5 motors with live pressure, duty cycle, distance, and setpoint data.
 
 ![Main Dashboard - Upper Section](docs/Home_1.png)
 *Upper section: System status, connection controls, and real-time metrics*
 
 ![Main Dashboard - Lower Section](docs/Home_2.png)
-*Lower section: 4-motor grid with individual motor cards showing live data*
+*Lower section: 5-motor grid with individual motor cards showing live data*
 
 ### Motor Detail View
 Detailed view for individual motor analysis with historical charts.
@@ -374,7 +376,7 @@ Detailed view for individual motor analysis with historical charts.
 *Lower section: Historical charts for pressure, duty cycle, and distance tracking*
 
 ### Radar Visualization
-Live TOF sensor sweep visualization showing detected objects in 4 sectors (0°-120°).
+Live TOF sensor sweep visualization showing detected objects in 5 sectors (5°-175°).
 
 ![Radar View - Upper Section](docs/Radar_1.png)
 *Upper section: Radar polar plot with servo sweep and sector-based distance tracking*

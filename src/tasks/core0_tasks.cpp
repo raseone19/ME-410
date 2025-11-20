@@ -16,10 +16,10 @@
 // Shared Variables (Extern declarations in header)
 // ============================================================================
 
-volatile float shared_setpoints_mv[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-volatile uint16_t shared_pressure_pads_mv[4] = {0};
-volatile float shared_duty_cycles[4] = {0.0f};
-volatile float shared_tof_distances[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+volatile float shared_setpoints_mv[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+volatile uint16_t shared_pressure_pads_mv[5] = {0};
+volatile float shared_duty_cycles[5] = {0.0f};
+volatile float shared_tof_distances[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 volatile int shared_servo_angle = 0;
 volatile float shared_tof_current = 0.0f;
 
@@ -30,7 +30,7 @@ volatile float shared_tof_current = 0.0f;
 void serialPrintTask(void* parameter) {
 #ifdef PROTOCOL_CSV
     // Print CSV header once at startup
-    Serial.println("time_ms,sp1_mv,sp2_mv,sp3_mv,sp4_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,tof1_cm,tof2_cm,tof3_cm,tof4_cm,servo_angle");
+    Serial.println("time_ms,sp1_mv,sp2_mv,sp3_mv,sp4_mv,sp5_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,pp5_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,duty5_pct,tof1_cm,tof2_cm,tof3_cm,tof4_cm,tof5_cm,servo_angle");
 #endif
 
     TickType_t lastWakeTime = xTaskGetTickCount();

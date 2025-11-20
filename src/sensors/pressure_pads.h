@@ -2,7 +2,7 @@
  * @file pressure_pads.h
  * @brief Pressure pad sensor reading via multiplexer
  *
- * Provides functions to read pressure sensor values from 4 pressure pads
+ * Provides functions to read pressure sensor values from 5 pressure pads
  * connected through a CD74HC4067 multiplexer. Readings are in millivolts.
  */
 
@@ -20,12 +20,12 @@
 void initPressurePads();
 
 /**
- * @brief Read all 4 pressure pads in millivolts
+ * @brief Read all 5 pressure pads in millivolts
  *
  * Sequentially reads each pressure pad through the multiplexer with averaging.
- * The readings are stored in the provided array in order (PP1, PP2, PP3, PP4).
+ * The readings are stored in the provided array in order (PP1, PP2, PP3, PP4, PP5).
  *
- * @param dest Pointer to array of 4 uint16_t to store readings (in mV)
+ * @param dest Pointer to array of 5 uint16_t to store readings (in mV)
  * @param samples Number of samples to average per pad (default: 8)
  */
 void readAllPadsMilliVolts(uint16_t* dest, int samples = 8);
@@ -35,7 +35,7 @@ void readAllPadsMilliVolts(uint16_t* dest, int samples = 8);
  *
  * Reads one specific pressure pad with averaging.
  *
- * @param pad_index Pressure pad index (0-3)
+ * @param pad_index Pressure pad index (0-4)
  * @param samples Number of samples to average (default: 8)
  * @return Pressure value in millivolts (mV)
  */
