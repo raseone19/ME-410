@@ -8,7 +8,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Gauge, Radar, Grid3x3, Activity, Stethoscope, Settings, BookOpen } from 'lucide-react';
+import { Gauge, Radar, Grid3x3, Activity, Stethoscope, Settings, BookOpen, Sliders } from 'lucide-react';
 import { useWebSocketStore, TRANSITION_PAUSE_MS } from '@/lib/websocket-store';
 
 import {
@@ -50,6 +50,17 @@ const allNavItems = [
       {
         title: 'Radar View',
         url: '/radar',
+      },
+    ],
+  },
+  {
+    title: 'Configuration',
+    url: '#',
+    icon: Sliders,
+    items: [
+      {
+        title: 'System Config',
+        url: '/config',
       },
     ],
   },

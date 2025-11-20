@@ -7,6 +7,7 @@
 #include "../config/pins.h"
 #include "../config/system_config.h"
 #include "../config/servo_config.h"
+#include "../utils/command_handler.h"
 
 // ============================================================================
 // Internal Variables
@@ -257,12 +258,75 @@ int getBestAngle(int motor_index) {
 void servoSweepTask(void* parameter) {
     for (;;) {
         // ====================================================================
-        // Servo sweep mode with 4 sectors (one per motor)
+        // Check if sweep is enabled (runtime configuration)
         // ====================================================================
-        // Motor 1: 0° - 30°
-        // Motor 2: 31° - 60°
-        // Motor 3: 61° - 90°
-        // Motor 4: 91° - 120°
+        bool is_sweep_enabled = false;
+        int manual_angle = 90;
+        int min_angle = SERVO_MIN_ANGLE;
+        int max_angle = SERVO_MAX_ANGLE;
+        int step_size = SERVO_STEP;
+        int settle_time = SERVO_SETTLE_MS;
+        int reading_delay = SERVO_READING_DELAY_MS;
+
+        // Read runtime configuration with mutex protection
+        if (xSemaphoreTake(configMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+            is_sweep_enabled = sweep_enabled;
+            manual_angle = servo_manual_angle;
+            min_angle = servo_min_angle;
+            max_angle = servo_max_angle;
+            step_size = servo_step;
+            settle_time = servo_settle_ms;
+            reading_delay = servo_reading_delay_ms;
+            xSemaphoreGive(configMutex);
+        }
+
+        // ====================================================================
+        // Manual servo control mode (when sweep disabled)
+        // ====================================================================
+        if (!is_sweep_enabled) {
+            // Move servo to manual position
+            tofServo.write(manual_angle);
+
+            // Update shared servo angle
+            extern volatile int shared_servo_angle;
+            extern volatile float shared_tof_current;
+            shared_servo_angle = manual_angle;
+
+            // Read TOF distance at manual position
+            vTaskDelay(pdMS_TO_TICKS(settle_time));
+            float distance = tofGetDistance();
+            shared_tof_current = distance;
+
+            // Determine sector for this angle
+            int sector_index = -1;
+            if (manual_angle >= SECTOR_MOTOR_1_MIN && manual_angle < SECTOR_MOTOR_1_MAX) {
+                sector_index = 0;
+            } else if (manual_angle >= SECTOR_MOTOR_2_MIN && manual_angle < SECTOR_MOTOR_2_MAX) {
+                sector_index = 1;
+            } else if (manual_angle >= SECTOR_MOTOR_3_MIN && manual_angle < SECTOR_MOTOR_3_MAX) {
+                sector_index = 2;
+            } else if (manual_angle >= SECTOR_MOTOR_4_MIN && manual_angle <= SECTOR_MOTOR_4_MAX) {
+                sector_index = 3;
+            }
+
+            // Update shared TOF distance for the sector
+            if (sector_index >= 0 && distance > 0) {
+                extern volatile float shared_tof_distances[4];
+                shared_tof_distances[sector_index] = distance;
+            }
+
+            // Wait before next check (lower priority when not sweeping)
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;  // Skip sweep code, restart loop
+        }
+
+        // ====================================================================
+        // Automatic servo sweep mode (4 sectors, one per motor)
+        // ====================================================================
+        // Motor 1: 5° - 45°
+        // Motor 2: 45° - 90°
+        // Motor 3: 90° - 135°
+        // Motor 4: 135° - 175°
         // ====================================================================
 
 #ifdef SWEEP_MODE_FORWARD
@@ -278,8 +342,8 @@ void servoSweepTask(void* parameter) {
         // Track which sectors have been completed and updated
         bool sector_updated[4] = {false, false, false, false};
 
-        // Sweep from 0° to 120°
-        for (int angle = SERVO_MIN_ANGLE; angle <= SERVO_MAX_ANGLE; angle += SERVO_STEP) {
+        // Sweep from min to max angle (using runtime configuration)
+        for (int angle = min_angle; angle <= max_angle; angle += step_size) {
             // Move servo to current angle
             tofServo.write(angle);
 
@@ -288,8 +352,8 @@ void servoSweepTask(void* parameter) {
             extern volatile float shared_tof_current;
             shared_servo_angle = angle;
 
-            // Wait for servo to settle
-            vTaskDelay(pdMS_TO_TICKS(SERVO_SETTLE_MS));
+            // Wait for servo to settle (using runtime configuration)
+            vTaskDelay(pdMS_TO_TICKS(settle_time));
 
             // Read TOF distance at this angle
             float distance = tofGetDistance();
@@ -346,8 +410,8 @@ void servoSweepTask(void* parameter) {
                 }
             }
 
-            // Small delay between readings
-            vTaskDelay(pdMS_TO_TICKS(SERVO_READING_DELAY_MS));
+            // Small delay between readings (using runtime configuration)
+            vTaskDelay(pdMS_TO_TICKS(reading_delay));
         }
 
         // Position servo at center position (60°) for next sweep
@@ -373,8 +437,8 @@ void servoSweepTask(void* parameter) {
         bool sector_updated_forward[4] = {false, false, false, false};
         bool sector_updated_backward[4] = {false, false, false, false};
 
-        // FORWARD SWEEP: 0° to 120° (update min at max angle of each sector)
-        for (int angle = SERVO_MIN_ANGLE; angle <= SERVO_MAX_ANGLE; angle += SERVO_STEP) {
+        // FORWARD SWEEP: min to max angle (using runtime configuration)
+        for (int angle = min_angle; angle <= max_angle; angle += step_size) {
             // Move servo to current angle
             tofServo.write(angle);
 
@@ -383,8 +447,8 @@ void servoSweepTask(void* parameter) {
             extern volatile float shared_tof_current;
             shared_servo_angle = angle;
 
-            // Wait for servo to settle
-            vTaskDelay(pdMS_TO_TICKS(SERVO_SETTLE_MS));
+            // Wait for servo to settle (using runtime configuration)
+            vTaskDelay(pdMS_TO_TICKS(settle_time));
 
             // Read TOF distance at this angle
             float distance = tofGetDistance();
@@ -440,8 +504,8 @@ void servoSweepTask(void* parameter) {
                 }
             }
 
-            // Small delay between readings
-            vTaskDelay(pdMS_TO_TICKS(SERVO_READING_DELAY_MS));
+            // Small delay between readings (using runtime configuration)
+            vTaskDelay(pdMS_TO_TICKS(reading_delay));
         }
 
         // Reset sector tracking for backward sweep
@@ -450,8 +514,8 @@ void servoSweepTask(void* parameter) {
             angle_of_min_sector[i] = SERVO_MAX_ANGLE;  // Will be updated during backward sweep
         }
 
-        // BACKWARD SWEEP: 120° to 0° (update min at min angle of each sector)
-        for (int angle = SERVO_MAX_ANGLE; angle >= SERVO_MIN_ANGLE; angle -= SERVO_STEP) {
+        // BACKWARD SWEEP: max to min angle (using runtime configuration)
+        for (int angle = max_angle; angle >= min_angle; angle -= step_size) {
             // Move servo to current angle
             tofServo.write(angle);
 
@@ -460,8 +524,8 @@ void servoSweepTask(void* parameter) {
             extern volatile float shared_tof_current;
             shared_servo_angle = angle;
 
-            // Wait for servo to settle
-            vTaskDelay(pdMS_TO_TICKS(SERVO_SETTLE_MS));
+            // Wait for servo to settle (using runtime configuration)
+            vTaskDelay(pdMS_TO_TICKS(settle_time));
 
             // Read TOF distance at this angle
             float distance = tofGetDistance();
@@ -517,8 +581,8 @@ void servoSweepTask(void* parameter) {
                 }
             }
 
-            // Small delay between readings
-            vTaskDelay(pdMS_TO_TICKS(SERVO_READING_DELAY_MS));
+            // Small delay between readings (using runtime configuration)
+            vTaskDelay(pdMS_TO_TICKS(reading_delay));
         }
 
         // Brief pause before starting next sweep (already at min angle)

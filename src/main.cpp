@@ -31,6 +31,7 @@
 #include "actuators/motors.h"
 #include "control/pi_controller.h"
 #include "tasks/core0_tasks.h"
+#include "utils/command_handler.h"
 
 // ============================================================================
 // Control Loop Configuration
@@ -95,6 +96,12 @@ void setup() {
     Serial.println("========================================");
     Serial.println();
     Serial.flush();
+
+    // Initialize command handler for runtime configuration
+    Serial.println("Initializing command handler...");
+    initCommandHandler();
+    Serial.flush();
+    delay(100);
 
     // ========================================================================
     // HARDWARE INITIALIZATION - DIAGNOSTIC MODE
@@ -211,6 +218,9 @@ void setup() {
 // ============================================================================
 
 void loop() {
+    // Process incoming serial commands (non-blocking)
+    processSerialCommand();
+
     uint32_t current_time = millis();
 
     // Run control loop at fixed frequency (50 Hz)

@@ -324,6 +324,48 @@ wss.on('connection', (ws: WebSocket) => {
           }
           break;
 
+        case 'sweep_command':
+          // Send sweep configuration command to ESP32
+          const sweepCmd = message.command;
+          if (sweepCmd && typeof sweepCmd === 'string') {
+            sendCommandToESP32(sweepCmd + '\n');
+            console.log(`🔄 Sweep command sent: ${sweepCmd}`);
+            // Acknowledge to client
+            broadcast({
+              type: 'command_ack',
+              command: sweepCmd,
+              timestamp: Date.now(),
+            });
+          } else {
+            console.warn('⚠️  Invalid sweep command:', sweepCmd);
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: 'Invalid sweep command format'
+            }));
+          }
+          break;
+
+        case 'servo_command':
+          // Send manual servo angle command to ESP32
+          const servoCmd = message.command;
+          if (servoCmd && typeof servoCmd === 'string') {
+            sendCommandToESP32(servoCmd + '\n');
+            console.log(`🔄 Servo command sent: ${servoCmd}`);
+            // Acknowledge to client
+            broadcast({
+              type: 'command_ack',
+              command: servoCmd,
+              timestamp: Date.now(),
+            });
+          } else {
+            console.warn('⚠️  Invalid servo command:', servoCmd);
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: 'Invalid servo command format'
+            }));
+          }
+          break;
+
         case 'ping':
           ws.send(JSON.stringify({ type: 'pong' }));
           break;

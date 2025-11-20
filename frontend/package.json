@@ -19,6 +19,7 @@
     "prod:start": "pnpm build && pnpm start",
     "prod:mock": "pnpm build && pnpm start:mock",
     "prod:serial": "pnpm build && pnpm start:serial",
+    "web": "rm -rf node_modules && rm -rf .next && pnpm i && pnpm start:serial",
     "lint": "eslint"
   },
   "dependencies": {
