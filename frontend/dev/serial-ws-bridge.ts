@@ -128,10 +128,166 @@ function parseBinaryPacket(packet: Buffer): MotorData | null {
 }
 
 /**
+ * Process incoming text message (ACK/ERR/CONFIG/CONFIG_LIST responses)
+ */
+let configJsonBuffer = '';
+let isCollectingConfig = false;
+let configListBuffer = '';
+let isCollectingConfigList = false;
+
+function processTextMessage(line: string) {
+  line = line.trim();
+  if (!line) return;
+
+  console.log(`[ESP32 Response] ${line}`);
+
+  // Handle CONFIG JSON responses (multi-line)
+  if (line.startsWith('CONFIG:{')) {
+    isCollectingConfig = true;
+    configJsonBuffer = line.substring(7); // Remove "CONFIG:" prefix
+    // Check if single-line JSON
+    if (configJsonBuffer.includes('}')) {
+      try {
+        const config = JSON.parse(configJsonBuffer);
+        broadcast({
+          type: 'config_data',
+          config: config,
+          timestamp: Date.now(),
+        });
+        isCollectingConfig = false;
+        configJsonBuffer = '';
+      } catch (error) {
+        console.error('Error parsing config JSON:', error);
+      }
+    }
+    return;
+  }
+
+  // Continue collecting multi-line CONFIG JSON
+  if (isCollectingConfig) {
+    configJsonBuffer += line;
+    if (line === '}') {
+      try {
+        const config = JSON.parse(configJsonBuffer);
+        broadcast({
+          type: 'config_data',
+          config: config,
+          timestamp: Date.now(),
+        });
+      } catch (error) {
+        console.error('Error parsing config JSON:', error);
+      }
+      isCollectingConfig = false;
+      configJsonBuffer = '';
+    }
+    return;
+  }
+
+  // Handle CONFIG_LIST JSON array responses (multi-line)
+  if (line.startsWith('CONFIG_LIST:[')) {
+    isCollectingConfigList = true;
+    configListBuffer = line.substring(12); // Remove "CONFIG_LIST:" prefix
+    // Check if single-line JSON
+    if (configListBuffer.includes(']')) {
+      try {
+        const profiles = JSON.parse(configListBuffer);
+        broadcast({
+          type: 'config_list',
+          profiles: profiles,
+          timestamp: Date.now(),
+        });
+        isCollectingConfigList = false;
+        configListBuffer = '';
+      } catch (error) {
+        console.error('Error parsing config list JSON:', error);
+      }
+    }
+    return;
+  }
+
+  // Continue collecting multi-line CONFIG_LIST JSON
+  if (isCollectingConfigList) {
+    configListBuffer += line;
+    if (line === ']') {
+      try {
+        const profiles = JSON.parse(configListBuffer);
+        broadcast({
+          type: 'config_list',
+          profiles: profiles,
+          timestamp: Date.now(),
+        });
+      } catch (error) {
+        console.error('Error parsing config list JSON:', error);
+      }
+      isCollectingConfigList = false;
+      configListBuffer = '';
+    }
+    return;
+  }
+
+  // Parse ACK messages: ACK:SWEEP:ENABLED, ACK:SERVO:ANGLE:90, etc.
+  if (line.startsWith('ACK:')) {
+    const command = line.substring(4); // Remove "ACK:" prefix
+    broadcast({
+      type: 'command_ack',
+      success: true,
+      command: command,
+      message: `Configuration updated: ${command}`,
+      timestamp: Date.now(),
+    });
+  }
+  // Parse ERR messages: ERR:OUT_OF_RANGE:ANGLE:200, etc.
+  else if (line.startsWith('ERR:')) {
+    const parts = line.substring(4).split(':'); // Remove "ERR:" and split
+    const errorType = parts[0];
+    const detail = parts.slice(1).join(':');
+    broadcast({
+      type: 'command_error',
+      success: false,
+      errorType: errorType,
+      detail: detail,
+      message: `Error: ${errorType} - ${detail}`,
+      timestamp: Date.now(),
+    });
+  }
+  // Parse STATUS messages
+  else if (line.startsWith('STATUS:')) {
+    const status = line.substring(7);
+    broadcast({
+      type: 'status_update',
+      status: status,
+      timestamp: Date.now(),
+    });
+  }
+}
+
+/**
+ * Text buffer for accumulating partial lines
+ */
+let textBuffer = '';
+
+/**
  * Process incoming binary data
- * Accumulates data in buffer and extracts complete packets
+ * Handles both binary packets and text messages (ACK/ERR)
  */
 function processBinaryData(chunk: Buffer) {
+  // Check if this might be a text message (ACK, ERR, STATUS, etc.)
+  // Text messages start with ASCII letters, binary packets start with 0xAA55
+  const chunkStr = chunk.toString('utf8');
+  const hasTextMarkers = chunkStr.includes('ACK:') || chunkStr.includes('ERR:') || chunkStr.includes('STATUS:');
+
+  if (hasTextMarkers) {
+    // Process as text
+    textBuffer += chunkStr;
+    const lines = textBuffer.split('\n');
+    // Keep last incomplete line in buffer
+    textBuffer = lines.pop() || '';
+    // Process complete lines
+    lines.forEach(processTextMessage);
+    return;
+  }
+
+  // Otherwise process as binary
   // Append new data to buffer
   binaryBuffer = Buffer.concat([binaryBuffer, chunk]);
 
@@ -362,6 +518,21 @@ wss.on('connection', (ws: WebSocket) => {
             ws.send(JSON.stringify({
               type: 'error',
               message: 'Invalid servo command format'
+            }));
+          }
+          break;
+
+        case 'config_command':
+          // Send configuration command to ESP32 (GET, SAVE, RESET)
+          const configCmd = message.command;
+          if (configCmd && typeof configCmd === 'string') {
+            sendCommandToESP32(configCmd + '\n');
+            console.log(`⚙️  Config command sent: ${configCmd}`);
+          } else {
+            console.warn('⚠️  Invalid config command:', configCmd);
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: 'Invalid config command format'
             }));
           }
           break;

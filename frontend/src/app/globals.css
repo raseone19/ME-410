@@ -119,4 +119,22 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Sonner toast description text - better contrast for light mode */
+  [data-sonner-toast] [data-description] {
+    color: oklch(0.3 0 0) !important; /* Darker text for light mode */
+  }
+
+  .dark [data-sonner-toast] [data-description] {
+    color: oklch(0.85 0 0) !important; /* Lighter text for dark mode */
+  }
+
+  /* Ensure toast title is also readable */
+  [data-sonner-toast] [data-title] {
+    color: oklch(0.145 0 0) !important; /* Very dark for light mode */
+  }
+
+  .dark [data-sonner-toast] [data-title] {
+    color: oklch(0.985 0 0) !important; /* Very light for dark mode */
+  }
 }

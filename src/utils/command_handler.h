@@ -32,8 +32,78 @@ extern volatile int servo_reading_delay_ms;
 // Manual servo angle (used when sweep is disabled)
 extern volatile int servo_manual_angle;
 
+// Motor sector assignments
+extern volatile int sector_motor_1_min;
+extern volatile int sector_motor_1_max;
+extern volatile int sector_motor_2_min;
+extern volatile int sector_motor_2_max;
+extern volatile int sector_motor_3_min;
+extern volatile int sector_motor_3_max;
+extern volatile int sector_motor_4_min;
+extern volatile int sector_motor_4_max;
+
+// Sampling configuration
+extern volatile int pp_samples;
+extern volatile int mux_settle_us;
+
+// Distance ranges (cm)
+extern volatile float distance_close_min;
+extern volatile float distance_medium_min;
+extern volatile float distance_far_min;
+extern volatile float distance_far_max;
+
+// Setpoints (mV)
+extern volatile float setpoint_close_mv;
+extern volatile float setpoint_medium_mv;
+extern volatile float security_offset_mv;
+
+// Safety thresholds
+extern volatile float safe_pressure_threshold_mv;
+extern volatile int release_time_ms;
+
+// PI gains
+extern volatile float pi_kp;
+extern volatile float pi_ki;
+
+// Control limits
+extern volatile float duty_max;
+extern volatile float duty_min;
+extern volatile float min_run;
+
 // Configuration mutex for thread-safe access
 extern SemaphoreHandle_t configMutex;
+
+// ============================================================================
+// Configuration Persistence Functions
+// ============================================================================
+
+/**
+ * @brief Load configuration from NVS (non-volatile storage)
+ *
+ * Loads all runtime configuration variables from NVS.
+ * Falls back to default values if NVS data not found.
+ *
+ * @return true if loaded from NVS, false if using defaults
+ */
+bool loadConfigFromNVS();
+
+/**
+ * @brief Save current configuration to NVS (default profile)
+ *
+ * Persists all runtime configuration variables to NVS default profile.
+ * Configuration will auto-load on next ESP32 boot.
+ *
+ * @return true if saved successfully, false on error
+ */
+bool saveConfigToNVS();
+
+/**
+ * @brief Send current configuration as JSON via Serial
+ *
+ * Sends complete configuration state to frontend for synchronization.
+ * Format: JSON object with all configuration parameters
+ */
+void sendCurrentConfig();
 
 // ============================================================================
 // Command Processing Functions
@@ -42,8 +112,7 @@ extern SemaphoreHandle_t configMutex;
 /**
  * @brief Initialize command handler and runtime configuration
  *
- * Creates mutex and initializes runtime variables with default values
- * from servo_config.h
+ * Creates mutex, loads config from NVS (or defaults), and sets up command processing
  */
 void initCommandHandler();
 
@@ -60,6 +129,11 @@ void initCommandHandler();
  * - SWEEP:MIN:<n>
  * - SWEEP:MAX:<n>
  * - SWEEP:STEP:<n>
+ * - CONFIG:GET (sends current config as JSON)
+ * - CONFIG:SAVE (saves current config to NVS default profile)
+ * - CONFIG:RESET (resets to factory defaults)
+ *
+ * Note: Profile management (list/save/load named profiles) is handled by the frontend
  */
 void processSerialCommand();
 
