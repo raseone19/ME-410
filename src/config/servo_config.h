@@ -37,7 +37,7 @@ constexpr int SERVO_MAX_ANGLE = 175;
  * - Recommended range: 1° to 5°
  * - Must be > 0
  */
-constexpr int SERVO_STEP = 5;
+constexpr int SERVO_STEP = 3;
 
 // ============================================================================
 // SERVO TIMING PARAMETERS
