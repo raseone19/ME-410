@@ -1,6 +1,6 @@
 /**
  * @file pi_controller.cpp
- * @brief Implementation of PI controller for 4 independent motors
+ * @brief Implementation of PI controller for 5 independent motors
  */
 
 #include "pi_controller.h"
@@ -27,7 +27,7 @@ static float Kp = 0.15f;                                 // Proportional gain
 static float Ki = 0.60f;                                 // Integral gain
 
 // ============================================================================
-// Controller State (4 Independent Controllers)
+// Controller State (5 Independent Controllers)
 // ============================================================================
 
 static float integrators[NUM_MOTORS] = {0};             // Integral terms for each motor

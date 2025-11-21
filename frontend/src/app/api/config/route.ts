@@ -74,6 +74,11 @@ export async function GET() {
         in1: extractValue(pinsContent, 'M4_IN1'),
         in2: extractValue(pinsContent, 'M4_IN2'),
       },
+      motor5: {
+        pwm: extractValue(pinsContent, 'M5_PWM'),
+        in1: extractValue(pinsContent, 'M5_IN1'),
+        in2: extractValue(pinsContent, 'M5_IN2'),
+      },
       numMotors: extractValue(pinsContent, 'NUM_MOTORS'),
       pwmFreqHz: extractValue(pinsContent, 'PWM_FREQ_HZ'),
       pwmResBits: extractValue(pinsContent, 'PWM_RES_BITS'),
@@ -106,6 +111,10 @@ export async function GET() {
       motor4: {
         min: extractValue(servoConfigContent, 'SECTOR_MOTOR_4_MIN'),
         max: extractValue(servoConfigContent, 'SECTOR_MOTOR_4_MAX'),
+      },
+      motor5: {
+        min: extractValue(servoConfigContent, 'SECTOR_MOTOR_5_MIN'),
+        max: extractValue(servoConfigContent, 'SECTOR_MOTOR_5_MAX'),
       },
     };
 

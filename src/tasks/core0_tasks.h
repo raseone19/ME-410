@@ -26,11 +26,11 @@ constexpr uint32_t PRINT_DT_MS = 1000 / PRINT_FREQ_HZ;
 // Shared Variables for Logging (Written by Core 1, Read by Core 0)
 // ============================================================================
 
-extern volatile float shared_setpoints_mv[4];  // 4 independent setpoints (one per motor)
-extern volatile uint16_t shared_pressure_pads_mv[4];
-extern volatile float shared_duty_cycles[4];
-extern volatile float shared_tof_distances[4];  // 4 independent distances (one per motor/sector)
-extern volatile int shared_servo_angle;  // Current servo position in degrees (0-120)
+extern volatile float shared_setpoints_mv[5];  // 5 independent setpoints (one per motor)
+extern volatile uint16_t shared_pressure_pads_mv[5];
+extern volatile float shared_duty_cycles[5];
+extern volatile float shared_tof_distances[5];  // 5 independent distances (one per motor/sector)
+extern volatile int shared_servo_angle;  // Current servo position in degrees (0-175)
 extern volatile float shared_tof_current;  // Live TOF distance at current servo angle
 
 // ============================================================================
@@ -41,10 +41,10 @@ extern volatile float shared_tof_current;  // Live TOF distance at current servo
  * @brief Serial print task for CSV data logging (runs on Core 0)
  *
  * FreeRTOS task that periodically prints system data in CSV format.
- * Prints setpoint, 4 pressure pad values, and 4 duty cycles at fixed frequency.
+ * Prints setpoint, 5 pressure pad values, and 5 duty cycles at fixed frequency.
  *
  * CSV Format:
- * time_ms,setpoint_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,tof_dist_cm
+ * time_ms,setpoint_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,pp5_mv,duty1_pct,duty2_pct,duty3_pct,duty4_pct,duty5_pct,tof_dist_cm
  *
  * @param parameter Task parameter (unused)
  */

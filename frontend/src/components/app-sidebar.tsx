@@ -85,6 +85,10 @@ const allNavItems = [
         title: 'Motor 4',
         url: '/motor/4',
       },
+      {
+        title: 'Motor 5',
+        url: '/motor/5',
+      },
     ],
   },
   {

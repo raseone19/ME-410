@@ -45,7 +45,7 @@ export interface SimulatorConfig {
   piKi: number;                // Integral gain
 
   // Per-motor setpoint offsets (for testing variations)
-  motorSetpointOffsets: [number, number, number, number]; // mV
+  motorSetpointOffsets: [number, number, number, number, number]; // mV
 }
 
 /**
@@ -72,7 +72,7 @@ export const DEFAULT_CONFIG: SimulatorConfig = {
   piKp: 0.15,
   piKi: 0.02,
 
-  motorSetpointOffsets: [0, 0, 0, 0],
+  motorSetpointOffsets: [0, 0, 0, 0, 0],
 };
 
 /**
@@ -115,7 +115,7 @@ export const SCENARIO_CONFIGS: Record<ScenarioType, Partial<SimulatorConfig>> = 
   calibration: {
     scenario: 'calibration',
     initialDistance: 100,
-    motorSetpointOffsets: [10, -10, 5, -5], // Intentional variations
+    motorSetpointOffsets: [10, -10, 5, -5, 8], // Intentional variations
   },
 };
 
@@ -143,6 +143,7 @@ interface BackendConfig {
     motor2: { min: number; max: number };
     motor3: { min: number; max: number };
     motor4: { min: number; max: number };
+    motor5: { min: number; max: number };
   };
 }
 
@@ -173,19 +174,23 @@ export async function loadBackendConfig(): Promise<void> {
         sectors: {
           motor1: {
             min: parseFloat(sectors.motor1.min) || 5,
-            max: parseFloat(sectors.motor1.max) || 45,
+            max: parseFloat(sectors.motor1.max) || 39,
           },
           motor2: {
-            min: parseFloat(sectors.motor2.min) || 45,
-            max: parseFloat(sectors.motor2.max) || 90,
+            min: parseFloat(sectors.motor2.min) || 39,
+            max: parseFloat(sectors.motor2.max) || 73,
           },
           motor3: {
-            min: parseFloat(sectors.motor3.min) || 90,
-            max: parseFloat(sectors.motor3.max) || 135,
+            min: parseFloat(sectors.motor3.min) || 73,
+            max: parseFloat(sectors.motor3.max) || 107,
           },
           motor4: {
-            min: parseFloat(sectors.motor4.min) || 135,
-            max: parseFloat(sectors.motor4.max) || 175,
+            min: parseFloat(sectors.motor4.min) || 107,
+            max: parseFloat(sectors.motor4.max) || 141,
+          },
+          motor5: {
+            min: parseFloat(sectors.motor5.min) || 141,
+            max: parseFloat(sectors.motor5.max) || 175,
           },
         },
       };
@@ -204,10 +209,11 @@ export async function loadBackendConfig(): Promise<void> {
       servoMinAngle: 5,
       servoMaxAngle: 175,
       sectors: {
-        motor1: { min: 5, max: 45 },
-        motor2: { min: 45, max: 90 },
-        motor3: { min: 90, max: 135 },
-        motor4: { min: 135, max: 175 },
+        motor1: { min: 5, max: 39 },
+        motor2: { min: 39, max: 73 },
+        motor3: { min: 73, max: 107 },
+        motor4: { min: 107, max: 141 },
+        motor5: { min: 141, max: 175 },
       },
     };
   }
@@ -249,19 +255,23 @@ export async function loadBackendConfigFromFile(): Promise<void> {
       sectors: {
         motor1: {
           min: extractValue(servoConfigContent, 'SECTOR_MOTOR_1_MIN') || 5,
-          max: extractValue(servoConfigContent, 'SECTOR_MOTOR_1_MAX') || 45,
+          max: extractValue(servoConfigContent, 'SECTOR_MOTOR_1_MAX') || 39,
         },
         motor2: {
-          min: extractValue(servoConfigContent, 'SECTOR_MOTOR_2_MIN') || 45,
-          max: extractValue(servoConfigContent, 'SECTOR_MOTOR_2_MAX') || 90,
+          min: extractValue(servoConfigContent, 'SECTOR_MOTOR_2_MIN') || 39,
+          max: extractValue(servoConfigContent, 'SECTOR_MOTOR_2_MAX') || 73,
         },
         motor3: {
-          min: extractValue(servoConfigContent, 'SECTOR_MOTOR_3_MIN') || 90,
-          max: extractValue(servoConfigContent, 'SECTOR_MOTOR_3_MAX') || 135,
+          min: extractValue(servoConfigContent, 'SECTOR_MOTOR_3_MIN') || 73,
+          max: extractValue(servoConfigContent, 'SECTOR_MOTOR_3_MAX') || 107,
         },
         motor4: {
-          min: extractValue(servoConfigContent, 'SECTOR_MOTOR_4_MIN') || 135,
-          max: extractValue(servoConfigContent, 'SECTOR_MOTOR_4_MAX') || 175,
+          min: extractValue(servoConfigContent, 'SECTOR_MOTOR_4_MIN') || 107,
+          max: extractValue(servoConfigContent, 'SECTOR_MOTOR_4_MAX') || 141,
+        },
+        motor5: {
+          min: extractValue(servoConfigContent, 'SECTOR_MOTOR_5_MIN') || 141,
+          max: extractValue(servoConfigContent, 'SECTOR_MOTOR_5_MAX') || 175,
         },
       },
     };
@@ -280,10 +290,11 @@ export async function loadBackendConfigFromFile(): Promise<void> {
       servoMinAngle: 5,
       servoMaxAngle: 175,
       sectors: {
-        motor1: { min: 5, max: 45 },
-        motor2: { min: 45, max: 90 },
-        motor3: { min: 90, max: 135 },
-        motor4: { min: 135, max: 175 },
+        motor1: { min: 5, max: 39 },
+        motor2: { min: 39, max: 73 },
+        motor3: { min: 73, max: 107 },
+        motor4: { min: 107, max: 141 },
+        motor5: { min: 141, max: 175 },
       },
     };
   }
@@ -314,10 +325,11 @@ export function getSetpointValues() {
  * These are fallback defaults - actual values loaded from backend
  */
 export const SECTORS = {
-  motor1: { min: 5, max: 45 },
-  motor2: { min: 45, max: 90 },
-  motor3: { min: 90, max: 135 },
-  motor4: { min: 135, max: 175 },
+  motor1: { min: 5, max: 39 },
+  motor2: { min: 39, max: 73 },
+  motor3: { min: 73, max: 107 },
+  motor4: { min: 107, max: 141 },
+  motor5: { min: 141, max: 175 },
 } as const;
 
 /**
@@ -339,10 +351,11 @@ export function getSetpointForDistance(distance: number): number {
 /**
  * Determine which motor sector the servo angle belongs to
  */
-export function getMotorForAngle(angle: number): 1 | 2 | 3 | 4 | null {
+export function getMotorForAngle(angle: number): 1 | 2 | 3 | 4 | 5 | null {
   if (angle >= SECTORS.motor1.min && angle <= SECTORS.motor1.max) return 1;
   if (angle >= SECTORS.motor2.min && angle <= SECTORS.motor2.max) return 2;
   if (angle >= SECTORS.motor3.min && angle <= SECTORS.motor3.max) return 3;
   if (angle >= SECTORS.motor4.min && angle <= SECTORS.motor4.max) return 4;
+  if (angle >= SECTORS.motor5.min && angle <= SECTORS.motor5.max) return 5;
   return null;
 }

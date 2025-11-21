@@ -76,40 +76,48 @@ constexpr uint32_t SERVO_READING_DELAY_MS = 5;
 // - Sector MIN must be >= SERVO_MIN_ANGLE
 // - Sector MAX must be <= SERVO_MAX_ANGLE
 // - Sector boundaries should align: MOTOR_N_MAX should equal MOTOR_(N+1)_MIN
-// - Total coverage: MOTOR_1_MIN to MOTOR_4_MAX should span SERVO_MIN_ANGLE to SERVO_MAX_ANGLE
+// - Total coverage: MOTOR_1_MIN to MOTOR_5_MAX should span SERVO_MIN_ANGLE to SERVO_MAX_ANGLE
 // ============================================================================
 
 /**
  * Motor 1 Sector (degrees)
  * - Leftmost sector in the sweep
- * - Default: 0° to 30° (30° range)
+ * - Range: 5° to 39° (34° range)
  */
 constexpr int SECTOR_MOTOR_1_MIN = 5;
-constexpr int SECTOR_MOTOR_1_MAX = 45;
+constexpr int SECTOR_MOTOR_1_MAX = 39;
 
 /**
  * Motor 2 Sector (degrees)
  * - Center-left sector in the sweep
- * - Default: 30° to 60° (30° range)
+ * - Range: 39° to 73° (34° range)
  */
-constexpr int SECTOR_MOTOR_2_MIN = 45;
-constexpr int SECTOR_MOTOR_2_MAX = 90;
+constexpr int SECTOR_MOTOR_2_MIN = 39;
+constexpr int SECTOR_MOTOR_2_MAX = 73;
 
 /**
  * Motor 3 Sector (degrees)
- * - Center-right sector in the sweep
- * - Default: 60° to 90° (30° range)
+ * - Center sector in the sweep
+ * - Range: 73° to 107° (34° range)
  */
-constexpr int SECTOR_MOTOR_3_MIN = 90;
-constexpr int SECTOR_MOTOR_3_MAX = 135;
+constexpr int SECTOR_MOTOR_3_MIN = 73;
+constexpr int SECTOR_MOTOR_3_MAX = 107;
 
 /**
  * Motor 4 Sector (degrees)
- * - Rightmost sector in the sweep
- * - Default: 90° to 120° (30° range)
+ * - Center-right sector in the sweep
+ * - Range: 107° to 141° (34° range)
  */
-constexpr int SECTOR_MOTOR_4_MIN = 135;
-constexpr int SECTOR_MOTOR_4_MAX = 175;
+constexpr int SECTOR_MOTOR_4_MIN = 107;
+constexpr int SECTOR_MOTOR_4_MAX = 141;
+
+/**
+ * Motor 5 Sector (degrees)
+ * - Rightmost sector in the sweep
+ * - Range: 141° to 175° (34° range)
+ */
+constexpr int SECTOR_MOTOR_5_MIN = 141;
+constexpr int SECTOR_MOTOR_5_MAX = 175;
 
 // ============================================================================
 // SWEEP PERFORMANCE CALCULATOR (Read-only - DO NOT MODIFY)
@@ -156,8 +164,8 @@ static_assert(SERVO_STEP > 0,
 static_assert(SECTOR_MOTOR_1_MIN == SERVO_MIN_ANGLE,
     "WARNING: SECTOR_MOTOR_1_MIN should start at SERVO_MIN_ANGLE to avoid gaps");
 
-static_assert(SECTOR_MOTOR_4_MAX == SERVO_MAX_ANGLE,
-    "WARNING: SECTOR_MOTOR_4_MAX should end at SERVO_MAX_ANGLE to avoid gaps");
+static_assert(SECTOR_MOTOR_5_MAX == SERVO_MAX_ANGLE,
+    "WARNING: SECTOR_MOTOR_5_MAX should end at SERVO_MAX_ANGLE to avoid gaps");
 
 static_assert(SECTOR_MOTOR_1_MAX == SECTOR_MOTOR_2_MIN,
     "ERROR: Gap between Motor 1 and Motor 2 sectors");
@@ -167,6 +175,9 @@ static_assert(SECTOR_MOTOR_2_MAX == SECTOR_MOTOR_3_MIN,
 
 static_assert(SECTOR_MOTOR_3_MAX == SECTOR_MOTOR_4_MIN,
     "ERROR: Gap between Motor 3 and Motor 4 sectors");
+
+static_assert(SECTOR_MOTOR_4_MAX == SECTOR_MOTOR_5_MIN,
+    "ERROR: Gap between Motor 4 and Motor 5 sectors");
 
 // Check sector order
 static_assert(SECTOR_MOTOR_1_MIN < SECTOR_MOTOR_1_MAX,
@@ -180,5 +191,8 @@ static_assert(SECTOR_MOTOR_3_MIN < SECTOR_MOTOR_3_MAX,
 
 static_assert(SECTOR_MOTOR_4_MIN < SECTOR_MOTOR_4_MAX,
     "ERROR: Motor 4 sector MIN must be < MAX");
+
+static_assert(SECTOR_MOTOR_5_MIN < SECTOR_MOTOR_5_MAX,
+    "ERROR: Motor 5 sector MIN must be < MAX");
 
 #endif // SERVO_CONFIG_H

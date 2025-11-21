@@ -65,6 +65,7 @@ interface WebSocketStore {
     motor2: MotorData[];
     motor3: MotorData[];
     motor4: MotorData[];
+    motor5: MotorData[];
   }; // Per-motor history (25 points each)
   scanHistory: RadarScanPoint[]; // Angle+distance pairs for radar visualization
   maxHistorySize: number;
@@ -129,6 +130,7 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
     motor2: [],
     motor3: [],
     motor4: [],
+    motor5: [],
   },
   scanHistory: [],
   maxHistorySize: DEFAULT_MAX_HISTORY,
@@ -286,6 +288,9 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
                 motor4: motorHistory.motor4.length >= maxHistorySize
                   ? [...motorHistory.motor4.slice(-maxHistorySize + 1), newData]
                   : [...motorHistory.motor4, newData],
+                motor5: motorHistory.motor5.length >= maxHistorySize
+                  ? [...motorHistory.motor5.slice(-maxHistorySize + 1), newData]
+                  : [...motorHistory.motor5, newData],
               };
 
               // Add to scan history for radar visualization using live servo data
@@ -331,6 +336,7 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
                   motor2: [],
                   motor3: [],
                   motor4: [],
+                  motor5: [],
                 },
                 scanHistory: [],
                 currentData: null,
@@ -461,6 +467,7 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
         motor2: [],
         motor3: [],
         motor4: [],
+        motor5: [],
       },
       scanHistory: [],
       currentData: null,

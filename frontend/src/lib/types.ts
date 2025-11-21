@@ -4,7 +4,7 @@
 
 /**
  * Motor control data point from ESP32
- * Binary protocol: 70 bytes including servo_angle and tof_current_cm for real-time radar
+ * Binary protocol: 84 bytes including servo_angle and tof_current_cm for real-time radar
  */
 export interface MotorData {
   time_ms: number;
@@ -12,18 +12,22 @@ export interface MotorData {
   sp2_mv: number;  // Motor 2 setpoint in millivolts
   sp3_mv: number;  // Motor 3 setpoint in millivolts
   sp4_mv: number;  // Motor 4 setpoint in millivolts
+  sp5_mv: number;  // Motor 5 setpoint in millivolts
   pp1_mv: number;
   pp2_mv: number;
   pp3_mv: number;
   pp4_mv: number;
+  pp5_mv: number;
   duty1_pct: number;
   duty2_pct: number;
   duty3_pct: number;
   duty4_pct: number;
-  tof1_cm: number;  // Motor 1 sector distance (configured in servo_config.h)
-  tof2_cm: number;  // Motor 2 sector distance (configured in servo_config.h)
-  tof3_cm: number;  // Motor 3 sector distance (configured in servo_config.h)
-  tof4_cm: number;  // Motor 4 sector distance (configured in servo_config.h)
+  duty5_pct: number;
+  tof1_cm: number;  // Motor 1 sector distance (5°-39° in servo_config.h)
+  tof2_cm: number;  // Motor 2 sector distance (39°-73° in servo_config.h)
+  tof3_cm: number;  // Motor 3 sector distance (73°-107° in servo_config.h)
+  tof4_cm: number;  // Motor 4 sector distance (107°-141° in servo_config.h)
+  tof5_cm: number;  // Motor 5 sector distance (141°-175° in servo_config.h)
   servo_angle: number;  // Current servo position in degrees (configured range in servo_config.h)
   tof_current_cm: number;  // TOF distance at current servo angle (real-time)
 }

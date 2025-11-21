@@ -1,8 +1,8 @@
 /**
  * @file pi_controller.h
- * @brief PI (Proportional-Integral) controller for 4 independent motors
+ * @brief PI (Proportional-Integral) controller for 5 independent motors
  *
- * Implements 4 parallel PI controllers with anti-windup, saturation, and deadband.
+ * Implements 5 parallel PI controllers with anti-windup, saturation, and deadband.
  * Each motor has its own integrator state for independent control.
  */
 
@@ -21,23 +21,23 @@
 void initPIController();
 
 /**
- * @brief Execute one PI control step for all 4 motors
+ * @brief Execute one PI control step for all 5 motors
  *
  * Reads the current setpoint and pressure pad values, computes PI control
  * for each motor independently, and applies the calculated duty cycles.
  *
  * This function should be called at a fixed frequency (default: 50 Hz).
  *
- * @param setpoints_mv Array of 4 target pressure setpoints in millivolts (one per motor)
- * @param pressure_pads_mv Array of 4 current pressure pad readings in millivolts
- * @param duty_out Output array of 4 duty cycles (will be updated, range: -100 to 100)
+ * @param setpoints_mv Array of 5 target pressure setpoints in millivolts (one per motor)
+ * @param pressure_pads_mv Array of 5 current pressure pad readings in millivolts
+ * @param duty_out Output array of 5 duty cycles (will be updated, range: -100 to 100)
  */
 void controlStep(const float setpoints_mv[NUM_MOTORS], const uint16_t pressure_pads_mv[NUM_MOTORS], float duty_out[NUM_MOTORS]);
 
 /**
  * @brief Reset all integrators to zero
  *
- * Clears the integrator state for all 4 motors. Useful when changing
+ * Clears the integrator state for all 5 motors. Useful when changing
  * setpoints dramatically or after system restart.
  */
 void resetIntegrators();

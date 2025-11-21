@@ -13,10 +13,10 @@
 // Shared Variables (Extern declarations in header)
 // ============================================================================
 
-volatile float shared_setpoints_mv[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-volatile uint16_t shared_pressure_pads_mv[4] = {0};
-volatile float shared_duty_cycles[4] = {0.0f};
-volatile float shared_tof_distances[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+volatile float shared_setpoints_mv[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+volatile uint16_t shared_pressure_pads_mv[5] = {0};
+volatile float shared_duty_cycles[5] = {0.0f};
+volatile float shared_tof_distances[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 volatile int shared_servo_angle = 0;
 volatile float shared_tof_current = 0.0f;
 

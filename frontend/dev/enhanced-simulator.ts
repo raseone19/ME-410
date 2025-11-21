@@ -25,9 +25,9 @@ interface SimulatorState {
   tofDirection: number; // -1 or 1
   servoAngle: number;
   servoDirection: number; // -1 or 1
-  currentPressures: [number, number, number, number];
-  integralErrors: [number, number, number, number];
-  sectorDistances: [number, number, number, number]; // Captured distance for each sector
+  currentPressures: [number, number, number, number, number];
+  integralErrors: [number, number, number, number, number];
+  sectorDistances: [number, number, number, number, number]; // Captured distance for each sector
   stepTimer: number; // For step scenario
 }
 
@@ -45,9 +45,9 @@ export class EnhancedSimulator {
       tofDirection: 1,
       servoAngle: 0,
       servoDirection: 1,
-      currentPressures: [600, 600, 600, 600],
-      integralErrors: [0, 0, 0, 0],
-      sectorDistances: [100, 100, 100, 100],
+      currentPressures: [600, 600, 600, 600, 600],
+      integralErrors: [0, 0, 0, 0, 0],
+      sectorDistances: [100, 100, 100, 100, 100],
       stepTimer: 0,
     };
   }
@@ -64,9 +64,9 @@ export class EnhancedSimulator {
       tofDirection: 1,
       servoAngle: 0,
       servoDirection: 1,
-      currentPressures: [600, 600, 600, 600],
-      integralErrors: [0, 0, 0, 0],
-      sectorDistances: [100, 100, 100, 100],
+      currentPressures: [600, 600, 600, 600, 600],
+      integralErrors: [0, 0, 0, 0, 0],
+      sectorDistances: [100, 100, 100, 100, 100],
       stepTimer: 0,
     };
   }
@@ -286,18 +286,19 @@ export class EnhancedSimulator {
     const baseSetpoint = getSetpointForDistance(this.state.tofDistance);
 
     // Calculate per-motor setpoints with offsets
-    const setpoints: [number, number, number, number] = [
+    const setpoints: [number, number, number, number, number] = [
       baseSetpoint + motorSetpointOffsets[0],
       baseSetpoint + motorSetpointOffsets[1],
       baseSetpoint + motorSetpointOffsets[2],
       baseSetpoint + motorSetpointOffsets[3],
+      baseSetpoint + motorSetpointOffsets[4],
     ];
 
     // Simulate PI controller for each motor
-    const dutyCycles: [number, number, number, number] = [0, 0, 0, 0];
-    const pressures: [number, number, number, number] = [0, 0, 0, 0];
+    const dutyCycles: [number, number, number, number, number] = [0, 0, 0, 0, 0];
+    const pressures: [number, number, number, number, number] = [0, 0, 0, 0, 0];
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       // Calculate duty cycle
       dutyCycles[i] = this.simulatePIController(i, setpoints[i], dt_s);
 
@@ -323,18 +324,22 @@ export class EnhancedSimulator {
       sp2_mv: parseFloat(setpoints[1].toFixed(1)),
       sp3_mv: parseFloat(setpoints[2].toFixed(1)),
       sp4_mv: parseFloat(setpoints[3].toFixed(1)),
+      sp5_mv: parseFloat(setpoints[4].toFixed(1)),
       pp1_mv: pressures[0],
       pp2_mv: pressures[1],
       pp3_mv: pressures[2],
       pp4_mv: pressures[3],
+      pp5_mv: pressures[4],
       duty1_pct: parseFloat(dutyCycles[0].toFixed(2)),
       duty2_pct: parseFloat(dutyCycles[1].toFixed(2)),
       duty3_pct: parseFloat(dutyCycles[2].toFixed(2)),
       duty4_pct: parseFloat(dutyCycles[3].toFixed(2)),
+      duty5_pct: parseFloat(dutyCycles[4].toFixed(2)),
       tof1_cm: parseFloat(this.state.sectorDistances[0].toFixed(2)),
       tof2_cm: parseFloat(this.state.sectorDistances[1].toFixed(2)),
       tof3_cm: parseFloat(this.state.sectorDistances[2].toFixed(2)),
       tof4_cm: parseFloat(this.state.sectorDistances[3].toFixed(2)),
+      tof5_cm: parseFloat(this.state.sectorDistances[4].toFixed(2)),
       servo_angle: Math.round(this.state.servoAngle),
       tof_current_cm: parseFloat(tof_current_cm.toFixed(2)),
     };

@@ -73,9 +73,9 @@ enum SystemState {
 extern SemaphoreHandle_t distanceMutex;
 
 // MODE_A: Single distance/angle for fixed servo
-// MODE_B: Array of 4 distances/angles (one per motor sector)
-extern volatile float shared_min_distance[4];  // Minimum distance per motor sector
-extern volatile int shared_best_angle[4];      // Angle of minimum distance per motor sector
+// MODE_B: Array of 5 distances/angles (one per motor sector)
+extern volatile float shared_min_distance[5];  // Minimum distance per motor sector
+extern volatile int shared_best_angle[5];      // Angle of minimum distance per motor sector
 extern volatile bool sweep_active;
 
 // ============================================================================
@@ -125,9 +125,9 @@ float calculateSetpoint(DistanceRange range, float baseline_pressure_mv);
  * @brief Get minimum distance for a specific motor (thread-safe)
  *
  * MODE_A: All motors use index 0 (fixed servo, single distance)
- * MODE_B: Each motor gets distance from its sector (0-3)
+ * MODE_B: Each motor gets distance from its sector (0-4)
  *
- * @param motor_index Motor index (0-3)
+ * @param motor_index Motor index (0-4)
  * @return Minimum distance in centimeters for that motor's sector
  */
 float getMinDistance(int motor_index);
@@ -136,9 +136,9 @@ float getMinDistance(int motor_index);
  * @brief Get optimal angle for a specific motor (thread-safe)
  *
  * MODE_A: All motors use index 0 (fixed servo angle)
- * MODE_B: Each motor gets angle from its sector (0-3)
+ * MODE_B: Each motor gets angle from its sector (0-4)
  *
- * @param motor_index Motor index (0-3)
+ * @param motor_index Motor index (0-4)
  * @return Optimal servo angle in degrees for that motor's sector
  */
 int getBestAngle(int motor_index);

@@ -31,6 +31,7 @@ const SECTOR_COLORS = [
   'rgb(34, 197, 94)',    // green
   'rgb(251, 146, 60)',   // orange
   'rgb(168, 85, 247)',   // purple
+  'rgb(236, 72, 153)',   // pink
 ];
 
 export default function DashboardPage() {
@@ -56,6 +57,7 @@ export default function DashboardPage() {
     { motor: 2, minAngle: 'ERR', maxAngle: 'ERR', color: SECTOR_COLORS[1] },
     { motor: 3, minAngle: 'ERR', maxAngle: 'ERR', color: SECTOR_COLORS[2] },
     { motor: 4, minAngle: 'ERR', maxAngle: 'ERR', color: SECTOR_COLORS[3] },
+    { motor: 5, minAngle: 'ERR', maxAngle: 'ERR', color: SECTOR_COLORS[4] },
   ]);
 
   // Fetch ESP32 configuration for sector angles
@@ -69,7 +71,7 @@ export default function DashboardPage() {
           setEspConfig(data.config);
 
           // Validate and load sectors - NO FALLBACKS, log missing values
-          const loadedSectors = [1, 2, 3, 4].map((motorNum) => {
+          const loadedSectors = [1, 2, 3, 4, 5].map((motorNum) => {
             const motorKey = `motor${motorNum}` as const;
             const sectorData = data.config.sectors?.[motorKey];
 
@@ -205,8 +207,8 @@ export default function DashboardPage() {
         stats: {
           dataPoints: dataHistory.length,
           runtime_ms: currentData?.time_ms ?? 0,
-          servoRange: '0°-120°',
-          sectorsCount: 4,
+          servoRange: '0°-180°',
+          sectorsCount: 5,
         },
       };
 
@@ -257,7 +259,7 @@ export default function DashboardPage() {
               Motor Control Dashboard
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground">
-              4 independent motors with dedicated 30° sectors (0°-120° servo sweep)
+              5 independent motors with dedicated sectors (servo sweep)
             </p>
           </div>
 
@@ -285,13 +287,13 @@ export default function DashboardPage() {
         {/* Sector Visualization */}
         <Card>
           <CardContent className="p-6">
-            <h2 className="mb-4 text-lg font-semibold">Servo Sectors (0° - 120°)</h2>
+            <h2 className="mb-4 text-lg font-semibold">Servo Sectors</h2>
             <div className="flex h-8 overflow-hidden rounded-lg">
               {sectors.map((sector) => {
                 const hasError = sector.minAngle === 'ERR' || sector.maxAngle === 'ERR';
                 const width = hasError
-                  ? '25%' // Equal width for ERR sectors
-                  : `${((sector.maxAngle as number - (sector.minAngle as number) + 1) / 121) * 100}%`;
+                  ? `${100 / sectors.length}%` // Equal width for ERR sectors
+                  : `${((sector.maxAngle as number - (sector.minAngle as number) + 1) / 180) * 100}%`;
 
                 return (
                   <div
@@ -358,9 +360,9 @@ export default function DashboardPage() {
                   <div className="text-sm text-muted-foreground">
                     Sweep Range
                   </div>
-                  <div className="text-2xl font-bold">0° - 120°</div>
+                  <div className="text-2xl font-bold">0° - 180°</div>
                   <div className="text-xs text-muted-foreground">
-                    4 sectors × 30°
+                    5 motor sectors
                   </div>
                 </div>
               </div>

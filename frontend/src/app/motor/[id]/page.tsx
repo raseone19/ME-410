@@ -184,7 +184,7 @@ export default function MotorDetailPage() {
 
   // Motor navigation handlers - maintain fullscreen during navigation using URL params
   const handlePreviousMotor = useCallback(() => {
-    const prevMotor = motorId === 1 ? 4 : motorId - 1;
+    const prevMotor = motorId === 1 ? 5 : motorId - 1;
     const wasFullscreen = !!document.fullscreenElement;
 
     // Add fs=1 parameter if we're in fullscreen to maintain state
@@ -192,7 +192,7 @@ export default function MotorDetailPage() {
   }, [motorId, router]);
 
   const handleNextMotor = useCallback(() => {
-    const nextMotor = motorId === 4 ? 1 : motorId + 1;
+    const nextMotor = motorId === 5 ? 1 : motorId + 1;
     const wasFullscreen = !!document.fullscreenElement;
 
     // Add fs=1 parameter if we're in fullscreen to maintain state
@@ -200,13 +200,13 @@ export default function MotorDetailPage() {
   }, [motorId, router]);
 
   // Validate motor ID
-  if (!motorId || motorId < 1 || motorId > 4) {
+  if (!motorId || motorId < 1 || motorId > 5) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Card>
           <CardHeader>
             <CardTitle>Invalid Motor</CardTitle>
-            <CardDescription>Motor ID must be between 1 and 4</CardDescription>
+            <CardDescription>Motor ID must be between 1 and 5</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={() => router.push('/')}>Back to Dashboard</Button>
@@ -586,8 +586,8 @@ export default function MotorDetailPage() {
                   className="gap-1 sm:gap-2 flex-shrink-0"
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  <span className="hidden sm:inline">Motor {motorId === 1 ? 4 : motorId - 1}</span>
-                  <span className="sm:hidden">M{motorId === 1 ? 4 : motorId - 1}</span>
+                  <span className="hidden sm:inline">Motor {motorId === 1 ? 5 : motorId - 1}</span>
+                  <span className="sm:hidden">M{motorId === 1 ? 5 : motorId - 1}</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -595,8 +595,8 @@ export default function MotorDetailPage() {
                   onClick={handleNextMotor}
                   className="gap-1 sm:gap-2 flex-shrink-0"
                 >
-                  <span className="hidden sm:inline">Motor {motorId === 4 ? 1 : motorId + 1}</span>
-                  <span className="sm:hidden">M{motorId === 4 ? 1 : motorId + 1}</span>
+                  <span className="hidden sm:inline">Motor {motorId === 5 ? 1 : motorId + 1}</span>
+                  <span className="sm:hidden">M{motorId === 5 ? 1 : motorId + 1}</span>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>

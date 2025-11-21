@@ -1,11 +1,11 @@
 /**
  * @file pins.h
- * @brief Pin configuration for 4-motor independent PI control system
+ * @brief Pin configuration for 5-motor independent PI control system
  *
  * This file defines all hardware pin assignments for:
- * - 4 DC motors with H-bridge control
+ * - 5 DC motors with H-bridge control
  * - TOF distance sensor with servo sweep
- * - 4 pressure pads via multiplexer
+ * - 5 pressure pads via multiplexer
  * - Multiplexer control pins
  */
 
@@ -15,7 +15,7 @@
 #include <Arduino.h>
 
 // ============================================================================
-// MOTOR PINS (4 Motors with PWM and H-Bridge Control)
+// MOTOR PINS (5 Motors with PWM and H-Bridge Control)
 // ============================================================================
 
 
@@ -39,9 +39,14 @@ constexpr uint8_t M4_PWM  = 41;  // PWM speed control
 constexpr uint8_t M4_IN1  = 39;   // H-bridge input 1
 constexpr uint8_t M4_IN2  = 40;   // H-bridge input 2
 
+// Motor 5
+constexpr uint8_t M5_PWM  = 42;  // PWM speed control
+constexpr uint8_t M5_IN1  = 1;   // H-bridge input 1
+constexpr uint8_t M5_IN2  = 2;   // H-bridge input 2
+
 
 // Motor system configuration
-constexpr int NUM_MOTORS = 4;
+constexpr int NUM_MOTORS = 5;
 constexpr uint32_t PWM_FREQ_HZ = 20000;   // 20 kHz PWM frequency
 constexpr uint8_t PWM_RES_BITS = 10;      // 10-bit resolution (0-1023)
 
@@ -79,14 +84,15 @@ constexpr uint32_t MUX_SETTLE_US = 100;  // Microseconds
 // PRESSURE PAD CHANNELS (Multiplexer Channel Assignments)
 // ============================================================================
 
-constexpr int NUM_PRESSURE_PADS = 4;
+constexpr int NUM_PRESSURE_PADS = 5;
 
 // Pressure pad multiplexer channels (non-consecutive as per Multi_5PP)
 constexpr uint8_t PP_CHANNELS[NUM_PRESSURE_PADS] = {
     0,  // Pressure Pad 1 -> Channel C1
     2,  // Pressure Pad 2 -> Channel C2
     4,  // Pressure Pad 3 -> Channel C3
-    6   // Pressure Pad 4 -> Channel C6
+    6,  // Pressure Pad 4 -> Channel C6
+    8   // Pressure Pad 5 -> Channel C8
 };
 
 // Number of ADC samples to average per reading

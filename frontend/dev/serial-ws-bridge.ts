@@ -1,7 +1,7 @@
 /**
  * Serial to WebSocket Bridge
  * Reads binary data from ESP32 via USB serial port and broadcasts to WebSocket clients
- * Binary protocol only - 70 bytes per packet with CRC-16 checksum
+ * Binary protocol only - 84 bytes per packet with CRC-16 checksum (5 motors)
  */
 
 import { WebSocketServer, WebSocket } from 'ws';
@@ -11,8 +11,8 @@ import type { MotorData } from '../src/lib/types';
 const WS_PORT = 3001;
 const BAUD_RATE = 115200;
 
-// Binary protocol constants
-const PACKET_SIZE = 70;  // Updated to include servo_angle and tof_current_cm
+// Binary protocol constants (5 motors)
+const PACKET_SIZE = 84;  // 5 motors: 2+4+20+10+20+20+1+4+1+2 = 84 bytes
 const HEADER_WORD = 0xAA55;  // Combined 16-bit header
 
 // Serial port path - you'll need to update this
@@ -51,29 +51,33 @@ function calculateCRC16(data: Buffer): number {
 
 /**
  * Parse binary packet from ESP32
- * Packet structure (70 bytes):
+ * Packet structure (84 bytes) - 5 motors:
  *   [0-1]:   Header (0xAA55 as uint16)
  *   [2-5]:   timestamp_ms (uint32)
  *   [6-9]:   setpoint1_mv (float)
  *   [10-13]: setpoint2_mv (float)
  *   [14-17]: setpoint3_mv (float)
  *   [18-21]: setpoint4_mv (float)
- *   [22-23]: pp1_mv (uint16)
- *   [24-25]: pp2_mv (uint16)
- *   [26-27]: pp3_mv (uint16)
- *   [28-29]: pp4_mv (uint16)
- *   [30-33]: duty1_pct (float)
- *   [34-37]: duty2_pct (float)
- *   [38-41]: duty3_pct (float)
- *   [42-45]: duty4_pct (float)
- *   [46-49]: tof1_cm (float)
- *   [50-53]: tof2_cm (float)
- *   [54-57]: tof3_cm (float)
- *   [58-61]: tof4_cm (float)
- *   [62]:    servo_angle (uint8)
- *   [63-66]: tof_current_cm (float)
- *   [67]:    current_mode (uint8) - 0=MODE_A, 1=MODE_B
- *   [68-69]: crc (uint16)
+ *   [22-25]: setpoint5_mv (float)
+ *   [26-27]: pp1_mv (uint16)
+ *   [28-29]: pp2_mv (uint16)
+ *   [30-31]: pp3_mv (uint16)
+ *   [32-33]: pp4_mv (uint16)
+ *   [34-35]: pp5_mv (uint16)
+ *   [36-39]: duty1_pct (float)
+ *   [40-43]: duty2_pct (float)
+ *   [44-47]: duty3_pct (float)
+ *   [48-51]: duty4_pct (float)
+ *   [52-55]: duty5_pct (float)
+ *   [56-59]: tof1_cm (float)
+ *   [60-63]: tof2_cm (float)
+ *   [64-67]: tof3_cm (float)
+ *   [68-71]: tof4_cm (float)
+ *   [72-75]: tof5_cm (float)
+ *   [76]:    servo_angle (uint8)
+ *   [77-80]: tof_current_cm (float)
+ *   [81]:    current_mode (uint8) - 0=MODE_A, 1=MODE_B
+ *   [82-83]: crc (uint16)
  */
 function parseBinaryPacket(packet: Buffer): MotorData | null {
   if (packet.length !== PACKET_SIZE) {
@@ -99,27 +103,31 @@ function parseBinaryPacket(packet: Buffer): MotorData | null {
   }
 
   try {
-    const currentMode = packet.readUInt8(67); // 0=MODE_A, 1=MODE_B
+    const currentMode = packet.readUInt8(81); // 0=MODE_A, 1=MODE_B
     return {
       time_ms: packet.readUInt32LE(2),
       sp1_mv: packet.readFloatLE(6),
       sp2_mv: packet.readFloatLE(10),
       sp3_mv: packet.readFloatLE(14),
       sp4_mv: packet.readFloatLE(18),
-      pp1_mv: packet.readUInt16LE(22),
-      pp2_mv: packet.readUInt16LE(24),
-      pp3_mv: packet.readUInt16LE(26),
-      pp4_mv: packet.readUInt16LE(28),
-      duty1_pct: packet.readFloatLE(30),
-      duty2_pct: packet.readFloatLE(34),
-      duty3_pct: packet.readFloatLE(38),
-      duty4_pct: packet.readFloatLE(42),
-      tof1_cm: packet.readFloatLE(46),
-      tof2_cm: packet.readFloatLE(50),
-      tof3_cm: packet.readFloatLE(54),
-      tof4_cm: packet.readFloatLE(58),
-      servo_angle: packet.readUInt8(62),
-      tof_current_cm: packet.readFloatLE(63),
+      sp5_mv: packet.readFloatLE(22),
+      pp1_mv: packet.readUInt16LE(26),
+      pp2_mv: packet.readUInt16LE(28),
+      pp3_mv: packet.readUInt16LE(30),
+      pp4_mv: packet.readUInt16LE(32),
+      pp5_mv: packet.readUInt16LE(34),
+      duty1_pct: packet.readFloatLE(36),
+      duty2_pct: packet.readFloatLE(40),
+      duty3_pct: packet.readFloatLE(44),
+      duty4_pct: packet.readFloatLE(48),
+      duty5_pct: packet.readFloatLE(52),
+      tof1_cm: packet.readFloatLE(56),
+      tof2_cm: packet.readFloatLE(60),
+      tof3_cm: packet.readFloatLE(64),
+      tof4_cm: packet.readFloatLE(68),
+      tof5_cm: packet.readFloatLE(72),
+      servo_angle: packet.readUInt8(76),
+      tof_current_cm: packet.readFloatLE(77),
     };
   } catch (error) {
     console.error('❌ Error parsing binary packet:', error);
