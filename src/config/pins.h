@@ -20,9 +20,9 @@
 
 
 // Motor 1
-constexpr uint8_t M1_PWM  = 13;   // PWM speed control (changed from 19 for ESP32-S3 USB compatibility)
+constexpr uint8_t M1_PWM  = 14;   // PWM speed control (changed from 19 for ESP32-S3 USB compatibility)
 constexpr uint8_t M1_IN1  = 21;  // H-bridge input 1
-constexpr uint8_t M1_IN2  = 14;  // H-bridge input 2 (changed from 20 for ESP32-S3 USB compatibility)
+constexpr uint8_t M1_IN2  = 13;  // H-bridge input 2 (changed from 20 for ESP32-S3 USB compatibility)
 
 // Motor 2
 constexpr uint8_t M2_PWM  = 35;  // PWM speed control
@@ -69,10 +69,10 @@ constexpr uint8_t SERVO_PIN = 6;          // Servo PWM pin
 // ============================================================================
 
 // Multiplexer control pins (channel selection)
-constexpr uint8_t MUX_S0 = 18;   // Select bit 0
-constexpr uint8_t MUX_S1 = 17;   // Select bit 1
-constexpr uint8_t MUX_S2 = 16;   // Select bit 2
-constexpr uint8_t MUX_S3 = 15;    // Select bit 3 (RX0)
+constexpr uint8_t MUX_S0 = 17;   // Select bit 0
+constexpr uint8_t MUX_S1 = 16;   // Select bit 1
+constexpr uint8_t MUX_S2 = 15;   // Select bit 2
+constexpr uint8_t MUX_S3 = 7;    // Select bit 3 (RX0)
 
 // Multiplexer signal pin (ADC input)
 constexpr uint8_t MUX_SIG = 4;  // ADC1_CH7 (input only)
@@ -88,11 +88,11 @@ constexpr int NUM_PRESSURE_PADS = 5;
 
 // Pressure pad multiplexer channels (non-consecutive as per Multi_5PP)
 constexpr uint8_t PP_CHANNELS[NUM_PRESSURE_PADS] = {
-    0,  // Pressure Pad 1 -> Channel C1
+    1,  // Pressure Pad 1 -> Channel C1
     2,  // Pressure Pad 2 -> Channel C2
-    4,  // Pressure Pad 3 -> Channel C3
-    6,  // Pressure Pad 4 -> Channel C6
-    8   // Pressure Pad 5 -> Channel C8
+    3,  // Pressure Pad 3 -> Channel C3
+    4,  // Pressure Pad 4 -> Channel C6
+    5   // Pressure Pad 5 -> Channel C8
 };
 
 // Number of ADC samples to average per reading

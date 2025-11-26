@@ -198,6 +198,7 @@ export default function SensorsPage() {
       pp2: { min: Infinity, max: -Infinity, avg: 0, stdDev: 0, samples: 0 },
       pp3: { min: Infinity, max: -Infinity, avg: 0, stdDev: 0, samples: 0 },
       pp4: { min: Infinity, max: -Infinity, avg: 0, stdDev: 0, samples: 0 },
+      pp5: { min: Infinity, max: -Infinity, avg: 0, stdDev: 0, samples: 0 },
       tof1: { min: Infinity, max: -Infinity, avg: 0, stdDev: 0, samples: 0 },
       tof2: { min: Infinity, max: -Infinity, avg: 0, stdDev: 0, samples: 0 },
       tof3: { min: Infinity, max: -Infinity, avg: 0, stdDev: 0, samples: 0 },
@@ -210,12 +211,13 @@ export default function SensorsPage() {
       ...motorHistory.motor2,
       ...motorHistory.motor3,
       ...motorHistory.motor4,
+      ...motorHistory.motor5,
     ];
 
     if (allHistory.length === 0) return stats;
 
     // Calculate for pressure pads
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 5; i++) {
       const key = `pp${i}` as keyof typeof stats;
       const dataKey = `pp${i}_mv` as keyof MotorData;
       const history = motorHistory[`motor${i}` as keyof typeof motorHistory].slice(-100);
@@ -511,13 +513,13 @@ export default function SensorsPage() {
                 <div className="space-y-2">
                   <h4 className="font-semibold flex items-center gap-2">
                     <Gauge className="h-4 w-4" />
-                    Pressure Pads (4x Analog Sensors)
+                    Pressure Pads (5x Analog Sensors)
                   </h4>
                   <ul className="space-y-1 text-xs list-disc list-inside">
                     <li><strong>Function:</strong> Measure pressure/force applied to each motor</li>
                     <li><strong>Output:</strong> 0-1200 mV (millivolts)</li>
-                    <li><strong>Connection:</strong> Via CD74HC4067 multiplexer on channels C1, C2, C3, C6</li>
-                    <li><strong>Read via:</strong> ESP32 ADC (GPIO 35) with 8-sample averaging</li>
+                    <li><strong>Connection:</strong> Via CD74HC4067 multiplexer on channels C4, C3, C2, C1, C0</li>
+                    <li><strong>Read via:</strong> ESP32 ADC (GPIO 4) with 8-sample averaging</li>
                     <li><strong>Good reading:</strong> Stable values with low noise (&lt;20mV variation)</li>
                   </ul>
                 </div>
@@ -605,7 +607,7 @@ export default function SensorsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Gauge className="h-5 w-5" />
-                Pressure Pad Sensors (4x Analog via Multiplexer)
+                Pressure Pad Sensors (5x Analog via Multiplexer)
               </CardTitle>
               <CardDescription>
                 Real-time pressure readings in millivolts. Each pad is read through the CD74HC4067 multiplexer
@@ -613,8 +615,8 @@ export default function SensorsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[1, 2, 3, 4].map((padNum) => {
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                {[1, 2, 3, 4, 5].map((padNum) => {
                   const value = currentData?.[`pp${padNum}_mv` as keyof MotorData] as number ?? 0;
                   const health = getPressurePadHealth(padNum);
                   const HealthIcon = health.icon;
@@ -837,8 +839,8 @@ export default function SensorsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {[1, 2, 3, 4].map((padNum) => (
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[1, 2, 3, 4, 5].map((padNum) => (
                       <div key={padNum}>
                         <h4 className="text-sm font-semibold mb-2">Pressure Pad {padNum}</h4>
                         <ChartContainer config={chartConfig} className="h-[150px] w-full">
@@ -919,22 +921,22 @@ export default function SensorsPage() {
                 <div className="space-y-3">
                   <h4 className="font-semibold">Multiplexer (CD74HC4067)</h4>
                   <ul className="space-y-1 text-xs list-disc list-inside">
-                    <li><strong>Control Pins:</strong> S0=GPIO23, S1=GPIO33, S2=GPIO32, S3=GPIO3</li>
-                    <li><strong>Signal Pin:</strong> GPIO35 (ADC1_CH7, input-only)</li>
-                    <li><strong>Settling Time:</strong> 100µs after channel switch</li>
-                    <li><strong>Active Channels:</strong> C1, C2, C3, C6 (non-consecutive by design)</li>
-                    <li><strong>Sampling:</strong> 8 samples averaged per reading</li>
+                    <li><strong>Control Pins:</strong> S0=GPIO{espConfig?.multiplexer?.s0 ?? '?'}, S1=GPIO{espConfig?.multiplexer?.s1 ?? '?'}, S2=GPIO{espConfig?.multiplexer?.s2 ?? '?'}, S3=GPIO{espConfig?.multiplexer?.s3 ?? '?'}</li>
+                    <li><strong>Signal Pin:</strong> GPIO{espConfig?.multiplexer?.sig ?? '?'} (ADC input)</li>
+                    <li><strong>Settling Time:</strong> {espConfig?.multiplexer?.settleUs ?? '?'}µs after channel switch</li>
+                    <li><strong>Active Channels:</strong> C{pressurePadChannels === 'ERR' ? '?' : pressurePadChannels.join(', C')} (PP1 to PP5)</li>
+                    <li><strong>Sampling:</strong> {espConfig?.pressurePads?.samples ?? '?'} samples averaged per reading</li>
                   </ul>
                 </div>
                 <div className="space-y-3">
                   <h4 className="font-semibold">TOF Sensor + Servo</h4>
                   <ul className="space-y-1 text-xs list-disc list-inside">
-                    <li><strong>TOF RX:</strong> GPIO34 (input-only)</li>
-                    <li><strong>TOF TX:</strong> GPIO18</li>
-                    <li><strong>Baud Rate:</strong> 921600</li>
-                    <li><strong>Servo Pin:</strong> GPIO22 (PWM)</li>
-                    <li><strong>Sweep:</strong> 0°-120° in 2° steps</li>
-                    <li><strong>Settling:</strong> 80ms per step for stable reading</li>
+                    <li><strong>TOF RX:</strong> GPIO{espConfig?.tof?.rxPin ?? '?'}</li>
+                    <li><strong>TOF TX:</strong> GPIO{espConfig?.tof?.txPin ?? '?'}</li>
+                    <li><strong>Baud Rate:</strong> {espConfig?.tof?.baudrate ?? '?'}</li>
+                    <li><strong>Servo Pin:</strong> GPIO{espConfig?.tof?.servoPin ?? '?'} (PWM)</li>
+                    <li><strong>Sweep:</strong> {servoMinAngle}°-{servoMaxAngle}° in {espConfig?.tof?.servoStep ?? '?'}° steps</li>
+                    <li><strong>Settling:</strong> {espConfig?.tof?.servoSettleMs ?? '?'}ms per step for stable reading</li>
                   </ul>
                 </div>
               </div>

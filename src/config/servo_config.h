@@ -50,7 +50,7 @@ constexpr int SERVO_STEP = 3;
  * - Larger values = slower sweep but more stable readings
  * - Recommended range: 5 ms to 20 ms depending on servo quality
  */
-constexpr uint32_t SERVO_SETTLE_MS = 5;
+constexpr uint32_t SERVO_SETTLE_MS = 10;
 
 /**
  * Delay between TOF readings during sweep (milliseconds)
@@ -61,7 +61,7 @@ constexpr uint32_t SERVO_SETTLE_MS = 5;
  *
  * IMPORTANT: This affects sweep speed in BOTH directions (forward/backward)
  */
-constexpr uint32_t SERVO_READING_DELAY_MS = 5;
+constexpr uint32_t SERVO_READING_DELAY_MS = 10;
 
 // ============================================================================
 // MOTOR SECTOR ASSIGNMENTS

@@ -85,10 +85,11 @@ void initTOFSensor() {
     Serial.println("    [Step 2/5] Allocating PWM timer...");
     Serial.flush();
 
-    // Allocate timer for servo (motors use default timers)
-    // This prevents PWM channel conflicts between motors and servo
+    // Allocate timer for servo (motors use timers 0-2 for channels 0-4)
+    // Use timer 3 to avoid conflicts with motor PWM channels
+    // ESP32-S3 has 4 timers (0-3), each with 2 channels (8 LEDC channels total)
     if (!servo_channels_allocated) {
-        ESP32PWM::allocateTimer(2);  // Use timer 2 for servo
+        ESP32PWM::allocateTimer(3);  // Use timer 3 for servo (free timer)
         servo_channels_allocated = true;
     }
     Serial.println("    [Step 2/5] PWM Timer: OK");

@@ -269,7 +269,7 @@ void loop() {
                 }
                 far_range_baseline_captured[i] = true;
             }
-            
+
             // Step 5: Calculate setpoint for this motor
             if (current_range[i] == RANGE_FAR && far_range_baseline_captured[i]) {
                 // FAR range: Individual setpoint (baseline + offset)
@@ -316,23 +316,20 @@ void loop() {
                     break;
 
                 case OUT_OF_RANGE_DEFLATING:
-                    // Check if pressure has dropped below safe threshold
-                    if (pressure_pads_mv[i] <= SAFE_PRESSURE_THRESHOLD_MV) {
-                        // Pressure is safe - check if we can return to normal or need release period
+                    // Priority 1: If distance is now valid, return to normal operation
+                    // Let PI controller handle pressure adjustment
+                    if (is_valid) {
+                        current_state[state_index] = NORMAL_OPERATION;
                         duty_cycles[i] = 0.0f;
-
-                        if (is_valid) {
-                            // Distance valid AND pressure safe - resume PI control
-                            current_state[state_index] = NORMAL_OPERATION;
-                        }
-                        else {
-                            // Pressure safe but distance still invalid - release period
-                            current_state[state_index] = OUT_OF_RANGE_RELEASING;
-                            reverse_start_time[state_index] = current_time;
-                        }
                     }
+                    // Priority 2: If still out of bounds but pressure is safe, go to release period
+                    else if (pressure_pads_mv[i] <= SAFE_PRESSURE_THRESHOLD_MV) {
+                        current_state[state_index] = OUT_OF_RANGE_RELEASING;
+                        reverse_start_time[state_index] = current_time;
+                        duty_cycles[i] = 0.0f;
+                    }
+                    // Priority 3: Still out of bounds and pressure high - keep deflating
                     else {
-                        // Pressure still too high - keep reversing to deflate
                         duty_cycles[i] = -REVERSE_DUTY_PCT;
                     }
                     break;
