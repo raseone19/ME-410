@@ -21,7 +21,7 @@
 void initPIController();
 
 /**
- * @brief Execute one PI control step for all 5 motors
+ * @brief Execute one PI control step for all 5 motors (using millivolts)
  *
  * Reads the current setpoint and pressure pad values, computes PI control
  * for each motor independently, and applies the calculated duty cycles.
@@ -33,6 +33,20 @@ void initPIController();
  * @param duty_out Output array of 5 duty cycles (will be updated, range: -100 to 100)
  */
 void controlStep(const float setpoints_mv[NUM_MOTORS], const uint16_t pressure_pads_mv[NUM_MOTORS], float duty_out[NUM_MOTORS]);
+
+/**
+ * @brief Execute one PI control step for all 5 motors (using Newtons)
+ *
+ * Same as controlStep but works with force values in Newtons instead of millivolts.
+ * This is the preferred method when using calibrated pressure pads.
+ *
+ * This function should be called at a fixed frequency (default: 50 Hz).
+ *
+ * @param setpoints_n Array of 5 target force setpoints in Newtons (one per motor)
+ * @param pressure_pads_n Array of 5 current force readings in Newtons
+ * @param duty_out Output array of 5 duty cycles (will be updated, range: -100 to 100)
+ */
+void controlStepNewtons(const float setpoints_n[NUM_MOTORS], const float pressure_pads_n[NUM_MOTORS], float duty_out[NUM_MOTORS]);
 
 /**
  * @brief Reset all integrators to zero

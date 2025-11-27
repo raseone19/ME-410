@@ -5,19 +5,22 @@
 /**
  * Motor control data point from ESP32
  * Binary protocol: 84 bytes including servo_angle and tof_current_cm for real-time radar
+ *
+ * NOTE: Setpoints (sp*_mv) are now in NEWTONS despite the field name (for backward compatibility)
+ *       Pressure pads (pp*_mv) are still in millivolts - use millivoltsToNewtons() to convert
  */
 export interface MotorData {
   time_ms: number;
-  sp1_mv: number;  // Motor 1 setpoint in millivolts
-  sp2_mv: number;  // Motor 2 setpoint in millivolts
-  sp3_mv: number;  // Motor 3 setpoint in millivolts
-  sp4_mv: number;  // Motor 4 setpoint in millivolts
-  sp5_mv: number;  // Motor 5 setpoint in millivolts
-  pp1_mv: number;
-  pp2_mv: number;
-  pp3_mv: number;
-  pp4_mv: number;
-  pp5_mv: number;
+  sp1_mv: number;  // Motor 1 setpoint in NEWTONS (legacy field name)
+  sp2_mv: number;  // Motor 2 setpoint in NEWTONS (legacy field name)
+  sp3_mv: number;  // Motor 3 setpoint in NEWTONS (legacy field name)
+  sp4_mv: number;  // Motor 4 setpoint in NEWTONS (legacy field name)
+  sp5_mv: number;  // Motor 5 setpoint in NEWTONS (legacy field name)
+  pp1_mv: number;  // Pressure pad 1 raw reading in millivolts
+  pp2_mv: number;  // Pressure pad 2 raw reading in millivolts
+  pp3_mv: number;  // Pressure pad 3 raw reading in millivolts
+  pp4_mv: number;  // Pressure pad 4 raw reading in millivolts
+  pp5_mv: number;  // Pressure pad 5 raw reading in millivolts
   duty1_pct: number;
   duty2_pct: number;
   duty3_pct: number;

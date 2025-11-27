@@ -208,18 +208,22 @@ DistanceRange getDistanceRange(float distance) {
     }
 }
 
-float calculateSetpoint(DistanceRange range, float baseline_pressure_mv) {
+float calculateSetpoint(DistanceRange range, float baseline_force_n) {
     switch (range) {
         case RANGE_FAR:
-            // Dynamic setpoint: baseline pressure (captured when entering FAR range) + security offset
+            // Dynamic setpoint: baseline force (captured when entering FAR range) + security offset
             // This accounts for friction variations between different motors and over time
-            return baseline_pressure_mv + SECURITY_OFFSET_MV;
+            // If no baseline captured, use fixed FAR setpoint
+            if (baseline_force_n > 0.0f) {
+                return baseline_force_n + SECURITY_OFFSET_N;
+            }
+            return SETPOINT_FAR_N;
 
         case RANGE_MEDIUM:
-            return SETPOINT_MEDIUM_MV;
+            return SETPOINT_MEDIUM_N;
 
         case RANGE_CLOSE:
-            return SETPOINT_CLOSE_MV;
+            return SETPOINT_CLOSE_N;
 
         default:
             return -1.0f;  // Invalid setpoint

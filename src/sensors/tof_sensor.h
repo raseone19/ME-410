@@ -29,16 +29,17 @@ constexpr float DISTANCE_MEDIUM_MAX = 200.0f;   // Medium range end (cm)
 constexpr float DISTANCE_CLOSE_MIN = 50.0f;     // Close range start (cm)
 constexpr float DISTANCE_CLOSE_MAX = 100.0f;    // Close range end (cm)
 
-// Setpoint values for each range (in mV)
+// Setpoint values for each range (in Newtons)
 // Note: FAR range setpoint is calculated dynamically (baseline + offset)
 // where baseline is captured when entering FAR range to account for friction variations
-constexpr float SECURITY_OFFSET_MV = 50.0f;     // Offset added to baseline in FAR range
-constexpr float SETPOINT_MEDIUM_MV = 700.0f;    // Setpoint for medium range (100-200cm)
-constexpr float SETPOINT_CLOSE_MV = 3000.0f;    // Setpoint for close range (50-100cm)
+constexpr float SECURITY_OFFSET_N = 0.5f;       // Offset added to baseline in FAR range (N)
+constexpr float SETPOINT_FAR_N = 1.0f;          // Setpoint for far range (200-300cm)
+constexpr float SETPOINT_MEDIUM_N = 2.0f;       // Setpoint for medium range (100-200cm)
+constexpr float SETPOINT_CLOSE_N = 4.0f;       // Setpoint for close range (50-100cm)
 
-// Out-of-range safety parameters
-constexpr float SAFE_PRESSURE_THRESHOLD_MV = 1000.f;  // Pressure must drop below this before release
-constexpr uint32_t RELEASE_TIME_MS = 1000;             // Additional reverse time after reaching threshold (ms)
+// Out-of-range safety parameters (in Newtons)
+constexpr float SAFE_PRESSURE_THRESHOLD_N = 5.0f;     // Pressure must drop below this before release (N)
+constexpr uint32_t RELEASE_TIME_MS = 1300;             // Additional reverse time after reaching threshold (ms)
 constexpr float REVERSE_DUTY_PCT = 60.0f;             // Reverse duty cycle for deflation (%)
 
 // ============================================================================
@@ -110,16 +111,16 @@ float tofGetDistance();
 DistanceRange getDistanceRange(float distance);
 
 /**
- * @brief Calculate setpoint based on distance range
+ * @brief Calculate setpoint based on distance range (in Newtons)
  *
- * Computes the target pressure setpoint based on the current distance range.
- * For FAR range, uses baseline pressure captured when entering FAR range.
+ * Computes the target force setpoint based on the current distance range.
+ * For FAR range, uses baseline force captured when entering FAR range.
  *
  * @param range Current distance range
- * @param baseline_pressure_mv Baseline pressure captured when entering FAR range (mV)
- * @return Setpoint in millivolts, or -1.0 if invalid
+ * @param baseline_force_n Baseline force captured when entering FAR range (N)
+ * @return Setpoint in Newtons, or -1.0 if invalid
  */
-float calculateSetpoint(DistanceRange range, float baseline_pressure_mv);
+float calculateSetpoint(DistanceRange range, float baseline_force_n);
 
 /**
  * @brief Get minimum distance for a specific motor (thread-safe)

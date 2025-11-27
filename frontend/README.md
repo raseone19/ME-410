@@ -21,6 +21,273 @@ Real-time web dashboard for monitoring 4-motor independent PI control system.
 - **Zustand** for state management
 - **Recharts** via shadcn charts for data visualization
 
+---
+
+## Installation from Scratch
+
+### Prerequisites
+
+Before installing, ensure you have:
+- **Node.js 18+** installed (LTS recommended)
+- **pnpm** package manager (we use pnpm, NOT npm or yarn)
+- The `frontend` folder (downloaded or copied to your computer)
+
+---
+
+## macOS Installation
+
+> **Note:** These commands work the same in both **bash** and **zsh** (the default shell on modern macOS).
+
+### Step 1: Install Homebrew (if not installed)
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+### Step 2: Install Node.js
+
+```bash
+brew install node
+```
+
+Verify installation:
+```bash
+node --version   # Should show v18.x.x or higher
+npm --version    # Should show 9.x.x or higher
+```
+
+### Step 3: Install pnpm
+
+```bash
+npm install -g pnpm
+```
+
+Verify installation:
+```bash
+pnpm --version   # Should show 8.x.x or higher
+```
+
+### Step 4: Navigate to the Frontend Folder
+
+```bash
+cd path/to/frontend
+```
+
+Replace `path/to/frontend` with the actual path where you have the frontend folder.
+
+### Step 5: Install Dependencies
+
+```bash
+pnpm install
+```
+
+### Step 6: Configure Environment
+
+```bash
+# Copy the example environment file
+cp .env.example .env.local
+```
+
+Edit `.env.local` to configure your setup:
+
+**For USB Serial connection (recommended):**
+```bash
+# Find your serial port first
+pnpm run list-ports
+
+# Then set it in .env.local
+SERIAL_PORT=/dev/cu.usbserial-10  # Use your actual port
+```
+
+### Step 7: Run the Dashboard
+
+**With Mock Data (no ESP32 needed):**
+```bash
+pnpm run dev:mock
+```
+
+**With Real ESP32 via USB:**
+```bash
+pnpm run dev:serial
+```
+
+Open http://localhost:3000 in your browser.
+
+---
+
+## Windows Installation
+
+### Step 1: Install Node.js
+
+1. Download Node.js LTS from https://nodejs.org/
+2. Run the installer (`.msi` file)
+3. Follow the installation wizard (accept defaults)
+4. **Important:** Check the box for "Automatically install necessary tools"
+
+Verify installation (open Command Prompt or PowerShell):
+```powershell
+node --version   # Should show v18.x.x or higher
+npm --version    # Should show 9.x.x or higher
+```
+
+### Step 2: Install pnpm
+
+Open PowerShell as Administrator and run:
+```powershell
+npm install -g pnpm
+```
+
+Verify installation:
+```powershell
+pnpm --version   # Should show 8.x.x or higher
+```
+
+### Step 3: Install CP210x USB Driver (for ESP32)
+
+1. Download the driver from https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers
+2. Extract and run the installer
+3. Restart your computer
+
+### Step 4: Navigate to the Frontend Folder
+
+Open Command Prompt or PowerShell:
+```powershell
+cd C:\path\to\frontend
+```
+
+Replace `C:\path\to\frontend` with the actual path where you have the frontend folder.
+
+### Step 5: Install Dependencies
+
+```powershell
+pnpm install
+```
+
+### Step 6: Configure Environment
+
+```powershell
+# Copy the example environment file
+copy .env.example .env.local
+```
+
+Edit `.env.local` with Notepad or your preferred editor:
+
+**For USB Serial connection:**
+```bash
+# Find your COM port first
+pnpm run list-ports
+
+# Then set it in .env.local (use your actual COM port)
+SERIAL_PORT=COM3
+```
+
+To find your COM port manually:
+1. Open **Device Manager**
+2. Expand **Ports (COM & LPT)**
+3. Look for "Silicon Labs CP210x USB to UART Bridge"
+4. Note the COM port number (e.g., COM3, COM4)
+
+### Step 7: Run the Dashboard
+
+**With Mock Data (no ESP32 needed):**
+```powershell
+pnpm run dev:mock
+```
+
+**With Real ESP32 via USB:**
+```powershell
+pnpm run dev:serial
+```
+
+Open http://localhost:3000 in your browser.
+
+---
+
+## Quick Reference: All Installation Commands
+
+### macOS
+```bash
+# Install prerequisites
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install node
+npm install -g pnpm
+
+# Setup project (navigate to frontend folder)
+cd path/to/frontend
+pnpm install
+cp .env.example .env.local
+
+# Run
+pnpm run dev:mock      # Mock mode
+pnpm run dev:serial    # USB mode
+```
+
+### Windows (PowerShell)
+```powershell
+# After installing Node.js from nodejs.org
+npm install -g pnpm
+
+# Setup project (navigate to frontend folder)
+cd C:\path\to\frontend
+pnpm install
+copy .env.example .env.local
+
+# Run
+pnpm run dev:mock      # Mock mode
+pnpm run dev:serial    # USB mode
+```
+
+---
+
+## Troubleshooting Installation
+
+### "pnpm: command not found"
+
+**macOS/Linux:**
+```bash
+npm install -g pnpm
+```
+
+**Windows:** Restart your terminal after installing pnpm.
+
+### "node: command not found"
+
+Ensure Node.js is properly installed and added to your PATH.
+
+**macOS:** Try `brew install node` again or restart terminal.
+**Windows:** Reinstall Node.js and ensure "Add to PATH" is checked.
+
+### Permission Errors on macOS
+
+```bash
+sudo chown -R $(whoami) ~/.npm
+sudo chown -R $(whoami) /usr/local/lib/node_modules
+```
+
+### Permission Errors on Windows
+
+Run PowerShell as Administrator when installing global packages.
+
+### Serial Port Not Found
+
+**macOS:**
+```bash
+ls /dev/cu.*    # List available ports
+```
+
+**Windows:**
+- Open Device Manager > Ports (COM & LPT)
+- Install CP210x driver if ESP32 not showing
+
+**Linux:**
+```bash
+ls /dev/ttyUSB* /dev/ttyACM*
+sudo usermod -a -G dialout $USER    # Add user to dialout group
+# Log out and back in
+```
+
+---
+
 ## Development Setup
 
 ### 1. Install Dependencies
