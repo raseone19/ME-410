@@ -111,6 +111,12 @@ pnpm run dev:mock
 pnpm run dev:serial
 ```
 
+**One-command setup (recommended for first time):**
+```bash
+pnpm web
+```
+This command does a full clean install: removes `node_modules`, removes `.next`, reinstalls dependencies, builds, and starts the serial bridge.
+
 Open http://localhost:3000 in your browser.
 
 ---
@@ -199,6 +205,12 @@ pnpm run dev:mock
 pnpm run dev:serial
 ```
 
+**One-command setup (recommended for first time):**
+```powershell
+pnpm web
+```
+This command does a full clean install: removes `node_modules`, removes `.next`, reinstalls dependencies, builds, and starts the serial bridge.
+
 Open http://localhost:3000 in your browser.
 
 ---
@@ -220,6 +232,7 @@ cp .env.example .env.local
 # Run
 pnpm run dev:mock      # Mock mode
 pnpm run dev:serial    # USB mode
+pnpm web               # Full clean install + run (recommended for first time)
 ```
 
 ### Windows (PowerShell)
@@ -235,6 +248,7 @@ copy .env.example .env.local
 # Run
 pnpm run dev:mock      # Mock mode
 pnpm run dev:serial    # USB mode
+pnpm web               # Full clean install + run (recommended for first time)
 ```
 
 ---
