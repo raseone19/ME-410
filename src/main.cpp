@@ -44,19 +44,19 @@ constexpr uint32_t CTRL_DT_MS = 1000 / CTRL_FREQ_HZ;
 // State Machine for Out-of-Range Handling (Per Motor)
 // ============================================================================
 
-static SystemState current_state[NUM_MOTORS] = {NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION};
-static uint32_t reverse_start_time[NUM_MOTORS] = {0, 0, 0, 0};
+static SystemState current_state[NUM_MOTORS] = {NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION};
+static uint32_t reverse_start_time[NUM_MOTORS] = {0, 0, 0, 0, 0};
 
 // ============================================================================
 // Distance Range Tracking (Per Motor)
 // ============================================================================
 
-static DistanceRange current_range[NUM_MOTORS] = {RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN};
-static DistanceRange previous_range[NUM_MOTORS] = {RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN};
+static DistanceRange current_range[NUM_MOTORS] = {RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN};
+static DistanceRange previous_range[NUM_MOTORS] = {RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN};
 
 // Baseline force captured when entering FAR range (per motor, for dynamic setpoint calculation)
-static float far_range_baseline_n[NUM_MOTORS] = {0.0f, 0.0f, 0.0f, 0.0f};
-static bool far_range_baseline_captured[NUM_MOTORS] = {false, false, false, false};
+static float far_range_baseline_n[NUM_MOTORS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+static bool far_range_baseline_captured[NUM_MOTORS] = {false, false, false, false, false};
 
 // ============================================================================
 // Local Variables (Core 1)
@@ -296,7 +296,7 @@ void loop() {
         // Prepare arrays for PI control (only motors in NORMAL_OPERATION)
         float temp_setpoints[NUM_MOTORS];
         float temp_pressures[NUM_MOTORS];
-        float temp_duties[NUM_MOTORS] = {0.0f, 0.0f, 0.0f, 0.0f};
+        float temp_duties[NUM_MOTORS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
         // Track state transitions for each motor
         for (int i = 0; i < NUM_MOTORS; ++i) {
