@@ -1,7 +1,8 @@
 /**
  * Motor Card Component
  * Displays individual motor with its dedicated sector
- * Shows sector-specific information (angle range, distance, force in Newtons, duty cycle)
+ * Shows sector-specific information (angle range, distance, force/pressure, duty cycle)
+ * Adapts units based on control mode (Newtons or Millivolts)
  */
 
 'use client';
@@ -31,6 +32,7 @@ import {
 } from '@/components/ui/tooltip';
 import { MotorData } from '@/lib/types';
 import { millivoltsToNewtons } from '@/lib/utils';
+import { useControlMode } from '@/lib/control-mode-context';
 
 interface ModeBMotorCardProps {
   motorNumber: number;
@@ -78,6 +80,11 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
   dataHistory,
   currentData,
 }: ModeBMotorCardProps) {
+  // Get control mode from context
+  const controlMode = useControlMode();
+  const isNewtonsMode = controlMode.isNewtons;
+  const unit = controlMode.unit;
+
   // Extract motor-specific data keys
   const pressureKey = `pp${motorNumber}_mv` as keyof MotorData;
   const dutyKey = `duty${motorNumber}_pct` as keyof MotorData;
@@ -99,61 +106,72 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
   }, [currentData]);
 
   // Memoize chart data transformation (updates at WebSocket rate ~50Hz)
-  // Convert pressure readings from mV to Newtons, setpoints are already in Newtons
+  // In Newtons mode: convert mV to N, setpoints already in N
+  // In Millivolts mode: use raw mV values
   const chartData = useMemo(() => {
-    const padIndex = motorNumber - 1; // Convert motor number (1-5) to pad index (0-4)
+    const padIndex = motorNumber - 1;
     return dataHistory.slice(-150).map((data) => ({
       time: data.time_ms,
-      setpoint: data[setpointKey] as number, // Already in Newtons from ESP32
-      actual: millivoltsToNewtons(padIndex, data[pressureKey] as number), // Convert mV to N
+      setpoint: data[setpointKey] as number, // Setpoint in mode units (N or mV)
+      actual: isNewtonsMode
+        ? millivoltsToNewtons(padIndex, data[pressureKey] as number) // Convert mV to N
+        : (data[pressureKey] as number), // Raw mV
     }));
-  }, [dataHistory, pressureKey, setpointKey, motorNumber]);
+  }, [dataHistory, pressureKey, setpointKey, motorNumber, isNewtonsMode]);
 
   // Memoize current values and calculations (using throttled data)
-  // Convert pressure from mV to Newtons, setpoints are already in Newtons
   const currentValues = useMemo(() => {
-    const padIndex = motorNumber - 1; // Convert motor number (1-5) to pad index (0-4)
+    const padIndex = motorNumber - 1;
     const currentPressureMv = displayData ? (displayData[pressureKey] as number) : 0;
-    const currentForce = millivoltsToNewtons(padIndex, currentPressureMv); // Convert to Newtons
+    const currentValue = isNewtonsMode
+      ? millivoltsToNewtons(padIndex, currentPressureMv) // Convert to Newtons
+      : currentPressureMv; // Raw mV
     const currentDuty = displayData ? (displayData[dutyKey] as number) : 0;
-    const currentSetpoint = displayData ? (displayData[setpointKey] as number) : 0; // Already in Newtons
+    const currentSetpoint = displayData ? (displayData[setpointKey] as number) : 0;
     const currentDistance = displayData ? (displayData[tofKey] as number) : 0;
 
-    // Calculate percentages (max force ~15N for display purposes)
-    const forcePercent = Math.min((currentForce / 15) * 100, 100);
+    // Calculate percentages based on mode
+    const maxValue = isNewtonsMode ? 15 : 2000; // 15N or 2000mV
+    const valuePercent = Math.min((currentValue / maxValue) * 100, 100);
     const dutyPercent = ((currentDuty + 100) / 200) * 100;
 
-    // Calculate error and status (in Newtons)
-    const error = Math.abs(currentForce - currentSetpoint);
-    const isOnTarget = error < 0.5; // Within 0.5N
+    // Calculate error and status
+    const error = Math.abs(currentValue - currentSetpoint);
+    const errorThreshold = isNewtonsMode ? 0.5 : 50; // 0.5N or 50mV
+    const isOnTarget = error < errorThreshold;
 
     // Get range
     const currentRange = getRange(currentDistance);
 
     return {
-      currentForce,
+      currentValue,
       currentDuty,
       currentSetpoint,
       currentDistance,
-      forcePercent,
+      valuePercent,
       dutyPercent,
       error,
       isOnTarget,
       currentRange,
+      errorThreshold,
     };
-  }, [displayData, pressureKey, dutyKey, setpointKey, tofKey, motorNumber]);
+  }, [displayData, pressureKey, dutyKey, setpointKey, tofKey, motorNumber, isNewtonsMode]);
 
   const {
-    currentForce,
+    currentValue,
     currentDuty,
     currentSetpoint,
     currentDistance,
-    forcePercent,
+    valuePercent,
     dutyPercent,
     error,
     isOnTarget,
     currentRange,
+    errorThreshold,
   } = currentValues;
+
+  // Y-axis domain based on mode
+  const yAxisDomain = isNewtonsMode ? [0, 15] : [0, 2000];
 
   return (
     <Card>
@@ -217,13 +235,18 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                domain={[0, 15]}
+                domain={yAxisDomain}
                 tickFormatter={(value) => `${value}`}
               />
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    formatter={(value, name) => [`${Number(value).toFixed(2)} N`, name]}
+                    formatter={(value, name) => [
+                      isNewtonsMode
+                        ? `${Number(value).toFixed(2)} N`
+                        : `${Number(value).toFixed(0)} mV`,
+                      name
+                    ]}
                   />
                 }
               />
@@ -258,25 +281,31 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
         {/* Compact Metrics with Icons and Tooltips */}
         <TooltipProvider>
           <div className="grid grid-cols-2 gap-2">
-            {/* Current Force */}
+            {/* Current Value (Force or Pressure) */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-2 hover:bg-muted/50 transition-colors cursor-help">
                   <Gauge className="h-4 w-4 text-blue-500 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-sm font-semibold">{currentForce.toFixed(2)}</span>
-                      <span className="text-xs text-muted-foreground">N</span>
+                      <span className="text-sm font-semibold">
+                        {isNewtonsMode ? currentValue.toFixed(2) : currentValue.toFixed(0)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{unit}</span>
                     </div>
-                    <Progress value={forcePercent} className="h-1 mt-1" />
+                    <Progress value={valuePercent} className="h-1 mt-1" />
                   </div>
                 </div>
               </TooltipTrigger>
               <TooltipContent>
                 <div className="text-xs">
-                  <div className="font-semibold">Current Force</div>
-                  <div>{currentForce.toFixed(2)} N / {currentSetpoint.toFixed(2)} N</div>
-                  <div className="text-muted-foreground">{forcePercent.toFixed(1)}% of max</div>
+                  <div className="font-semibold">{isNewtonsMode ? 'Current Force' : 'Current Pressure'}</div>
+                  <div>
+                    {isNewtonsMode
+                      ? `${currentValue.toFixed(2)} N / ${currentSetpoint.toFixed(2)} N`
+                      : `${currentValue.toFixed(0)} mV / ${currentSetpoint.toFixed(0)} mV`}
+                  </div>
+                  <div className="text-muted-foreground">{valuePercent.toFixed(1)}% of max</div>
                 </div>
               </TooltipContent>
             </Tooltip>
@@ -345,16 +374,16 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
                     <div className="flex items-baseline gap-1">
                       <span
                         className={`text-sm font-semibold ${
-                          error < 0.5
+                          isOnTarget
                             ? 'text-green-600'
-                            : error < 1.0
+                            : error < errorThreshold * 2
                             ? 'text-yellow-600'
                             : 'text-red-600'
                         }`}
                       >
-                        {error.toFixed(2)}
+                        {isNewtonsMode ? error.toFixed(2) : error.toFixed(0)}
                       </span>
-                      <span className="text-xs text-muted-foreground">N</span>
+                      <span className="text-xs text-muted-foreground">{unit}</span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {isOnTarget ? 'Good' : 'Adj.'}
@@ -365,9 +394,9 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
               <TooltipContent>
                 <div className="text-xs">
                   <div className="font-semibold">Tracking Error</div>
-                  <div>{error.toFixed(2)} N</div>
+                  <div>{isNewtonsMode ? `${error.toFixed(2)} N` : `${error.toFixed(0)} mV`}</div>
                   <div className="text-muted-foreground">
-                    Target: &lt;0.5N<br/>
+                    Target: &lt;{isNewtonsMode ? '0.5N' : '50mV'}<br/>
                     Status: {isOnTarget ? 'On Target ✓' : 'Adjusting...'}
                   </div>
                 </div>

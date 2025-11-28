@@ -29,8 +29,8 @@
  */
 
 // Uncomment ONE of the following lines:
-#define CONTROL_MODE_NEWTONS      // Default: calibrated force control
-//#define CONTROL_MODE_MILLIVOLTS   // Raw millivolt control
+//#define CONTROL_MODE_NEWTONS      // Default: calibrated force control
+#define CONTROL_MODE_MILLIVOLTS   // Raw millivolt control
 
 // Validate control mode selection
 #if (defined(CONTROL_MODE_NEWTONS) + defined(CONTROL_MODE_MILLIVOLTS)) != 1

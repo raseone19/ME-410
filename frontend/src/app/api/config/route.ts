@@ -160,6 +160,10 @@ export async function GET() {
       'PRECISION_LOW',
       'PRECISION_INT',
     ]);
+    const controlMode = extractDefine(systemConfigContent, [
+      'CONTROL_MODE_NEWTONS',
+      'CONTROL_MODE_MILLIVOLTS',
+    ]);
 
     // Get logging period based on rate
     let loggingPeriodMs = '20';
@@ -168,11 +172,31 @@ export async function GET() {
     else if (loggingRate === 'LOGGING_RATE_50HZ') loggingPeriodMs = '20';
     else if (loggingRate === 'LOGGING_RATE_100HZ') loggingPeriodMs = '10';
 
+    // Get control mode info
+    const isNewtonsMode = controlMode === 'CONTROL_MODE_NEWTONS';
+    const controlModeInfo = {
+      mode: controlMode?.replace('CONTROL_MODE_', '') || 'UNKNOWN',
+      isNewtons: isNewtonsMode,
+      unit: isNewtonsMode ? 'N' : 'mV',
+      unitLong: isNewtonsMode ? 'Newtons' : 'Millivolts',
+    };
+
+    // Extract setpoints based on active mode (these are conditional in tof_sensor.h)
+    const setpoints = {
+      far: extractValue(tofSensorContent, 'SETPOINT_FAR'),
+      medium: extractValue(tofSensorContent, 'SETPOINT_MEDIUM'),
+      close: extractValue(tofSensorContent, 'SETPOINT_CLOSE'),
+      safeThreshold: extractValue(tofSensorContent, 'SAFE_PRESSURE_THRESHOLD'),
+      securityOffset: extractValue(tofSensorContent, 'SECURITY_OFFSET'),
+    };
+
     const systemConfig = {
       protocol: protocol?.replace('PROTOCOL_', '') || 'UNKNOWN',
       loggingRate: loggingRate?.replace('LOGGING_RATE_', '') || 'UNKNOWN',
       loggingPeriodMs,
       precision: precision?.replace('PRECISION_', '') || 'UNKNOWN',
+      controlMode: controlModeInfo,
+      setpoints,
     };
 
     // Return complete configuration
