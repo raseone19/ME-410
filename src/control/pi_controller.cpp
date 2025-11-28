@@ -5,6 +5,7 @@
 
 #include "pi_controller.h"
 #include "../actuators/motors.h"
+#include "../config/system_config.h"
 #include <algorithm>
 
 // ============================================================================
@@ -22,9 +23,22 @@ constexpr float DUTY_MAX = 100.0f;                       // Maximum duty cycle (
 // Deadband threshold
 constexpr float MIN_RUN = 40.0f;                         // Minimum duty to overcome friction (%)
 
-// PI Gains - scaled for Newton units (was 0.15/0.60 for mV, scaled ~80x for N)
-static float Kp = 12.0f;                                 // Proportional gain (for Newtons)
-static float Ki = 48.0f;                                 // Integral gain (for Newtons)
+// ============================================================================
+// PI Gains - Mode-specific defaults
+// ============================================================================
+// Scale factor between modes: ~80x (1N ≈ 80mV typical for these sensors)
+//
+// NEWTONS mode:     Kp=12.0,  Ki=48.0  (larger values, smaller error range)
+// MILLIVOLTS mode:  Kp=0.15,  Ki=0.60  (smaller values, larger error range)
+// ============================================================================
+
+#ifdef CONTROL_MODE_NEWTONS
+    static float Kp = 12.0f;                             // Proportional gain (for Newtons)
+    static float Ki = 48.0f;                             // Integral gain (for Newtons)
+#else // CONTROL_MODE_MILLIVOLTS
+    static float Kp = 0.15f;                             // Proportional gain (for millivolts)
+    static float Ki = 0.60f;                             // Integral gain (for millivolts)
+#endif
 
 // ============================================================================
 // Controller State (5 Independent Controllers)

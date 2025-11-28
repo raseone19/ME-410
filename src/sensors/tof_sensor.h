@@ -16,6 +16,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
+#include "../config/system_config.h"
 
 // ============================================================================
 // Distance Ranges and Setpoints
@@ -29,18 +30,39 @@ constexpr float DISTANCE_MEDIUM_MAX = 200.0f;   // Medium range end (cm)
 constexpr float DISTANCE_CLOSE_MIN = 50.0f;     // Close range start (cm)
 constexpr float DISTANCE_CLOSE_MAX = 100.0f;    // Close range end (cm)
 
-// Setpoint values for each range (in Newtons)
-// Note: FAR range setpoint is calculated dynamically (baseline + offset)
-// where baseline is captured when entering FAR range to account for friction variations
-constexpr float SECURITY_OFFSET_N = 0.5f;       // Offset added to baseline in FAR range (N)
-constexpr float SETPOINT_FAR_N = 1.0f;          // Setpoint for far range (200-300cm)
-constexpr float SETPOINT_MEDIUM_N = 2.0f;       // Setpoint for medium range (100-200cm)
-constexpr float SETPOINT_CLOSE_N = 4.0f;       // Setpoint for close range (50-100cm)
+// ============================================================================
+// Setpoint Values - Mode-specific
+// ============================================================================
+// Conversion factor: ~80-100 mV per Newton (varies by sensor)
+// Example: 1N ≈ 80mV, 2N ≈ 160mV, 4N ≈ 320mV
+// ============================================================================
 
-// Out-of-range safety parameters (in Newtons)
-constexpr float SAFE_PRESSURE_THRESHOLD_N = 5.0f;     // Pressure must drop below this before release (N)
-constexpr uint32_t RELEASE_TIME_MS = 1300;             // Additional reverse time after reaching threshold (ms)
-constexpr float REVERSE_DUTY_PCT = 60.0f;             // Reverse duty cycle for deflation (%)
+#ifdef CONTROL_MODE_NEWTONS
+    // Setpoint values in Newtons (calibrated mode)
+    constexpr float SECURITY_OFFSET = 0.5f;         // Offset added to baseline in FAR range (N)
+    constexpr float SETPOINT_FAR = 1.0f;            // Setpoint for far range (200-300cm)
+    constexpr float SETPOINT_MEDIUM = 2.0f;         // Setpoint for medium range (100-200cm)
+    constexpr float SETPOINT_CLOSE = 4.0f;          // Setpoint for close range (50-100cm)
+    constexpr float SAFE_PRESSURE_THRESHOLD = 5.0f; // Pressure must drop below this before release
+#else // CONTROL_MODE_MILLIVOLTS
+    // Setpoint values in millivolts (raw mode)
+    constexpr float SECURITY_OFFSET = 100.0f;       // Offset added to baseline in FAR range (mV)
+    constexpr float SETPOINT_FAR = 700.0f;          // Setpoint for far range (200-300cm)
+    constexpr float SETPOINT_MEDIUM = 900.0f;       // Setpoint for medium range (100-200cm)
+    constexpr float SETPOINT_CLOSE = 1100.0f;       // Setpoint for close range (50-100cm)
+    constexpr float SAFE_PRESSURE_THRESHOLD = 1300.0f; // Pressure must drop below this before release
+#endif
+
+// Legacy aliases for backward compatibility (deprecated - use generic names above)
+constexpr float SECURITY_OFFSET_N = SECURITY_OFFSET;
+constexpr float SETPOINT_FAR_N = SETPOINT_FAR;
+constexpr float SETPOINT_MEDIUM_N = SETPOINT_MEDIUM;
+constexpr float SETPOINT_CLOSE_N = SETPOINT_CLOSE;
+constexpr float SAFE_PRESSURE_THRESHOLD_N = SAFE_PRESSURE_THRESHOLD;
+
+// Out-of-range safety parameters (mode-independent)
+constexpr uint32_t RELEASE_TIME_MS = 1300;          // Additional reverse time after reaching threshold (ms)
+constexpr float REVERSE_DUTY_PCT = 60.0f;           // Reverse duty cycle for deflation (%)
 
 // ============================================================================
 // Enumerations

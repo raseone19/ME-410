@@ -44,28 +44,27 @@ constexpr uint32_t CTRL_DT_MS = 1000 / CTRL_FREQ_HZ;
 // State Machine for Out-of-Range Handling (Per Motor)
 // ============================================================================
 
-static SystemState current_state[NUM_MOTORS] = {NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION};
-static uint32_t reverse_start_time[NUM_MOTORS] = {0, 0, 0, 0, 0};
+static SystemState current_state[NUM_MOTORS] = {NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION, NORMAL_OPERATION};
+static uint32_t reverse_start_time[NUM_MOTORS] = {0, 0, 0, 0};
 
 // ============================================================================
 // Distance Range Tracking (Per Motor)
 // ============================================================================
 
-static DistanceRange current_range[NUM_MOTORS] = {RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN};
-static DistanceRange previous_range[NUM_MOTORS] = {RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN};
+static DistanceRange current_range[NUM_MOTORS] = {RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN};
+static DistanceRange previous_range[NUM_MOTORS] = {RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN, RANGE_UNKNOWN};
 
-// Baseline force captured when entering FAR range (per motor, for dynamic setpoint calculation)
-static float far_range_baseline_n[NUM_MOTORS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-static bool far_range_baseline_captured[NUM_MOTORS] = {false, false, false, false, false};
+// Baseline pressure captured when entering FAR range (per motor, for dynamic setpoint calculation)
+static float far_range_baseline_mv[NUM_MOTORS] = {0.0f, 0.0f, 0.0f, 0.0f};
+static bool far_range_baseline_captured[NUM_MOTORS] = {false, false, false, false};
 
 // ============================================================================
 // Local Variables (Core 1)
 // ============================================================================
 
-static uint16_t pressure_pads_mv[NUM_MOTORS] = {0};  // Raw mV readings (for logging)
-static float pressure_pads_ctrl[NUM_MOTORS] = {0.0f}; // Control values (Newtons or mV depending on mode)
+static uint16_t pressure_pads_mv[NUM_MOTORS] = {0};
 static float duty_cycles[NUM_MOTORS] = {0.0f};
-static float setpoints[NUM_MOTORS] = {0.0f};         // Individual setpoints per motor (units depend on mode)
+static float setpoints_mv[NUM_MOTORS] = {0.0f};  // Individual setpoints per motor
 static uint32_t last_control_ms = 0;
 
 // ============================================================================
@@ -88,8 +87,6 @@ void setup() {
     Serial.println("4-Motor Independent PI Control System");
     Serial.println("With Servo Sweep and TOF Distance Sensing");
     Serial.println("========================================");
-    Serial.print("Control Mode: ");
-    Serial.println(CONTROL_MODE_NAME);
     Serial.print("Protocol: ");
     Serial.println(PROTOCOL_NAME);
     Serial.print("Logging Rate: ");
@@ -231,22 +228,10 @@ void loop() {
         last_control_ms = current_time;
 
         // ====================================================================
-        // Step 1: Read all pressure pads
+        // Step 1: Read all 4 pressure pads
         // ====================================================================
 
         readAllPadsMilliVolts(pressure_pads_mv, PP_SAMPLES);
-
-#ifdef CONTROL_MODE_NEWTONS
-        // Convert to Newtons using calibration
-        for (int i = 0; i < NUM_MOTORS; ++i) {
-            pressure_pads_ctrl[i] = millivoltsToNewtons(i, pressure_pads_mv[i]);
-        }
-#else // CONTROL_MODE_MILLIVOLTS
-        // Use raw millivolt readings directly
-        for (int i = 0; i < NUM_MOTORS; ++i) {
-            pressure_pads_ctrl[i] = (float)pressure_pads_mv[i];
-        }
-#endif
 
         // ====================================================================
         // Step 2-5: Process each motor independently (different sectors)
@@ -265,20 +250,22 @@ void loop() {
 
             // Skip this motor if distance hasn't been initialized yet (999.0f = no valid reading)
             if (min_distance_cm >= 999.0f) {
-                setpoints[i] = -1.0f;  // Invalid setpoint, motor will stop
+                setpoints_mv[i] = -1.0f;  // Invalid setpoint, motor will stop
                 previous_range[i] = current_range[i];  // Update previous range
                 continue;
             }
 
             // Step 4: Detect range transitions
-            // Capture baseline when entering FAR range from any other range
+            // Capture baseline pressure when entering FAR range from any other range
             if (current_range[i] != previous_range[i] && current_range[i] == RANGE_FAR) {
                 if (previous_range[i] == RANGE_MEDIUM) {
-                    // Transition from MEDIUM to FAR: use fixed FAR setpoint
-                    far_range_baseline_n[i] = SETPOINT_FAR - SECURITY_OFFSET;
+                    // Transition from MEDIUM to FAR: use fixed baseline to achieve 550mV setpoint
+                    // Since setpoint = baseline + SECURITY_OFFSET_MV (50mV)
+                    // We want setpoint = 550mV, so baseline = 500mV
+                    far_range_baseline_mv[i] = 500.0f;
                 } else {
-                    // Coming from other ranges: use current reading as baseline
-                    far_range_baseline_n[i] = pressure_pads_ctrl[i];
+                    // Coming from other ranges: use current pressure as baseline
+                    far_range_baseline_mv[i] = pressure_pads_mv[i];
                 }
                 far_range_baseline_captured[i] = true;
             }
@@ -286,10 +273,10 @@ void loop() {
             // Step 5: Calculate setpoint for this motor
             if (current_range[i] == RANGE_FAR && far_range_baseline_captured[i]) {
                 // FAR range: Individual setpoint (baseline + offset)
-                setpoints[i] = calculateSetpoint(current_range[i], far_range_baseline_n[i]);
+                setpoints_mv[i] = calculateSetpoint(current_range[i], far_range_baseline_mv[i]);
             } else {
                 // MEDIUM/CLOSE/UNKNOWN: Fixed setpoint
-                setpoints[i] = calculateSetpoint(current_range[i], 0.0f);
+                setpoints_mv[i] = calculateSetpoint(current_range[i], 0.0f);
             }
 
             // Update previous range for next iteration
@@ -303,16 +290,16 @@ void loop() {
         // Independent state machine per motor
         // Prepare arrays for PI control (only motors in NORMAL_OPERATION)
         float temp_setpoints[NUM_MOTORS];
-        float temp_pressures[NUM_MOTORS];
-        float temp_duties[NUM_MOTORS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        uint16_t temp_pressures[NUM_MOTORS];
+        float temp_duties[NUM_MOTORS] = {0.0f, 0.0f, 0.0f, 0.0f};
 
         // Track state transitions for each motor
         for (int i = 0; i < NUM_MOTORS; ++i) {
             int state_index = i;  // Each motor uses own state
 
             // Check if this motor is out of bounds or has invalid setpoint
-            bool is_out_of_bounds = (current_range[i] == RANGE_OUT_OF_BOUNDS || setpoints[i] < 0.0f);
-            bool is_valid = !(current_range[i] == RANGE_OUT_OF_BOUNDS || current_range[i] == RANGE_UNKNOWN || setpoints[i] < 0.0f);
+            bool is_out_of_bounds = (current_range[i] == RANGE_OUT_OF_BOUNDS || setpoints_mv[i] < 0.0f);
+            bool is_valid = !(current_range[i] == RANGE_OUT_OF_BOUNDS || current_range[i] == RANGE_UNKNOWN || setpoints_mv[i] < 0.0f);
 
             switch (current_state[state_index]) {
                 case NORMAL_OPERATION:
@@ -323,34 +310,37 @@ void loop() {
                     }
                     else {
                         // Prepare for PI control
-                        temp_setpoints[i] = setpoints[i];
-                        temp_pressures[i] = pressure_pads_ctrl[i];
+                        temp_setpoints[i] = setpoints_mv[i];
+                        temp_pressures[i] = pressure_pads_mv[i];
                     }
                     break;
 
                 case OUT_OF_RANGE_DEFLATING:
-                    // Priority 1: If distance is now valid, return to normal operation
-                    // Let PI controller handle pressure adjustment
-                    if (is_valid) {
-                        current_state[state_index] = NORMAL_OPERATION;
+                    // Check if pressure has dropped below safe threshold
+                    if (pressure_pads_mv[i] <= SAFE_PRESSURE_THRESHOLD_MV) {
+                        // Pressure is safe - check if we can return to normal or need release period
                         duty_cycles[i] = 0.0f;
+
+                        if (is_valid) {
+                            // Distance valid AND pressure safe - resume PI control
+                            current_state[state_index] = NORMAL_OPERATION;
+                        }
+                        else {
+                            // Pressure safe but distance still invalid - release period
+                            current_state[state_index] = OUT_OF_RANGE_RELEASING;
+                            reverse_start_time[state_index] = current_time;
+                        }
                     }
-                    // Priority 2: If still out of bounds but force is safe, go to release period
-                    else if (pressure_pads_ctrl[i] <= SAFE_PRESSURE_THRESHOLD) {
-                        current_state[state_index] = OUT_OF_RANGE_RELEASING;
-                        reverse_start_time[state_index] = current_time;
-                        duty_cycles[i] = 0.0f;
-                    }
-                    // Priority 3: Still out of bounds and force high - keep deflating
                     else {
+                        // Pressure still too high - keep reversing to deflate
                         duty_cycles[i] = -REVERSE_DUTY_PCT;
                     }
                     break;
 
                 case OUT_OF_RANGE_RELEASING:
-                    // Check if motor has returned to valid range AND force is safe
-                    if (is_valid && pressure_pads_ctrl[i] <= SAFE_PRESSURE_THRESHOLD) {
-                        // Motor valid and force safe - resume PI control
+                    // Check if motor has returned to valid range AND pressure is safe
+                    if (is_valid && pressure_pads_mv[i] <= SAFE_PRESSURE_THRESHOLD_MV) {
+                        // Motor valid and pressure safe - resume PI control
                         current_state[state_index] = NORMAL_OPERATION;
                         // Will start PI control on next iteration
                     }
@@ -362,13 +352,13 @@ void loop() {
                     break;
 
                 case WAITING_FOR_VALID_READING:
-                    // Only return to normal if distance is valid AND force is safe
-                    if (is_valid && pressure_pads_ctrl[i] <= SAFE_PRESSURE_THRESHOLD) {
+                    // Only return to normal if distance is valid AND pressure is safe
+                    if (is_valid && pressure_pads_mv[i] <= SAFE_PRESSURE_THRESHOLD_MV) {
                         current_state[state_index] = NORMAL_OPERATION;
                         // Motor will start PI control on next iteration
                     }
-                    else if (is_valid && pressure_pads_ctrl[i] > SAFE_PRESSURE_THRESHOLD) {
-                        // Distance valid but force still high - go back to deflating
+                    else if (is_valid && pressure_pads_mv[i] > SAFE_PRESSURE_THRESHOLD_MV) {
+                        // Distance valid but pressure still high - go back to deflating
                         current_state[state_index] = OUT_OF_RANGE_DEFLATING;
                         duty_cycles[i] = -REVERSE_DUTY_PCT;
                     }
@@ -381,16 +371,7 @@ void loop() {
         }
 
         // Run PI control only for motors in NORMAL_OPERATION state
-#ifdef CONTROL_MODE_NEWTONS
-        controlStepNewtons(temp_setpoints, temp_pressures, temp_duties);
-#else // CONTROL_MODE_MILLIVOLTS
-        // Convert float arrays to uint16_t for mV control step
-        uint16_t temp_pressures_mv[NUM_MOTORS];
-        for (int i = 0; i < NUM_MOTORS; ++i) {
-            temp_pressures_mv[i] = (uint16_t)temp_pressures[i];
-        }
-        controlStep(temp_setpoints, temp_pressures_mv, temp_duties);
-#endif
+        controlStep(temp_setpoints, temp_pressures, temp_duties);
 
         // Apply motor commands based on state (AFTER PI control to override for non-NORMAL motors)
         for (int i = 0; i < NUM_MOTORS; ++i) {
@@ -415,8 +396,8 @@ void loop() {
         // ====================================================================
 
         for (int i = 0; i < NUM_MOTORS; ++i) {
-            shared_setpoints_mv[i] = setpoints[i];        // Setpoint (units depend on mode)
-            shared_pressure_pads_mv[i] = pressure_pads_mv[i];  // Keep raw mV for logging
+            shared_setpoints_mv[i] = setpoints_mv[i];
+            shared_pressure_pads_mv[i] = pressure_pads_mv[i];
             shared_duty_cycles[i] = duty_cycles[i];
         }
     }
