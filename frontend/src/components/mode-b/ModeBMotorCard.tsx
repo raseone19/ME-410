@@ -1,7 +1,8 @@
 /**
  * Motor Card Component
  * Displays individual motor with its dedicated sector
- * Shows sector-specific information (angle range, distance, force in Newtons, duty cycle)
+ * Shows sector-specific information (angle range, distance, pressure, duty cycle)
+ * All pressure values are now normalized 0-100%
  */
 
 'use client';
@@ -30,7 +31,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { MotorData } from '@/lib/types';
-import { millivoltsToNewtons } from '@/lib/utils';
 
 interface ModeBMotorCardProps {
   motorNumber: number;
@@ -53,11 +53,18 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 // Helper functions outside component to avoid recreating
-const getRange = (distance: number) => {
+// Uses dynamic thresholds from potentiometer 2
+const getRange = (
+  distance: number,
+  closeMax: number = 100,
+  mediumMax: number = 200,
+  farMax: number = 300
+) => {
+  const closeMin = 50; // Fixed sensor limitation
   if (distance < 0) return 'UNKNOWN';
-  if (distance >= 200 && distance <= 300) return 'FAR';
-  if (distance >= 100 && distance < 200) return 'MEDIUM';
-  if (distance >= 50 && distance < 100) return 'CLOSE';
+  if (distance >= mediumMax && distance <= farMax) return 'FAR';
+  if (distance >= closeMax && distance < mediumMax) return 'MEDIUM';
+  if (distance >= closeMin && distance < closeMax) return 'CLOSE';
   return 'OUT OF BOUNDS';
 };
 
@@ -78,10 +85,10 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
   dataHistory,
   currentData,
 }: ModeBMotorCardProps) {
-  // Extract motor-specific data keys
-  const pressureKey = `pp${motorNumber}_mv` as keyof MotorData;
+  // Extract motor-specific data keys (all values now in percentage 0-100%)
+  const pressureKey = `pp${motorNumber}_pct` as keyof MotorData;
   const dutyKey = `duty${motorNumber}_pct` as keyof MotorData;
-  const setpointKey = `sp${motorNumber}_mv` as keyof MotorData;
+  const setpointKey = `sp${motorNumber}_pct` as keyof MotorData;
   const tofKey = `tof${motorNumber}_cm` as keyof MotorData;
 
   // Throttled display values (update every 300ms for readability)
@@ -99,61 +106,81 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
   }, [currentData]);
 
   // Memoize chart data transformation (updates at WebSocket rate ~50Hz)
-  // Convert pressure readings from mV to Newtons, setpoints are already in Newtons
+  // All values are now in normalized percentage (0-100%)
   const chartData = useMemo(() => {
-    const padIndex = motorNumber - 1; // Convert motor number (1-5) to pad index (0-4)
     return dataHistory.slice(-150).map((data) => ({
       time: data.time_ms,
-      setpoint: data[setpointKey] as number, // Already in Newtons from ESP32
-      actual: millivoltsToNewtons(padIndex, data[pressureKey] as number), // Convert mV to N
+      setpoint: data[setpointKey] as number, // Setpoint in % (0-100)
+      actual: data[pressureKey] as number, // Pressure in % (0-100)
     }));
-  }, [dataHistory, pressureKey, setpointKey, motorNumber]);
+  }, [dataHistory, pressureKey, setpointKey]);
 
   // Memoize current values and calculations (using throttled data)
-  // Convert pressure from mV to Newtons, setpoints are already in Newtons
   const currentValues = useMemo(() => {
-    const padIndex = motorNumber - 1; // Convert motor number (1-5) to pad index (0-4)
-    const currentPressureMv = displayData ? (displayData[pressureKey] as number) : 0;
-    const currentForce = millivoltsToNewtons(padIndex, currentPressureMv); // Convert to Newtons
+    const currentPressure = displayData ? (displayData[pressureKey] as number) : 0;
     const currentDuty = displayData ? (displayData[dutyKey] as number) : 0;
-    const currentSetpoint = displayData ? (displayData[setpointKey] as number) : 0; // Already in Newtons
+    const currentSetpoint = displayData ? (displayData[setpointKey] as number) : 0;
     const currentDistance = displayData ? (displayData[tofKey] as number) : 0;
 
-    // Calculate percentages (max force ~15N for display purposes)
-    const forcePercent = Math.min((currentForce / 15) * 100, 100);
+    // Get dynamic thresholds from potentiometer 2 (with defaults)
+    const distCloseMax = displayData?.dist_close_max ?? 100;
+    const distMediumMax = displayData?.dist_medium_max ?? 200;
+    const distFarMax = displayData?.dist_far_max ?? 300;
+
+    // Get scale values from potentiometers (with defaults)
+    const forceScale = displayData?.force_scale ?? 1.0;
+    const distanceScale = displayData?.distance_scale ?? 1.0;
+
+    // Pressure is already 0-100%, use directly
+    const pressurePercent = Math.min(Math.max(currentPressure, 0), 100);
+    // Duty cycle is -100 to +100, normalize to 0-100 for progress bar
     const dutyPercent = ((currentDuty + 100) / 200) * 100;
 
-    // Calculate error and status (in Newtons)
-    const error = Math.abs(currentForce - currentSetpoint);
-    const isOnTarget = error < 0.5; // Within 0.5N
+    // Calculate error and status (in percentage points)
+    const error = Math.abs(currentPressure - currentSetpoint);
+    const errorThreshold = 5; // 5 percentage points
+    const isOnTarget = error < errorThreshold;
 
-    // Get range
-    const currentRange = getRange(currentDistance);
+    // Get range using dynamic thresholds
+    const currentRange = getRange(currentDistance, distCloseMax, distMediumMax, distFarMax);
 
     return {
-      currentForce,
+      currentPressure,
       currentDuty,
       currentSetpoint,
       currentDistance,
-      forcePercent,
+      pressurePercent,
       dutyPercent,
       error,
       isOnTarget,
       currentRange,
+      errorThreshold,
+      distCloseMax,
+      distMediumMax,
+      distFarMax,
+      forceScale,
+      distanceScale,
     };
-  }, [displayData, pressureKey, dutyKey, setpointKey, tofKey, motorNumber]);
+  }, [displayData, pressureKey, dutyKey, setpointKey, tofKey]);
 
   const {
-    currentForce,
+    currentPressure,
     currentDuty,
     currentSetpoint,
     currentDistance,
-    forcePercent,
+    pressurePercent,
     dutyPercent,
     error,
     isOnTarget,
     currentRange,
+    errorThreshold,
+    distCloseMax,
+    distMediumMax,
+    distFarMax,
   } = currentValues;
+
+  // Y-axis domain for percentage values (0-100%)
+  const yAxisDomain: [number, number] = [0, 100];
 
   return (
     <Card>
@@ -217,13 +244,16 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                domain={[0, 15]}
-                tickFormatter={(value) => `${value}`}
+                domain={yAxisDomain}
+                tickFormatter={(value) => `${value}%`}
               />
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    formatter={(value, name) => [`${Number(value).toFixed(2)} N`, name]}
+                    formatter={(value, name) => [
+                      `${Number(value).toFixed(1)}%`,
+                      name
+                    ]}
                   />
                 }
               />
@@ -258,25 +288,27 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
         {/* Compact Metrics with Icons and Tooltips */}
         <TooltipProvider>
           <div className="grid grid-cols-2 gap-2">
-            {/* Current Force */}
+            {/* Current Pressure */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-2 hover:bg-muted/50 transition-colors cursor-help">
                   <Gauge className="h-4 w-4 text-blue-500 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-sm font-semibold">{currentForce.toFixed(2)}</span>
-                      <span className="text-xs text-muted-foreground">N</span>
+                      <span className="text-sm font-semibold">
+                        {currentPressure.toFixed(1)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">%</span>
                     </div>
-                    <Progress value={forcePercent} className="h-1 mt-1" />
+                    <Progress value={pressurePercent} className="h-1 mt-1" />
                   </div>
                 </div>
               </TooltipTrigger>
               <TooltipContent>
                 <div className="text-xs">
-                  <div className="font-semibold">Current Force</div>
-                  <div>{currentForce.toFixed(2)} N / {currentSetpoint.toFixed(2)} N</div>
-                  <div className="text-muted-foreground">{forcePercent.toFixed(1)}% of max</div>
+                  <div className="font-semibold">Current Pressure</div>
+                  <div>{currentPressure.toFixed(1)}% / {currentSetpoint.toFixed(1)}%</div>
+                  <div className="text-muted-foreground">Normalized 0-100%</div>
                 </div>
               </TooltipContent>
             </Tooltip>
@@ -328,9 +360,9 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
                   <div>{currentDistance.toFixed(1)} cm</div>
                   <div className={`font-medium ${getRangeColor(currentRange)}`}>{currentRange}</div>
                   <div className="text-muted-foreground mt-1">
-                    CLOSE: 50-100cm<br/>
-                    MEDIUM: 100-200cm<br/>
-                    FAR: 200-300cm
+                    CLOSE: 50-{distCloseMax.toFixed(0)}cm<br/>
+                    MEDIUM: {distCloseMax.toFixed(0)}-{distMediumMax.toFixed(0)}cm<br/>
+                    FAR: {distMediumMax.toFixed(0)}-{distFarMax.toFixed(0)}cm
                   </div>
                 </div>
               </TooltipContent>
@@ -345,16 +377,16 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
                     <div className="flex items-baseline gap-1">
                       <span
                         className={`text-sm font-semibold ${
-                          error < 0.5
+                          isOnTarget
                             ? 'text-green-600'
-                            : error < 1.0
+                            : error < errorThreshold * 2
                             ? 'text-yellow-600'
                             : 'text-red-600'
                         }`}
                       >
-                        {error.toFixed(2)}
+                        {error.toFixed(1)}
                       </span>
-                      <span className="text-xs text-muted-foreground">N</span>
+                      <span className="text-xs text-muted-foreground">%</span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {isOnTarget ? 'Good' : 'Adj.'}
@@ -365,9 +397,9 @@ export const ModeBMotorCard = memo(function ModeBMotorCard({
               <TooltipContent>
                 <div className="text-xs">
                   <div className="font-semibold">Tracking Error</div>
-                  <div>{error.toFixed(2)} N</div>
+                  <div>{error.toFixed(1)}%</div>
                   <div className="text-muted-foreground">
-                    Target: &lt;0.5N<br/>
+                    Target: &lt;5%<br/>
                     Status: {isOnTarget ? 'On Target ✓' : 'Adjusting...'}
                   </div>
                 </div>

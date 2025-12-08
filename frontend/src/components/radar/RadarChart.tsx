@@ -201,23 +201,52 @@ export const RadarChart = memo(function RadarChart({ currentData, motorHistory, 
 
       ctx.restore();
 
-      // === HISTORY TRAILS (Angle-based scan points) ===
+      // === RADAR SWEEP LINES (Green = clear, Red = blocked) ===
       const currentScanHistory = scanHistoryRef.current;
+
+      // Draw each scan point as a line from center
       currentScanHistory.forEach((point, idx) => {
         const dist = point.distance;
         const angle = point.angle;
 
-        if (dist <= 0 || dist > MAX_DISTANCE) return;
-        if (angle < 0 || angle > 180) return;
+        if (dist <= 0 || angle < 0 || angle > 180) return;
 
-        const pos = angleToCanvas(angle, dist, centerX, centerY, maxRadius);
+        // Clamp distance to max
+        const clampedDist = Math.min(dist, MAX_DISTANCE);
 
-        // Fade based on age (older points are more transparent)
-        const alpha = 0.15 + (idx / currentScanHistory.length) * 0.25;
-        ctx.fillStyle = `rgba(0, 255, 0, ${alpha})`;
+        // Calculate display angle (flip for 0° = West)
+        const displayAngle = 180 - angle;
+        const rad = (displayAngle * Math.PI) / 180;
+
+        // Calculate positions
+        const detectionR = (clampedDist / MAX_DISTANCE) * maxRadius;
+        const detectionX = centerX + detectionR * Math.cos(rad);
+        const detectionY = centerY - detectionR * Math.sin(rad);
+        const edgeX = centerX + maxRadius * Math.cos(rad);
+        const edgeY = centerY - maxRadius * Math.sin(rad);
+
+        // Fade based on age (newer points are more visible)
+        const ageFactor = idx / currentScanHistory.length;
+        const greenAlpha = 0.3 + ageFactor * 0.5;
+        const redAlpha = 0.2 + ageFactor * 0.4;
+
+        // GREEN LINE: From center to detection point (clear area)
+        ctx.strokeStyle = `rgba(0, 255, 0, ${greenAlpha})`;
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(detectionX, detectionY);
+        ctx.stroke();
+
+        // RED LINE: From detection point to edge (blocked area)
+        if (dist < MAX_DISTANCE) {
+          ctx.strokeStyle = `rgba(255, 0, 0, ${redAlpha})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(detectionX, detectionY);
+          ctx.lineTo(edgeX, edgeY);
+          ctx.stroke();
+        }
       });
 
       // === CURRENT DETECTION (Show live servo position and distance) ===
@@ -226,28 +255,48 @@ export const RadarChart = memo(function RadarChart({ currentData, motorHistory, 
         const angle = currentDataNow.servo_angle;
         const dist = currentDataNow.tof_current_cm;  // Use live TOF reading at current servo angle
 
-        if (dist > 0 && dist <= MAX_DISTANCE) {
-          const pos = angleToCanvas(angle, dist, centerX, centerY, maxRadius);
+        if (dist > 0) {
+          const clampedDist = Math.min(dist, MAX_DISTANCE);
+          const pos = angleToCanvas(angle, clampedDist, centerX, centerY, maxRadius);
 
-          // Glow
-          const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 18);
-          glow.addColorStop(0, 'rgba(0, 255, 0, 0.8)');
+          // Calculate edge position for red line
+          const displayAngle = 180 - angle;
+          const rad = (displayAngle * Math.PI) / 180;
+          const edgeX = centerX + maxRadius * Math.cos(rad);
+          const edgeY = centerY - maxRadius * Math.sin(rad);
+
+          // Draw bright green line from center to detection
+          ctx.strokeStyle = 'rgba(0, 255, 0, 0.9)';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(centerX, centerY);
+          ctx.lineTo(pos.x, pos.y);
+          ctx.stroke();
+
+          // Draw bright red line from detection to edge (if object detected)
+          if (dist < MAX_DISTANCE) {
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            ctx.lineTo(edgeX, edgeY);
+            ctx.stroke();
+          }
+
+          // Glow at detection point
+          const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 12);
+          glow.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+          glow.addColorStop(0.5, 'rgba(0, 255, 0, 0.6)');
           glow.addColorStop(1, 'rgba(0, 255, 0, 0)');
           ctx.fillStyle = glow;
           ctx.beginPath();
-          ctx.arc(pos.x, pos.y, 18, 0, Math.PI * 2);
+          ctx.arc(pos.x, pos.y, 12, 0, Math.PI * 2);
           ctx.fill();
 
-          // Bright dot
-          ctx.fillStyle = '#0f0';
-          ctx.beginPath();
-          ctx.arc(pos.x, pos.y, 7, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Center
+          // Bright dot at detection
           ctx.fillStyle = '#fff';
           ctx.beginPath();
-          ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
+          ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
           ctx.fill();
 
           // Label
@@ -260,32 +309,7 @@ export const RadarChart = memo(function RadarChart({ currentData, motorHistory, 
         }
       }
 
-      // === SCAN LINE (Synced with actual servo position) ===
-      if (currentDataNow && currentDataNow.servo_angle >= servoMinAngle && currentDataNow.servo_angle <= servoMaxAngle) {
-        ctx.save();
-        const scanDisplayAngle = 180 - currentDataNow.servo_angle; // Flip for 0° = West
-        const scanRad = (scanDisplayAngle * Math.PI) / 180;
-        const grad = ctx.createLinearGradient(
-          centerX,
-          centerY,
-          centerX + maxRadius * Math.cos(scanRad),
-          centerY - maxRadius * Math.sin(scanRad)
-        );
-        grad.addColorStop(0, 'rgba(0, 255, 0, 0)');
-        grad.addColorStop(0.8, 'rgba(0, 255, 0, 0.4)');
-        grad.addColorStop(1, 'rgba(0, 255, 0, 0.8)');
-
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.lineTo(
-          centerX + maxRadius * Math.cos(scanRad),
-          centerY - maxRadius * Math.sin(scanRad)
-        );
-        ctx.stroke();
-        ctx.restore();
-      }
+      // Scan line is now integrated with the current detection (green/red lines above)
 
       // === CENTER POINT ===
       ctx.fillStyle = '#0f0';

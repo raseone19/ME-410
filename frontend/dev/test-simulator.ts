@@ -143,7 +143,7 @@ async function runTests() {
   log(
     colors.cyan,
     'ℹ',
-    `Latest data: Distance=${lastData.tof_current_cm}cm, Pressure1=${lastData.pp1_mv}mV, Duty1=${lastData.duty1_pct}%`
+    `Latest data: Distance=${lastData.tof_current_cm}cm, Pressure1=${lastData.pp1_pct}%, Duty1=${lastData.duty1_pct}%`
   );
 
   // Test 6: Change to MODE B

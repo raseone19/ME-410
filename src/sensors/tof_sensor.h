@@ -16,31 +16,66 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
+#include "../config/system_config.h"
 
 // ============================================================================
 // Distance Ranges and Setpoints
 // ============================================================================
 
-// Distance range definitions (in cm)
-constexpr float DISTANCE_FAR_MIN = 200.0f;      // Far range start (cm)
-constexpr float DISTANCE_FAR_MAX = 300.0f;      // Far range end (cm)
-constexpr float DISTANCE_MEDIUM_MIN = 100.0f;   // Medium range start (cm)
-constexpr float DISTANCE_MEDIUM_MAX = 200.0f;   // Medium range end (cm)
-constexpr float DISTANCE_CLOSE_MIN = 50.0f;     // Close range start (cm)
-constexpr float DISTANCE_CLOSE_MAX = 100.0f;    // Close range end (cm)
+// Distance range definitions - BASE values (at scale = 1.0, pot at 50%)
+// These are the reference values, actual thresholds are scaled by potentiometer 2
+constexpr float DISTANCE_CLOSE_MIN_BASE = 50.0f;    // Fixed - sensor limitation
+constexpr float DISTANCE_CLOSE_MAX_BASE = 100.0f;   // Base: 50 + 50*scale
+constexpr float DISTANCE_MEDIUM_MAX_BASE = 200.0f;  // Base: 50 + 150*scale
+constexpr float DISTANCE_FAR_MAX_BASE = 300.0f;     // Base: 50 + 250*scale
 
-// Setpoint values for each range (in Newtons)
-// Note: FAR range setpoint is calculated dynamically (baseline + offset)
-// where baseline is captured when entering FAR range to account for friction variations
-constexpr float SECURITY_OFFSET_N = 0.5f;       // Offset added to baseline in FAR range (N)
-constexpr float SETPOINT_FAR_N = 1.0f;          // Setpoint for far range (200-300cm)
-constexpr float SETPOINT_MEDIUM_N = 2.0f;       // Setpoint for medium range (100-200cm)
-constexpr float SETPOINT_CLOSE_N = 4.0f;       // Setpoint for close range (50-100cm)
+// Dynamic distance thresholds (updated by potentiometer 2)
+// Formula: threshold = 50 + (base - 50) * scale
+// Scale ranges from 0.5 (pot at 0%) to 1.5 (pot at 100%)
+extern float distance_close_max;   // CLOSE/MEDIUM boundary (75-125 cm)
+extern float distance_medium_max;  // MEDIUM/FAR boundary (125-275 cm)
+extern float distance_far_max;     // FAR/OUT boundary (150-450 cm)
 
-// Out-of-range safety parameters (in Newtons)
-constexpr float SAFE_PRESSURE_THRESHOLD_N = 5.0f;     // Pressure must drop below this before release (N)
-constexpr uint32_t RELEASE_TIME_MS = 1300;             // Additional reverse time after reaching threshold (ms)
-constexpr float REVERSE_DUTY_PCT = 60.0f;             // Reverse duty cycle for deflation (%)
+// Fixed threshold (sensor limitation)
+constexpr float DISTANCE_CLOSE_MIN = 50.0f;  // Always 50 cm (sensor minimum)
+
+// ============================================================================
+// Setpoint Values - Mode-specific
+// ============================================================================
+// Conversion factor: ~80-100 mV per Newton (varies by sensor)
+// Example: 1N ≈ 80mV, 2N ≈ 160mV, 4N ≈ 320mV
+// ============================================================================
+
+// ============================================================================
+// Setpoint Values - Normalized (0-100%)
+// ============================================================================
+// All setpoints are now in percentage (0-100) based on calibrated min/max
+// 0% = prestress (no pressure), 100% = 95% of maxstress
+// ============================================================================
+
+// Maximum force output when potentiometer is at 100%
+// Adjust these values to change the ratio between ranges
+// The potentiometer scales all of them proportionally (master volume)
+constexpr float SETPOINT_FAR = 50.0f;           // Setpoint for FAR range (200-300cm) - 50%
+constexpr float SETPOINT_MEDIUM = 75.0f;        // Setpoint for MEDIUM range (100-200cm) - 75%
+constexpr float SETPOINT_CLOSE = 100.0f;        // Setpoint for CLOSE range (50-100cm) - 100%
+
+// Security offset (percentage points to add/subtract)
+constexpr float SECURITY_OFFSET = 5.0f;         // Offset in percentage points
+
+// Safety threshold for out-of-range deflation (percentage)
+constexpr float SAFE_PRESSURE_THRESHOLD = 10.0f; // Pressure must drop below 10% before release
+
+// Legacy aliases for backward compatibility (deprecated - use generic names above)
+constexpr float SECURITY_OFFSET_N = SECURITY_OFFSET;
+constexpr float SETPOINT_FAR_N = SETPOINT_FAR;
+constexpr float SETPOINT_MEDIUM_N = SETPOINT_MEDIUM;
+constexpr float SETPOINT_CLOSE_N = SETPOINT_CLOSE;
+constexpr float SAFE_PRESSURE_THRESHOLD_N = SAFE_PRESSURE_THRESHOLD;
+
+// Out-of-range safety parameters (mode-independent)
+constexpr uint32_t RELEASE_TIME_MS = 600;          // Additional reverse time after reaching threshold (ms)
+constexpr float REVERSE_DUTY_PCT = 60.0f;           // Reverse duty cycle for deflation (%)
 
 // ============================================================================
 // Enumerations
@@ -67,6 +102,16 @@ enum SystemState {
     WAITING_FOR_VALID_READING  // Motors stopped, waiting for sensor to return to valid range
 };
 
+/**
+ * @brief Active sensor type for distance detection
+ */
+enum ActiveSensor {
+    SENSOR_NONE,       // No valid reading from either sensor
+    SENSOR_TOF,        // TOF sensor is providing the minimum distance
+    SENSOR_ULTRASONIC, // Ultrasonic sensor is providing the minimum distance
+    SENSOR_BOTH_EQUAL  // Both sensors have equal readings
+};
+
 // ============================================================================
 // Shared Variables (Protected by Mutex)
 // ============================================================================
@@ -78,6 +123,9 @@ extern SemaphoreHandle_t distanceMutex;
 extern volatile float shared_min_distance[5];  // Minimum distance per motor sector
 extern volatile int shared_best_angle[5];      // Angle of minimum distance per motor sector
 extern volatile bool sweep_active;
+
+// Active sensor tracking (which sensor provided the minimum distance)
+extern volatile ActiveSensor shared_active_sensor;  // Current sensor providing min distance
 
 // ============================================================================
 // Public Functions

@@ -219,7 +219,7 @@ export default function SensorsPage() {
     // Calculate for pressure pads
     for (let i = 1; i <= 5; i++) {
       const key = `pp${i}` as keyof typeof stats;
-      const dataKey = `pp${i}_mv` as keyof MotorData;
+      const dataKey = `pp${i}_pct` as keyof MotorData;
       const history = motorHistory[`motor${i}` as keyof typeof motorHistory].slice(-100);
 
       if (history.length > 0) {
@@ -269,14 +269,14 @@ export default function SensorsPage() {
 
   // Sensor health indicators
   const getPressurePadHealth = (padNumber: number) => {
-    const value = currentData?.[`pp${padNumber}_mv` as keyof MotorData] as number ?? 0;
+    const value = currentData?.[`pp${padNumber}_pct` as keyof MotorData] as number ?? 0;
     const stats = calculateSensorStats[`pp${padNumber}` as keyof typeof calculateSensorStats];
 
-    // Check for sensor issues
-    if (value < 0 || value > pressurePadMax) {
+    // Check for sensor issues (now in percentage 0-100)
+    if (value < 0 || value > 100) {
       return { status: 'error', message: 'Out of range', icon: XCircle, color: 'text-red-500' };
     }
-    if (stats.stdDev > 50) {
+    if (stats.stdDev > 5) {
       return { status: 'warning', message: 'High noise', icon: AlertTriangle, color: 'text-yellow-500' };
     }
     if (stats.samples < 10) {
@@ -312,7 +312,7 @@ export default function SensorsPage() {
   // Prepare pressure pad history for charts
   const preparePressurePadChart = (padNumber: number) => {
     const history = motorHistory[`motor${padNumber}` as keyof typeof motorHistory].slice(-100);
-    const dataKey = `pp${padNumber}_mv` as keyof MotorData;
+    const dataKey = `pp${padNumber}_pct` as keyof MotorData;
     return history.map((data, index) => ({
       index,
       value: data[dataKey] as number,
@@ -517,10 +517,10 @@ export default function SensorsPage() {
                   </h4>
                   <ul className="space-y-1 text-xs list-disc list-inside">
                     <li><strong>Function:</strong> Measure pressure/force applied to each motor</li>
-                    <li><strong>Output:</strong> 0-1200 mV (millivolts)</li>
+                    <li><strong>Output:</strong> 0-100% (normalized from calibrated min/max)</li>
                     <li><strong>Connection:</strong> Via CD74HC4067 multiplexer on channels C4, C3, C2, C1, C0</li>
                     <li><strong>Read via:</strong> ESP32 ADC (GPIO 4) with 8-sample averaging</li>
-                    <li><strong>Good reading:</strong> Stable values with low noise (&lt;20mV variation)</li>
+                    <li><strong>Good reading:</strong> Stable values with low noise (&lt;2% variation)</li>
                   </ul>
                 </div>
                 <div className="space-y-2">
@@ -617,7 +617,7 @@ export default function SensorsPage() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 {[1, 2, 3, 4, 5].map((padNum) => {
-                  const value = currentData?.[`pp${padNum}_mv` as keyof MotorData] as number ?? 0;
+                  const value = currentData?.[`pp${padNum}_pct` as keyof MotorData] as number ?? 0;
                   const health = getPressurePadHealth(padNum);
                   const HealthIcon = health.icon;
                   const stats = calculateSensorStats[`pp${padNum}` as keyof typeof calculateSensorStats];
@@ -639,10 +639,10 @@ export default function SensorsPage() {
                         <div>
                           <div className="text-xs text-muted-foreground mb-1">Current Reading</div>
                           <div className="text-3xl font-bold font-mono">
-                            {value.toFixed(0)}
-                            <span className="text-base text-muted-foreground ml-1">mV</span>
+                            {value.toFixed(1)}
+                            <span className="text-base text-muted-foreground ml-1">%</span>
                           </div>
-                          <Progress value={(value / pressurePadMax) * 100} className="h-2 mt-2" />
+                          <Progress value={value} className="h-2 mt-2" />
                         </div>
 
                         <Separator />
@@ -657,20 +657,20 @@ export default function SensorsPage() {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Min:</span>
-                            <span className="font-mono">{stats.min !== Infinity ? `${stats.min.toFixed(0)} mV` : 'N/A'}</span>
+                            <span className="font-mono">{stats.min !== Infinity ? `${stats.min.toFixed(1)}%` : 'N/A'}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Max:</span>
-                            <span className="font-mono">{stats.max !== -Infinity ? `${stats.max.toFixed(0)} mV` : 'N/A'}</span>
+                            <span className="font-mono">{stats.max !== -Infinity ? `${stats.max.toFixed(1)}%` : 'N/A'}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Avg:</span>
-                            <span className="font-mono">{stats.avg > 0 ? `${stats.avg.toFixed(0)} mV` : 'N/A'}</span>
+                            <span className="font-mono">{stats.avg > 0 ? `${stats.avg.toFixed(1)}%` : 'N/A'}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Noise (σ):</span>
-                            <span className={`font-mono ${stats.stdDev > 50 ? 'text-red-600' : stats.stdDev > 20 ? 'text-yellow-600' : 'text-green-600'}`}>
-                              {stats.stdDev > 0 ? `±${stats.stdDev.toFixed(1)} mV` : 'N/A'}
+                            <span className={`font-mono ${stats.stdDev > 5 ? 'text-red-600' : stats.stdDev > 2 ? 'text-yellow-600' : 'text-green-600'}`}>
+                              {stats.stdDev > 0 ? `±${stats.stdDev.toFixed(2)}%` : 'N/A'}
                             </span>
                           </div>
                         </div>
@@ -681,7 +681,7 @@ export default function SensorsPage() {
                         <div className="text-xs space-y-1">
                           <div className="font-semibold">Expected Range:</div>
                           <div className="text-muted-foreground">
-                            0 - {pressurePadMax} mV
+                            0 - 100%
                           </div>
                           <div className="text-muted-foreground text-[10px] mt-1">
                             Higher values = more pressure
@@ -850,7 +850,7 @@ export default function SensorsPage() {
                           >
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
                             <XAxis dataKey="index" hide />
-                            <YAxis domain={[0, 1200]} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
+                            <YAxis domain={[0, 100]} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
                             <ChartTooltip content={<ChartTooltipContent />} />
                             <Line
                               dataKey="value"
@@ -1023,11 +1023,11 @@ export default function SensorsPage() {
               <div>
                 <h4 className="font-semibold mb-2">Pressure Pads - Expected Behavior</h4>
                 <ul className="space-y-1 text-xs list-disc list-inside">
-                  <li><strong>No pressure:</strong> Should read close to 0 mV (±20 mV tolerance)</li>
-                  <li><strong>Light touch:</strong> 100-300 mV</li>
-                  <li><strong>Moderate pressure:</strong> 400-700 mV</li>
-                  <li><strong>High pressure:</strong> 800-1200 mV</li>
-                  <li><strong>Noise level:</strong> Should be &lt;20 mV standard deviation</li>
+                  <li><strong>No pressure:</strong> Should read close to 0% (±2% tolerance)</li>
+                  <li><strong>Light touch:</strong> 10-30%</li>
+                  <li><strong>Moderate pressure:</strong> 40-70%</li>
+                  <li><strong>High pressure:</strong> 80-100%</li>
+                  <li><strong>Noise level:</strong> Should be &lt;2% standard deviation</li>
                   <li><strong>Response time:</strong> Nearly instantaneous (&lt;20ms)</li>
                 </ul>
               </div>

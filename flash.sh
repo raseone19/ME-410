@@ -6,7 +6,7 @@
 set -e  # Exit on error
 
 PROJECT_DIR="/Users/miguelmoorcastro/Desktop/EPFL/410/Projects/TEST3/Project"
-SERIAL_PORT="/dev/cu.usbserial-10"
+SERIAL_PORT="/dev/cu.usbserial-110"
 
 echo "======================================"
 echo "ESP32-S3 Flash Tool"

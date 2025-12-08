@@ -5,6 +5,7 @@
 
 #include "pi_controller.h"
 #include "../actuators/motors.h"
+#include "../config/system_config.h"
 #include <algorithm>
 
 // ============================================================================
@@ -12,8 +13,8 @@
 // ============================================================================
 
 // Timing
-constexpr float CTRL_FREQ_HZ = 50.0f;                    // Control loop frequency
-constexpr float CTRL_DT_S = 1.0f / CTRL_FREQ_HZ;         // Time step (seconds)
+constexpr float CTRL_FREQ_HZ = 20.0f;                    // Control loop frequency
+constexpr float CTRL_DT_S = 1.0f / CTRL_FREQ_HZ;         // Time step (50 ms)
 
 // Output limits
 constexpr float DUTY_MIN = -100.0f;                      // Minimum duty cycle (%)
@@ -22,9 +23,20 @@ constexpr float DUTY_MAX = 100.0f;                       // Maximum duty cycle (
 // Deadband threshold
 constexpr float MIN_RUN = 40.0f;                         // Minimum duty to overcome friction (%)
 
-// PI Gains - scaled for Newton units (was 0.15/0.60 for mV, scaled ~80x for N)
-static float Kp = 12.0f;                                 // Proportional gain (for Newtons)
-static float Ki = 48.0f;                                 // Integral gain (for Newtons)
+// ============================================================================
+// PI Gains - Mode-specific defaults
+// ============================================================================
+// Scale factor between modes: ~80x (1N ≈ 80mV typical for these sensors)
+//
+// NEWTONS mode:     Kp=12.0,  Ki=48.0  (larger values, smaller error range)
+// MILLIVOLTS mode:  Kp=0.15,  Ki=0.60  (smaller values, larger error range)
+// ============================================================================
+
+// Gains for normalized mode (0-100 range)
+// Error range is 0-100, so gains should be scaled accordingly
+// Example: 50% error * Kp=2.0 = 100% duty cycle
+static float Kp = 1.0f;                                  // Proportional gain (for 0-100%)
+static float Ki = 4.0f;                                  // Integral gain (for 0-100%)
 
 // ============================================================================
 // Controller State (5 Independent Controllers)
@@ -66,6 +78,62 @@ void controlStep(const float setpoints_mv[NUM_MOTORS], const uint16_t pressure_p
 
         // Calculate error (positive error means pressure too low, need to push harder)
         float error = setpoints_mv[i] - current_pressure_mv;
+
+        // Update integrator
+        integrators[i] += error * CTRL_DT_S;
+
+        // Anti-windup: clamp integrator based on output saturation
+        float integrator_max = (DUTY_MAX / std::max(Ki, 0.0001f));
+        if (integrators[i] > integrator_max) {
+            integrators[i] = integrator_max;
+        }
+        if (integrators[i] < -integrator_max) {
+            integrators[i] = -integrator_max;
+        }
+
+        // Compute PI output
+        float duty = Kp * error + Ki * integrators[i];
+
+        // Apply output saturation
+        if (duty > DUTY_MAX) duty = DUTY_MAX;
+        if (duty < DUTY_MIN) duty = DUTY_MIN;
+
+        // Apply deadband to overcome static friction
+        float command = 0.0f;
+        if (duty >= MIN_RUN) {
+            // Forward direction
+            command = duty;
+        } else if (duty <= -MIN_RUN) {
+            // Reverse direction
+            command = duty;
+        } else {
+            // Within deadband - stop motor
+            command = 0.0f;
+        }
+
+        // Store duty cycle
+        duty_out[i] = command;
+        last_duty[i] = command;
+
+        // Apply to motor
+        if (command > 0.0f) {
+            motorForward(i, command);
+        } else if (command < 0.0f) {
+            motorReverse(i, -command);  // Make duty positive
+        } else {
+            motorBrake(i);
+        }
+    }
+}
+
+void controlStepNormalized(const float setpoints_pct[NUM_MOTORS], const float pressure_pct[NUM_MOTORS], float duty_out[NUM_MOTORS]) {
+    // Process each motor independently (using normalized 0-100% values)
+    for (int i = 0; i < NUM_MOTORS; ++i) {
+        // Get current normalized pressure reading (0-100%)
+        float current_pressure_pct = pressure_pct[i];
+
+        // Calculate error (positive error means pressure too low, need to push harder)
+        float error = setpoints_pct[i] - current_pressure_pct;
 
         // Update integrator
         integrators[i] += error * CTRL_DT_S;

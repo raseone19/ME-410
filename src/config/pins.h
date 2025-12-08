@@ -21,28 +21,28 @@
 
 // Motor 1
 constexpr uint8_t M1_PWM  = 14;   // PWM speed control (changed from 19 for ESP32-S3 USB compatibility)
-constexpr uint8_t M1_IN1  = 21;  // H-bridge input 1
-constexpr uint8_t M1_IN2  = 13;  // H-bridge input 2 (changed from 20 for ESP32-S3 USB compatibility)
+constexpr uint8_t M1_IN2  = 21;  // H-bridge input 1
+constexpr uint8_t M1_IN1  = 13;  // H-bridge input 2 (changed from 20 for ESP32-S3 USB compatibility)
 
 // Motor 2
 constexpr uint8_t M2_PWM  = 35;  // PWM speed control
-constexpr uint8_t M2_IN1  = 47;  // H-bridge input 1
-constexpr uint8_t M2_IN2  = 48;  // H-bridge input 2
+constexpr uint8_t M2_IN2  = 47;  // H-bridge input 1
+constexpr uint8_t M2_IN1  = 48;  // H-bridge input 2
 
 // Motor 3
 constexpr uint8_t M3_PWM  = 36;   // PWM speed control
-constexpr uint8_t M3_IN1  = 38;  // H-bridge input 1
-constexpr uint8_t M3_IN2  = 37;  // H-bridge input 2
+constexpr uint8_t M3_IN2  = 38;  // H-bridge input 1
+constexpr uint8_t M3_IN1  = 37;  // H-bridge input 2
 
 // Motor 4
 constexpr uint8_t M4_PWM  = 41;  // PWM speed control
-constexpr uint8_t M4_IN1  = 39;   // H-bridge input 1
-constexpr uint8_t M4_IN2  = 40;   // H-bridge input 2
+constexpr uint8_t M4_IN2  = 40;   // H-bridge input 1
+constexpr uint8_t M4_IN1  = 39;   // H-bridge input 2
 
-// Motor 5
+// Motor 5 (IN1/IN2 swapped to correct direction)
 constexpr uint8_t M5_PWM  = 42;  // PWM speed control
-constexpr uint8_t M5_IN1  = 1;   // H-bridge input 1
-constexpr uint8_t M5_IN2  = 2;   // H-bridge input 2
+constexpr uint8_t M5_IN1  = 1;   // H-bridge input 1 (swapped)
+constexpr uint8_t M5_IN2  = 2;   // H-bridge input 2 (swapped)
 
 
 // Motor system configuration
@@ -74,7 +74,7 @@ constexpr uint8_t MUX_S1 = 16;   // Select bit 1
 constexpr uint8_t MUX_S2 = 15;   // Select bit 2
 constexpr uint8_t MUX_S3 = 7;    // Select bit 3 (RX0)
 
-// Multiplexer signal pin (ADC input)
+// Multiplexer signal pin (ADC input)s
 constexpr uint8_t MUX_SIG = 4;  // ADC1_CH7 (input only)
 
 // Settling time after channel switch
@@ -88,14 +88,29 @@ constexpr int NUM_PRESSURE_PADS = 5;
 
 // Pressure pad multiplexer channels (non-consecutive as per Multi_5PP)
 constexpr uint8_t PP_CHANNELS[NUM_PRESSURE_PADS] = {
-    1,  // Pressure Pad 1 -> Channel C1
-    2,  // Pressure Pad 2 -> Channel C2
+    5,  // Pressure Pad 1 -> Channel C1
+    4,  // Pressure Pad 2 -> Channel C2
     3,  // Pressure Pad 3 -> Channel C3
-    4,  // Pressure Pad 4 -> Channel C6
-    5   // Pressure Pad 5 -> Channel C8
+    2,  // Pressure Pad 4 -> Channel C6
+    1   // Pressure Pad 5 -> Channel C8
 };
 
 // Number of ADC samples to average per reading
 constexpr int PP_SAMPLES = 8;
+
+// ============================================================================
+// POTENTIOMETER CHANNELS (Multiplexer Channel Assignments)
+// ============================================================================
+
+constexpr int NUM_POTENTIOMETERS = 2;
+
+// Potentiometer multiplexer channels
+constexpr uint8_t POT_CHANNELS[NUM_POTENTIOMETERS] = {
+    12,  // Potentiometer 1 -> Channel 12
+    14   // Potentiometer 2 -> Channel 14
+};
+
+// Number of ADC samples to average per potentiometer reading
+constexpr int POT_SAMPLES = 4;
 
 #endif // PINS_H

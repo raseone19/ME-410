@@ -10,6 +10,7 @@ import { X } from 'lucide-react';
 import { useWebSocketStore, TRANSITION_PAUSE_MS } from '@/lib/websocket-store';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { ModeBMotorCard } from '@/components/mode-b/ModeBMotorCard';
+import { PotentiometerPanel } from '@/components/dashboard/PotentiometerPanel';
 import { PerformanceMonitor } from '@/components/debug/PerformanceMonitor';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -201,7 +202,7 @@ export default function DashboardPage() {
           motor: sector.motor,
           sectorRange: `${sector.minAngle}°-${sector.maxAngle}°`,
           distance: currentData?.[`tof${sector.motor}_cm` as keyof typeof currentData] ?? 0,
-          pressure: currentData?.[`pp${sector.motor}_mv` as keyof typeof currentData] ?? 0,
+          pressure: currentData?.[`pp${sector.motor}_pct` as keyof typeof currentData] ?? 0,
           duty: currentData?.[`duty${sector.motor}_pct` as keyof typeof currentData] ?? 0,
         })),
         stats: {
@@ -311,6 +312,9 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Potentiometer Settings Panel */}
+        <PotentiometerPanel currentData={currentData} />
 
         {/* Motor Grid (2x2) */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

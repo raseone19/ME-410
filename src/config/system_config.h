@@ -10,6 +10,42 @@
 #define SYSTEM_CONFIG_H
 
 // ============================================================================
+// CONTROL MODE SELECTION
+// ============================================================================
+/**
+ * Control mode options:
+ *
+ * CONTROL_MODE_NEWTONS: Uses calibrated force values in Newtons
+ *   - Requires per-pad calibration (PP_OFFSET_RO, PP_SLOPE_S in pressure_pads.h)
+ *   - Setpoints in Newtons (e.g., 1N, 2N, 4N)
+ *   - PI gains scaled for Newton units (Kp=12, Ki=48)
+ *   - More accurate, accounts for sensor variations
+ *
+ * CONTROL_MODE_MILLIVOLTS: Uses raw ADC readings in millivolts
+ *   - No calibration needed
+ *   - Setpoints in millivolts (e.g., 500mV, 1000mV, 2000mV)
+ *   - PI gains scaled for mV units (Kp=0.15, Ki=0.60)
+ *   - Simpler, good for testing or uncalibrated sensors
+ */
+
+// Uncomment ONE of the following lines:
+//#define CONTROL_MODE_NEWTONS      // Default: calibrated force control
+#define CONTROL_MODE_MILLIVOLTS   // Raw millivolt control
+
+// Validate control mode selection
+#if (defined(CONTROL_MODE_NEWTONS) + defined(CONTROL_MODE_MILLIVOLTS)) != 1
+    #error "ERROR: Select exactly ONE control mode!"
+#endif
+
+#ifdef CONTROL_MODE_NEWTONS
+    constexpr const char* CONTROL_MODE_NAME = "Newtons (calibrated)";
+#endif
+
+#ifdef CONTROL_MODE_MILLIVOLTS
+    constexpr const char* CONTROL_MODE_NAME = "Millivolts (raw)";
+#endif
+
+// ============================================================================
 // SERIAL OUTPUT PROTOCOL
 // ============================================================================
 
@@ -21,8 +57,16 @@
  *   - Requires binary parser (included in Node bridge)
  */
 
+// Comment/uncomment to enable/disable binary protocol (frontend)
+// When commented: Serial.println() debug messages will be visible
+// When uncommented: Binary data for frontend, no debug prints visible
 #define PROTOCOL_BINARY
+
+#ifdef PROTOCOL_BINARY
 constexpr const char* PROTOCOL_NAME = "Binary";
+#else
+constexpr const char* PROTOCOL_NAME = "Debug (no frontend)";
+#endif
 
 // ============================================================================
 // DATA LOGGING CONFIGURATION
@@ -92,8 +136,8 @@ constexpr const char* PROTOCOL_NAME = "Binary";
  */
 
 // Uncomment ONE of the following lines:
-//#define SWEEP_MODE_FORWARD        // Default: forward sweep only
-#define SWEEP_MODE_BIDIRECTIONAL  // Bidirectional sweep
+#define SWEEP_MODE_FORWARD        // Default: forward sweep only
+//#define SWEEP_MODE_BIDIRECTIONAL  // Bidirectional sweep
 
 // Validate sweep mode selection
 #if (defined(SWEEP_MODE_FORWARD) + defined(SWEEP_MODE_BIDIRECTIONAL)) != 1

@@ -41,10 +41,10 @@ ws.on('message', (data: Buffer) => {
       console.log(`TOF Distance:    ${d.tof_dist_cm.toFixed(2)} cm`);
       console.log(`Setpoint:        ${d.setpoint_mv.toFixed(1)} mV`);
       console.log(`─────────────────────────────────────────────────────────`);
-      console.log(`Motor 1: PP=${d.pp1_mv}mV, Duty=${d.duty1_pct.toFixed(2)}%`);
-      console.log(`Motor 2: PP=${d.pp2_mv}mV, Duty=${d.duty2_pct.toFixed(2)}%`);
-      console.log(`Motor 3: PP=${d.pp3_mv}mV, Duty=${d.duty3_pct.toFixed(2)}%`);
-      console.log(`Motor 4: PP=${d.pp4_mv}mV, Duty=${d.duty4_pct.toFixed(2)}%`);
+      console.log(`Motor 1: PP=${d.pp1_pct.toFixed(1)}%, Duty=${d.duty1_pct.toFixed(2)}%`);
+      console.log(`Motor 2: PP=${d.pp2_pct.toFixed(1)}%, Duty=${d.duty2_pct.toFixed(2)}%`);
+      console.log(`Motor 3: PP=${d.pp3_pct.toFixed(1)}%, Duty=${d.duty3_pct.toFixed(2)}%`);
+      console.log(`Motor 4: PP=${d.pp4_pct.toFixed(1)}%, Duty=${d.duty4_pct.toFixed(2)}%`);
       console.log(`Recording:       ${message.isRecording ? 'ON' : 'OFF'}\n`);
 
       if (dataCount === MAX_DISPLAY) {

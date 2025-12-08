@@ -349,7 +349,7 @@ time_ms,sp1_mv,sp2_mv,sp3_mv,sp4_mv,pp1_mv,pp2_mv,pp3_mv,pp4_mv,duty1_pct,duty2_
 - Ensure binary protocol is enabled (`PROTOCOL_BINARY` in system_config.h)
 - Check that no debug Serial.print statements exist in loop/tasks
 - Verify WebSocket bridge is running (`pnpm run dev:serial`)
-- Check serial port matches ESP32 port (`SERIAL_PORT=/dev/cu.usbserial-10`)
+- Check serial port matches ESP32 port (`SERIAL_PORT=/dev/cu.usbserial-110`)
 
 ## Frontend Screenshots
 

@@ -301,22 +301,14 @@ export async function loadBackendConfigFromFile(): Promise<void> {
 }
 
 /**
- * Get setpoint values (dynamically from backend or defaults)
+ * Get setpoint values in percentage (0-100%)
+ * Now using normalized values instead of mV
  */
 export function getSetpointValues() {
-  const config = backendConfig || {
-    setpointCloseMv: 950,
-    setpointMediumMv: 700,
-    securityOffsetMv: 50,
-    distanceCloseMax: 100,
-    distanceMediumMax: 200,
-    distanceFarMax: 300,
-  };
-
   return {
-    SETPOINT_CLOSE: config.setpointCloseMv,
-    SETPOINT_MEDIUM: config.setpointMediumMv,
-    SETPOINT_FAR: 500 + config.securityOffsetMv, // Baseline (500) + offset
+    SETPOINT_CLOSE: 70,   // 70% for close range
+    SETPOINT_MEDIUM: 50,  // 50% for medium range
+    SETPOINT_FAR: 30,     // 30% for far range
   };
 }
 

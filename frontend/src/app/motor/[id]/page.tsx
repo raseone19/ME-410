@@ -217,9 +217,9 @@ export default function MotorDetailPage() {
   }
 
   // Extract motor-specific data
-  const pressureKey = `pp${motorId}_mv` as keyof MotorData;
+  const pressureKey = `pp${motorId}_pct` as keyof MotorData;
   const dutyKey = `duty${motorId}_pct` as keyof MotorData;
-  const setpointKey = `sp${motorId}_mv` as keyof MotorData;
+  const setpointKey = `sp${motorId}_pct` as keyof MotorData;
   const tofKey = `tof${motorId}_cm` as keyof MotorData;
 
   // Current values (using throttled data for display)
@@ -228,7 +228,7 @@ export default function MotorDetailPage() {
   const currentSetpoint = displayData ? (displayData[setpointKey] as number) : 0;
   const currentTofDistance = displayData ? (displayData[tofKey] as number) : 0;
   const error = Math.abs(currentPressure - currentSetpoint);
-  const isOnTarget = error < 50;
+  const isOnTarget = error < 5; // 5 percentage points for normalized values
   const currentRange = getRange(currentTofDistance);
 
   // Prepare chart data (use full dataHistory for charts at 50Hz)
@@ -353,9 +353,9 @@ export default function MotorDetailPage() {
                 <p className="text-xs text-muted-foreground">Pressure</p>
               </div>
               <div className="space-y-1">
-                <div className="text-2xl font-bold">{currentPressure.toFixed(0)}</div>
-                <p className="text-xs text-muted-foreground">mV</p>
-                <Progress value={(currentPressure / 1200) * 100} className="h-1.5" />
+                <div className="text-2xl font-bold">{currentPressure.toFixed(1)}</div>
+                <p className="text-xs text-muted-foreground">%</p>
+                <Progress value={currentPressure} className="h-1.5" />
               </div>
             </Card>
 
@@ -366,8 +366,8 @@ export default function MotorDetailPage() {
                 <p className="text-xs text-muted-foreground">Setpoint</p>
               </div>
               <div className="space-y-1">
-                <div className="text-2xl font-bold">{currentSetpoint.toFixed(0)}</div>
-                <p className="text-xs text-muted-foreground">mV target</p>
+                <div className="text-2xl font-bold">{currentSetpoint.toFixed(1)}</div>
+                <p className="text-xs text-muted-foreground">% target</p>
               </div>
             </Card>
 
@@ -403,13 +403,13 @@ export default function MotorDetailPage() {
               <div className="space-y-1">
                 <div
                   className={`text-2xl font-bold ${
-                    error < 50 ? 'text-green-600' : error < 100 ? 'text-yellow-600' : 'text-red-600'
+                    error < 5 ? 'text-green-600' : error < 10 ? 'text-yellow-600' : 'text-red-600'
                   }`}
                 >
-                  {error.toFixed(0)}
+                  {error.toFixed(1)}%
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {error < 50 ? '✓ On target' : 'Adjusting...'}
+                  {error < 5 ? '✓ On target' : 'Adjusting...'}
                 </p>
               </div>
             </Card>
@@ -440,7 +440,7 @@ export default function MotorDetailPage() {
                       axisLine={false}
                       tick={{ fontSize: 11 }}
                     />
-                    <YAxis domain={[0, 1200]} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                    <YAxis domain={[0, 100]} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Area
                       dataKey="pressure"
@@ -660,9 +660,9 @@ export default function MotorDetailPage() {
                   <p className="text-xs text-muted-foreground">Pressure</p>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-2xl font-bold">{currentPressure.toFixed(0)}</div>
-                  <p className="text-xs text-muted-foreground">mV</p>
-                  <Progress value={(currentPressure / 1200) * 100} className="h-1.5" />
+                  <div className="text-2xl font-bold">{currentPressure.toFixed(1)}</div>
+                  <p className="text-xs text-muted-foreground">%</p>
+                  <Progress value={currentPressure} className="h-1.5" />
                 </div>
               </Card>
 
@@ -673,8 +673,8 @@ export default function MotorDetailPage() {
                   <p className="text-xs text-muted-foreground">Setpoint</p>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-2xl font-bold">{currentSetpoint.toFixed(0)}</div>
-                  <p className="text-xs text-muted-foreground">mV target</p>
+                  <div className="text-2xl font-bold">{currentSetpoint.toFixed(1)}</div>
+                  <p className="text-xs text-muted-foreground">% target</p>
                 </div>
               </Card>
 
@@ -710,13 +710,13 @@ export default function MotorDetailPage() {
                 <div className="space-y-1">
                   <div
                     className={`text-2xl font-bold ${
-                      error < 50 ? 'text-green-600' : error < 100 ? 'text-yellow-600' : 'text-red-600'
+                      error < 5 ? 'text-green-600' : error < 10 ? 'text-yellow-600' : 'text-red-600'
                     }`}
                   >
-                    {error.toFixed(0)}
+                    {error.toFixed(1)}%
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {error < 50 ? '✓ On target' : 'Adjusting...'}
+                    {error < 5 ? '✓ On target' : 'Adjusting...'}
                   </p>
                 </div>
               </Card>
@@ -747,7 +747,7 @@ export default function MotorDetailPage() {
                         axisLine={false}
                         tick={{ fontSize: 11 }}
                       />
-                      <YAxis domain={[0, 1200]} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                      <YAxis domain={[0, 100]} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Area
                         dataKey="pressure"

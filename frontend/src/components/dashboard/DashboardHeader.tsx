@@ -1,12 +1,12 @@
 /**
  * Dashboard Header Component
- * Displays TOF distance, connection status, and controls
+ * Displays TOF distance, connection status, control mode, and controls
  */
 
 'use client';
 
 import { memo, useMemo } from 'react';
-import { Wifi, WifiOff, Radio, Pause, Play, Camera, Maximize2 } from 'lucide-react';
+import { Wifi, WifiOff, Radio, Pause, Play, Camera, Maximize2, Gauge } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import {
   getDistanceRange,
   getDistanceRangeColor,
 } from '@/lib/types';
+import { useControlMode } from '@/lib/control-mode-context';
 
 interface DashboardHeaderProps {
   tofDistance?: number; // Optional - only for single-distance modes
@@ -40,6 +41,9 @@ export const DashboardHeader = memo(function DashboardHeader({
   onSnapshot,
   onFullscreen,
 }: DashboardHeaderProps) {
+  // Get control mode from context
+  const controlMode = useControlMode();
+
   // Memoize distance calculations (only if tofDistance is provided)
   const { distanceRange, rangeColor } = useMemo(() => {
     if (tofDistance === undefined) {
@@ -74,42 +78,58 @@ export const DashboardHeader = memo(function DashboardHeader({
           </div>
         )}
 
-        {/* Center: Connection Status */}
-        <div className="flex items-center gap-3 justify-center">
-          {isConnected ? (
-            <>
-              <Wifi className="h-5 w-5 text-green-600" />
-              <div>
-                <p className="text-sm font-medium text-green-600">Connected</p>
-                <p className="text-xs text-muted-foreground">
-                  Receiving data at 50Hz
-                </p>
-              </div>
-            </>
-          ) : connectionStatus === ConnectionStatus.CONNECTING ? (
-            <>
-              <Radio className="h-5 w-5 text-yellow-600 animate-pulse" />
-              <div>
-                <p className="text-sm font-medium text-yellow-600">
-                  Connecting...
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Establishing connection
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              <WifiOff className="h-5 w-5 text-red-600" />
-              <div>
-                <p className="text-sm font-medium text-red-600">
-                  Disconnected
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  No data stream
-                </p>
-              </div>
-            </>
+        {/* Center: Connection Status + Control Mode */}
+        <div className="flex items-center gap-6 justify-center">
+          {/* Connection Status */}
+          <div className="flex items-center gap-3">
+            {isConnected ? (
+              <>
+                <Wifi className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="text-sm font-medium text-green-600">Connected</p>
+                  <p className="text-xs text-muted-foreground">
+                    Receiving data at 50Hz
+                  </p>
+                </div>
+              </>
+            ) : connectionStatus === ConnectionStatus.CONNECTING ? (
+              <>
+                <Radio className="h-5 w-5 text-yellow-600 animate-pulse" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-600">
+                    Connecting...
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Establishing connection
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <WifiOff className="h-5 w-5 text-red-600" />
+                <div>
+                  <p className="text-sm font-medium text-red-600">
+                    Disconnected
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    No data stream
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Control Mode Badge */}
+          {!controlMode.loading && (
+            <div className="flex items-center gap-2">
+              <Gauge className="h-4 w-4 text-muted-foreground" />
+              <Badge
+                variant={controlMode.isNewtons ? 'default' : 'secondary'}
+                className="text-xs"
+              >
+                {controlMode.isNewtons ? 'Newtons' : 'Millivolts'}
+              </Badge>
+            </div>
           )}
         </div>
 

@@ -4,7 +4,7 @@
 clear all; close all; clc;
 
 %% CONFIGURACION
-COM_PORT = '/dev/cu.usbserial-10';  % CAMBIAR por tu puerto
+COM_PORT = '/dev/cu.usbserial-110';  % CAMBIAR por tu puerto
 VCC_MOTOR = 5.0;  % Voltaje de alimentacion del motor (ajustar si usas otro)
 
 %% CONEXION

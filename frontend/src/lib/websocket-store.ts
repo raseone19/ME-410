@@ -297,11 +297,17 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
               const angle = newData.servo_angle;
               const currentDistance = newData.tof_current_cm;
 
-              // Only add valid readings
-              if (currentDistance > 0 && currentDistance <= 300 && angle >= 0 && angle <= 180) {
+              // Add valid readings to scan history
+              // If distance is 0 or out of range, use MAX_DISTANCE to show a full green line (no obstruction)
+              if (angle >= 0 && angle <= 180) {
+                // Use actual distance if valid, otherwise use MAX_DISTANCE (300cm) to indicate clear path
+                const effectiveDistance = (currentDistance > 0 && currentDistance <= 300)
+                  ? currentDistance
+                  : 300; // No obstruction = full green line to edge
+
                 const scanPoint: RadarScanPoint = {
                   angle: angle,
-                  distance: currentDistance,
+                  distance: effectiveDistance,
                   timestamp: newData.time_ms,
                 };
 

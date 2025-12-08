@@ -1,6 +1,6 @@
 # Hardware Configuration
 
-This document provides complete hardware specifications, pin mappings, and wiring diagrams for the 4-Motor Independent PI Control System.
+This document provides complete hardware specifications, pin mappings, and wiring diagrams for the 5-Motor Independent PI Control System.
 
 ## Table of Contents
 
@@ -18,49 +18,57 @@ This document provides complete hardware specifications, pin mappings, and wirin
 
 | Component | Quantity | Notes |
 |-----------|----------|-------|
-| ESP32 Dev Module | 1 | Dual-core, 38 GPIO pins |
-| DC Motors | 4 | 6-12V rated |
-| H-Bridge Motor Drivers | 4 | L298N, TB6612, or similar |
-| Pressure Pad Sensors (FSR) | 4 | Analog output |
+| ESP32-S3 Dev Module | 1 | Dual-core, 45 GPIO pins |
+| DC Motors | 5 | 6-12V rated |
+| H-Bridge Motor Drivers | 5 | L298N, TB6612, or similar |
+| Pressure Pad Sensors (FSR) | 5 | Analog output |
 | TOF Distance Sensor | 1 | UART serial, 921600 baud |
 | Servo Motor | 1 | Standard hobby servo (e.g., SG90) |
 | CD74HC4067 Multiplexer | 1 | 16-channel analog MUX |
-| Pull-down Resistors | 4 | 10kΩ for pressure pads |
+| Potentiometers | 2 | For force and distance scaling |
+| Pull-down Resistors | 5 | 10kΩ for pressure pads |
 | Power Supply | 1-2 | 5V for logic, 6-12V for motors |
 
 ---
 
 ## Complete Pin Mapping
 
-### Motor Control Pins
+### Motor Control Pins (ESP32-S3)
 
 #### Motor 1
-| Pin Function | ESP32 GPIO | Description |
-|--------------|------------|-------------|
-| M1_PWM | GPIO 13 | PWM speed control (LEDC channel auto-assigned) |
-| M1_IN1 | GPIO 14 | H-bridge direction control 1 |
-| M1_IN2 | GPIO 12 | H-bridge direction control 2 |
+| Pin Function | ESP32-S3 GPIO | Description |
+|--------------|---------------|-------------|
+| M1_PWM | GPIO 14 | PWM speed control (LEDC channel auto-assigned) |
+| M1_IN1 | GPIO 13 | H-bridge direction control 1 |
+| M1_IN2 | GPIO 21 | H-bridge direction control 2 |
 
 #### Motor 2
-| Pin Function | ESP32 GPIO | Description |
-|--------------|------------|-------------|
-| M2_PWM | GPIO 25 | PWM speed control (LEDC channel auto-assigned) |
-| M2_IN1 | GPIO 27 | H-bridge direction control 1 |
-| M2_IN2 | GPIO 26 | H-bridge direction control 2 |
+| Pin Function | ESP32-S3 GPIO | Description |
+|--------------|---------------|-------------|
+| M2_PWM | GPIO 35 | PWM speed control (LEDC channel auto-assigned) |
+| M2_IN1 | GPIO 48 | H-bridge direction control 1 |
+| M2_IN2 | GPIO 47 | H-bridge direction control 2 |
 
 #### Motor 3
-| Pin Function | ESP32 GPIO | Description |
-|--------------|------------|-------------|
-| M3_PWM | GPIO 5 | PWM speed control (LEDC channel auto-assigned) |
-| M3_IN1 | GPIO 16 | H-bridge direction control 1 |
-| M3_IN2 | GPIO 17 | H-bridge direction control 2 |
+| Pin Function | ESP32-S3 GPIO | Description |
+|--------------|---------------|-------------|
+| M3_PWM | GPIO 36 | PWM speed control (LEDC channel auto-assigned) |
+| M3_IN1 | GPIO 37 | H-bridge direction control 1 |
+| M3_IN2 | GPIO 38 | H-bridge direction control 2 |
 
 #### Motor 4
-| Pin Function | ESP32 GPIO | Description |
-|--------------|------------|-------------|
-| M4_PWM | GPIO 15 | PWM speed control (LEDC channel auto-assigned) |
-| M4_IN1 | GPIO 4 | H-bridge direction control 1 |
-| M4_IN2 | GPIO 2 | H-bridge direction control 2 |
+| Pin Function | ESP32-S3 GPIO | Description |
+|--------------|---------------|-------------|
+| M4_PWM | GPIO 41 | PWM speed control (LEDC channel auto-assigned) |
+| M4_IN1 | GPIO 39 | H-bridge direction control 1 |
+| M4_IN2 | GPIO 40 | H-bridge direction control 2 |
+
+#### Motor 5
+| Pin Function | ESP32-S3 GPIO | Description |
+|--------------|---------------|-------------|
+| M5_PWM | GPIO 42 | PWM speed control (LEDC channel auto-assigned) |
+| M5_IN1 | GPIO 1 | H-bridge direction control 1 (swapped) |
+| M5_IN2 | GPIO 2 | H-bridge direction control 2 (swapped) |
 
 **PWM Configuration:**
 - Frequency: 20 kHz
@@ -69,15 +77,15 @@ This document provides complete hardware specifications, pin mappings, and wirin
 
 ---
 
-### TOF Sensor & Servo Pins
+### TOF Sensor & Servo Pins (ESP32-S3)
 
-| Pin Function | ESP32 GPIO | Description |
-|--------------|------------|-------------|
-| TOF_RX | GPIO 34 | Serial receive from TOF sensor (input-only pin)* |
-| TOF_TX | GPIO 18 | Serial transmit to TOF sensor |
-| SERVO_PWM | GPIO 22 | Servo control signal (PWM, uses Timer 2) |
+| Pin Function | ESP32-S3 GPIO | Description |
+|--------------|---------------|-------------|
+| TOF_RX | GPIO 10 | Serial receive from TOF sensor |
+| TOF_TX | GPIO 11 | Serial transmit to TOF sensor |
+| SERVO_PWM | GPIO 6 | Servo control signal (PWM, uses Timer 2) |
 
-**Note:** GPIO 34 is input-only on ESP32, perfect for RX. TOF TX pin connects to ESP32 RX (GPIO 34), TOF RX pin connects to ESP32 TX (GPIO 18).
+**Note:** TOF TX pin connects to ESP32-S3 RX (GPIO 10), TOF RX pin connects to ESP32-S3 TX (GPIO 11).
 
 **TOF Serial Configuration:**
 - Baud Rate: 921600
@@ -85,25 +93,31 @@ This document provides complete hardware specifications, pin mappings, and wirin
 - UART: Serial1 (UART1)
 
 **Servo Configuration:**
-- Sweep Range: 5° to 175° (4 sectors, configured in servo_config.h)
+- Sweep Range: 5° to 175° (5 sectors, configured in servo_config.h)
+  - Sector 1: 5° - 39° (Motor 1)
+  - Sector 2: 39° - 73° (Motor 2)
+  - Sector 3: 73° - 107° (Motor 3)
+  - Sector 4: 107° - 141° (Motor 4)
+  - Sector 5: 141° - 175° (Motor 5)
 - Step Size: 3° per movement
-- Settling Time: 80 ms per step
+- Settling Time: 10 ms per step
+- Reading Delay: 10 ms per step
 - PWM Timer: Timer 2 (separate from motor PWM to avoid conflicts)
 - Frequency: 50 Hz (standard servo)
 - Sweep Modes: Forward-only or Bidirectional (selectable)
 
 ---
 
-### Multiplexer Pins
+### Multiplexer Pins (ESP32-S3)
 
 #### Control Pins
-| Pin Function | ESP32 GPIO | Description |
-|--------------|------------|-------------|
-| MUX_S0 | GPIO 23 | Channel select bit 0 (LSB) |
-| MUX_S1 | GPIO 33 | Channel select bit 1 |
-| MUX_S2 | GPIO 32 | Channel select bit 2 |
-| MUX_S3 | GPIO 3 (RX0) | Channel select bit 3 (MSB) |
-| MUX_SIG | GPIO 35 | Analog signal input (ADC1_CH7) |
+| Pin Function | ESP32-S3 GPIO | Description |
+|--------------|---------------|-------------|
+| MUX_S0 | GPIO 17 | Channel select bit 0 (LSB) |
+| MUX_S1 | GPIO 16 | Channel select bit 1 |
+| MUX_S2 | GPIO 15 | Channel select bit 2 |
+| MUX_S3 | GPIO 7 | Channel select bit 3 (MSB) |
+| MUX_SIG | GPIO 4 | Analog signal input (ADC) |
 
 **Multiplexer Configuration:**
 - IC: CD74HC4067 (16-channel analog multiplexer)
@@ -114,13 +128,21 @@ This document provides complete hardware specifications, pin mappings, and wirin
 #### Pressure Pad Channel Assignments
 | Pressure Pad | MUX Channel | Notes |
 |--------------|-------------|-------|
-| Pressure Pad 1 | C1 | Motor 1 feedback |
-| Pressure Pad 2 | C2 | Motor 2 feedback |
+| Pressure Pad 1 | C5 | Motor 1 feedback |
+| Pressure Pad 2 | C4 | Motor 2 feedback |
 | Pressure Pad 3 | C3 | Motor 3 feedback |
-| Pressure Pad 4 | C6 | Motor 4 feedback |
+| Pressure Pad 4 | C2 | Motor 4 feedback |
+| Pressure Pad 5 | C1 | Motor 5 feedback |
+
+#### Potentiometer Channel Assignments
+| Potentiometer | MUX Channel | Function |
+|---------------|-------------|----------|
+| Potentiometer 1 | C12 | Force scaling (0.6-1.0) |
+| Potentiometer 2 | C14 | Distance scaling (0.5-1.5) |
 
 **Averaging:**
-- 8 samples per reading
+- 8 samples per pressure pad reading
+- 4 samples per potentiometer reading
 - 50 µs delay between samples
 
 ---
@@ -296,16 +318,17 @@ SIG │←─────────────│ ESP32 GPIO 22 (PWM)
 
 ## Component Specifications
 
-### ESP32 Dev Module
+### ESP32-S3 Dev Module
 
-- **Chip:** ESP32-WROOM-32
-- **Cores:** 2 (Xtensa LX6)
+- **Chip:** ESP32-S3
+- **Cores:** 2 (Xtensa LX7)
 - **Clock:** Up to 240 MHz
-- **GPIO:** 38 pins (some input-only)
-- **ADC:** 2× 12-bit SAR ADCs (18 channels)
-- **PWM:** 16× LEDC channels
+- **GPIO:** 45 pins (some input-only)
+- **ADC:** 2× 12-bit SAR ADCs (20 channels)
+- **PWM:** 8× LEDC channels (high-speed) + 8× (low-speed)
 - **UART:** 3× hardware serial ports
 - **Power:** 3.3V logic, 5V USB input
+- **USB:** Native USB OTG support
 
 ### DC Motors
 
@@ -365,14 +388,15 @@ SIG │←─────────────│ ESP32 GPIO 22 (PWM)
 
 | Component | Voltage | Current | Quantity | Total Current |
 |-----------|---------|---------|----------|---------------|
-| ESP32 | 3.3V | 240 mA | 1 | 240 mA |
+| ESP32-S3 | 3.3V | 300 mA | 1 | 300 mA |
 | Servo | 5V | 500 mA (stall) | 1 | 500 mA |
 | TOF Sensor | 5V | 50 mA | 1 | 50 mA |
 | Multiplexer | 5V | 1 mA | 1 | 1 mA |
-| Motors | 6-12V | 1-2A each | 4 | 4-8A |
+| Potentiometers | 3.3V | 5 mA | 2 | 10 mA |
+| Motors | 6-12V | 1-2A each | 5 | 5-10A |
 
-**Total 5V Rail:** ~800 mA (peak with servo stall)
-**Total Motor Rail:** 4-8A (depending on load)
+**Total 5V Rail:** ~850 mA (peak with servo stall)
+**Total Motor Rail:** 5-10A (depending on load)
 
 ### Recommended Power Setup
 
@@ -398,32 +422,35 @@ SIG │←─────────────│ ESP32 GPIO 22 (PWM)
 
 ---
 
-## GPIO Usage Summary
+## GPIO Usage Summary (ESP32-S3)
 
 | GPIO | Function | Type | Notes |
 |------|----------|------|-------|
-| 2 | M4_IN2 | Output | |
-| 3 | MUX_S3 | Output | RX0 pin |
-| 4 | M4_IN1 | Output | |
-| 5 | M3_PWM | Output | PWM channel |
-| 12 | M1_IN2 | Output | Boot config pin |
-| 13 | M1_PWM | Output | PWM channel |
-| 14 | M1_IN1 | Output | |
-| 15 | M4_PWM | Output | PWM channel, Boot config pin |
-| 16 | M3_IN1 | Output | |
-| 17 | M3_IN2 | Output | |
-| 18 | TOF_TX | Output | Serial1 TX |
-| 22 | Servo PWM | Output | Timer 2 |
-| 23 | MUX_S0 | Output | |
-| 25 | M2_PWM | Output | PWM channel |
-| 26 | M2_IN2 | Output | |
-| 27 | M2_IN1 | Output | |
-| 32 | MUX_S2 | Output | |
-| 33 | MUX_S1 | Output | |
-| 34 | TOF_RX | Input-only | Serial1 RX |
-| 35 | MUX_SIG | Input-only | ADC1_CH7 |
+| 1 | M5_IN1 | Output | Motor 5 direction (swapped) |
+| 2 | M5_IN2 | Output | Motor 5 direction (swapped) |
+| 4 | MUX_SIG | Input | ADC analog input |
+| 6 | Servo PWM | Output | Timer 2 |
+| 7 | MUX_S3 | Output | Multiplexer select bit 3 |
+| 10 | TOF_RX | Input | Serial1 RX |
+| 11 | TOF_TX | Output | Serial1 TX |
+| 13 | M1_IN1 | Output | Motor 1 direction |
+| 14 | M1_PWM | Output | PWM channel |
+| 15 | MUX_S2 | Output | Multiplexer select bit 2 |
+| 16 | MUX_S1 | Output | Multiplexer select bit 1 |
+| 17 | MUX_S0 | Output | Multiplexer select bit 0 |
+| 21 | M1_IN2 | Output | Motor 1 direction |
+| 35 | M2_PWM | Output | PWM channel |
+| 36 | M3_PWM | Output | PWM channel |
+| 37 | M3_IN1 | Output | Motor 3 direction |
+| 38 | M3_IN2 | Output | Motor 3 direction |
+| 39 | M4_IN1 | Output | Motor 4 direction |
+| 40 | M4_IN2 | Output | Motor 4 direction |
+| 41 | M4_PWM | Output | PWM channel |
+| 42 | M5_PWM | Output | PWM channel |
+| 47 | M2_IN2 | Output | Motor 2 direction |
+| 48 | M2_IN1 | Output | Motor 2 direction |
 
-**Total GPIOs Used:** 19 pins
+**Total GPIOs Used:** 23 pins
 
 ---
 

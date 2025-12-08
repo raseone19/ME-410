@@ -96,7 +96,7 @@ Edit `.env.local` to configure your setup:
 pnpm run list-ports
 
 # Then set it in .env.local
-SERIAL_PORT=/dev/cu.usbserial-10  # Use your actual port
+SERIAL_PORT=/dev/cu.usbserial-110  # Use your actual port
 ```
 
 ### Step 7: Run the Dashboard

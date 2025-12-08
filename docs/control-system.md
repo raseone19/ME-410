@@ -1,6 +1,6 @@
 # Control System Design
 
-This document explains the PI (Proportional-Integral) control system, dynamic setpoint calculation, and tuning procedures for the 4-motor control system.
+This document explains the PI (Proportional-Integral) control system, dynamic setpoint calculation, and tuning procedures for the 5-motor control system.
 
 ## Table of Contents
 
@@ -15,51 +15,45 @@ This document explains the PI (Proportional-Integral) control system, dynamic se
 
 ## Control System Overview
 
-The system uses **4 independent PI controllers**, one for each motor-actuator pair. All controllers share the same dynamic setpoint calculated from the TOF sensor distance.
+The system uses **5 independent PI controllers**, one for each motor-actuator pair. Each motor uses the minimum distance from its corresponding servo sweep sector to calculate its own dynamic setpoint. Pressure values are normalized to 0-100% based on calibrated prestress (0%) and maxstress×0.95 (100%).
 
 ```mermaid
 graph TD
-    subgraph "Setpoint Calculation"
-        TOF[TOF Min Distance] --> Range[Classify Range]
-        Range --> Setpoint[Dynamic Setpoint]
+    subgraph "Sector-Based Setpoint Calculation"
+        TOF1[Sector 1 Min Distance] --> Range1[Classify Range]
+        TOF2[Sector 2 Min Distance] --> Range2[Classify Range]
+        TOF3[Sector 3 Min Distance] --> Range3[Classify Range]
+        TOF4[Sector 4 Min Distance] --> Range4[Classify Range]
+        TOF5[Sector 5 Min Distance] --> Range5[Classify Range]
+        Range1 --> Setpoint1[Setpoint 1 %]
+        Range2 --> Setpoint2[Setpoint 2 %]
+        Range3 --> Setpoint3[Setpoint 3 %]
+        Range4 --> Setpoint4[Setpoint 4 %]
+        Range5 --> Setpoint5[Setpoint 5 %]
     end
 
     subgraph "Motor 1 Control Loop"
-        Setpoint --> E1[Error 1]
-        PP1[Pressure Pad 1] --> E1
+        Setpoint1 --> E1[Error 1]
+        PP1[Pressure Pad 1<br/>Normalized 0-100%] --> E1
         E1 --> PI1[PI Controller 1]
         PI1 --> M1[Motor 1]
         M1 --> PP1
     end
 
-    subgraph "Motor 2 Control Loop"
-        Setpoint --> E2[Error 2]
-        PP2[Pressure Pad 2] --> E2
-        E2 --> PI2[PI Controller 2]
-        PI2 --> M2[Motor 2]
-        M2 --> PP2
-    end
-
-    subgraph "Motor 3 Control Loop"
-        Setpoint --> E3[Error 3]
-        PP3[Pressure Pad 3] --> E3
-        E3 --> PI3[PI Controller 3]
-        PI3 --> M3[Motor 3]
-        M3 --> PP3
-    end
-
-    subgraph "Motor 4 Control Loop"
-        Setpoint --> E4[Error 4]
-        PP4[Pressure Pad 4] --> E4
-        E4 --> PI4[PI Controller 4]
-        PI4 --> M4[Motor 4]
-        M4 --> PP4
+    subgraph "Motor 5 Control Loop"
+        Setpoint5 --> E5[Error 5]
+        PP5[Pressure Pad 5<br/>Normalized 0-100%] --> E5
+        E5 --> PI5[PI Controller 5]
+        PI5 --> M5[Motor 5]
+        M5 --> PP5
     end
 ```
 
 **Key Features:**
-- **Independent Control**: Each motor has its own integrator state
-- **Shared Setpoint**: All motors target the same pressure (calculated from TOF distance)
+- **Independent Control**: Each motor has its own integrator state and sector-based setpoint
+- **Sector-Based Setpoints**: Each motor uses its corresponding servo sweep sector's minimum distance
+- **Normalized Pressure**: All pressure values are normalized to 0-100% based on calibration
+- **Potentiometer Scaling**: Force scale (0.6-1.0) and distance scale (0.5-1.5) adjustable via potentiometers
 - **Fixed Frequency**: 50 Hz control loop for deterministic behavior
 
 ---
@@ -125,14 +119,16 @@ The setpoint is **not constant**—it adapts based on the TOF sensor's measured 
 
 ### Distance Ranges
 
-The system defines three operating ranges:
+The system defines three operating ranges with **dynamic thresholds** adjustable via potentiometer 2 (distance scale 0.5-1.5):
 
-| Range | Distance (cm) | Setpoint (mV) | Behavior |
-|-------|---------------|---------------|----------|
-| **CLOSE** | 50 - 100 | 1500 mV (fixed) | High pressure for strong contact |
-| **MEDIUM** | 100 - 200 | 700 mV (fixed) | Moderate pressure |
-| **FAR** | 200 - 300 | 550 mV (fixed baseline + offset) | Gentle touch, uses fixed 500mV baseline + 50mV offset |
-| **OUT OF BOUNDS** | < 50 or > 300 | Invalid | Triggers safety reversal |
+| Range | Base Distance (cm) | Scaled Range | Setpoint (%) | Behavior |
+|-------|-------------------|--------------|--------------|----------|
+| **CLOSE** | 0 - 100 | 75 - 125 cm | High (fixed) | High pressure for strong contact |
+| **MEDIUM** | 100 - 200 | 125 - 275 cm | Medium (fixed) | Moderate pressure |
+| **FAR** | 200 - 300 | 150 - 450 cm | Low (baseline + offset) | Gentle touch |
+| **OUT OF BOUNDS** | < 0 or > max | Varies | Invalid | Triggers safety reversal |
+
+**Note:** All distance thresholds are multiplied by the distance scale factor from potentiometer 2. The force scale from potentiometer 1 affects the setpoint magnitude.
 
 ### Setpoint Calculation Logic
 
@@ -343,7 +339,7 @@ stateDiagram-v2
 
 #### 1. NORMAL_OPERATION
 
-- **Behavior:** PI control active for all 4 motors
+- **Behavior:** PI control active for all 5 motors
 - **Transition:** If distance < 50 cm or > 300 cm → `OUT_OF_RANGE_REVERSING`
 
 #### 2. OUT_OF_RANGE_REVERSING
@@ -470,11 +466,14 @@ Poor performance (needs tuning):
 
 ## Summary
 
-The 4-motor control system uses well-tuned PI controllers with:
+The 5-motor control system uses well-tuned PI controllers with:
 - **Kp = 0.15** for fast response
 - **Ki = 0.60** for zero steady-state error
 - **Anti-windup** to prevent integrator saturation
-- **Dynamic setpoint** based on TOF distance
-- **State machine** for safe out-of-range handling
+- **Normalized pressure values** (0-100%) based on calibration
+- **Sector-based dynamic setpoints** from TOF distance (each motor has its own sector)
+- **Potentiometer scaling** for force (0.6-1.0) and distance (0.5-1.5)
+- **Dynamic distance thresholds** adjustable in real-time
+- **State machine** for safe out-of-range handling (per motor)
 
-This design provides robust, stable control across varying distances and loads.
+This design provides robust, stable control across varying distances and loads with real-time adjustability via potentiometers.

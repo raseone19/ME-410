@@ -21,8 +21,8 @@ The ESP32 microcontroller features two Xtensa LX6 cores running at up to 240 MHz
 
 | Core | Tasks | Purpose |
 |------|-------|---------|
-| **Core 0** | Servo Sweep Task, Serial Print Task | Data acquisition and logging |
-| **Core 1** | Main Loop (default Arduino loop) | Real-time PI control |
+| **Core 0** | Servo Sweep Task (5 sectors), Serial Print Task (115-byte binary) | Data acquisition and logging |
+| **Core 1** | Main Loop (default Arduino loop) | Real-time PI control for 5 motors |
 
 ```mermaid
 graph TB
@@ -38,14 +38,16 @@ graph TB
 
         subgraph "Shared Memory"
             Mutex[Mutex:<br/>distanceMutex]
-            Var1[shared_min_distance<br/>Array of 4]
-            Var2[shared_best_angle<br/>Array of 4]
-            Var3[shared_setpoints_mv<br/>Array of 4]
-            Var4[shared_pressure_pads_mv<br/>Array of 4]
-            Var5[shared_duty_cycles<br/>Array of 4]
-            Var6[shared_tof_distances<br/>Array of 4]
+            Var1[shared_min_distance<br/>Array of 5]
+            Var2[shared_best_angle<br/>Array of 5]
+            Var3[shared_setpoints_pct<br/>Array of 5<br/>Normalized 0-100%]
+            Var4[shared_pressure_pct<br/>Array of 5<br/>Normalized 0-100%]
+            Var5[shared_duty_cycles<br/>Array of 5]
+            Var6[shared_tof_distances<br/>Array of 5]
             Var7[shared_servo_angle]
             Var8[shared_tof_current]
+            Var9[shared_force_scale<br/>shared_distance_scale]
+            Var10[Dynamic Thresholds<br/>close/medium/far]
         end
 
         Task1 -->|Write| Mutex
@@ -110,8 +112,13 @@ xTaskCreatePinnedToCore(
   - SWEEP_MODE_FORWARD: Continuous forward sweep (5°→175°, reset)
   - SWEEP_MODE_BIDIRECTIONAL: Forward and backward sweep (5°→175°→5°)
 - Read TOF distance at each angle
-- Track minimum distance for each of 4 sectors (5-45°, 45-90°, 90-135°, 135-175°)
-- Update `shared_min_distance[4]` and `shared_best_angle[4]` (mutex-protected) when each sector completes
+- Track minimum distance for each of 5 sectors:
+  - Sector 1: 5° - 39° (Motor 1)
+  - Sector 2: 39° - 73° (Motor 2)
+  - Sector 3: 73° - 107° (Motor 3)
+  - Sector 4: 107° - 141° (Motor 4)
+  - Sector 5: 141° - 175° (Motor 5)
+- Update `shared_min_distance[5]` and `shared_best_angle[5]` (mutex-protected) when each sector completes
 - Handle sector completion correctly when SERVO_STEP doesn't align with sector boundaries
 - Update `shared_servo_angle` and `shared_tof_current` for live radar display
 
@@ -184,9 +191,9 @@ flowchart TD
 
 **Responsibilities:**
 - Read minimum distance from Core 0 (mutex-protected)
-- Read 4 pressure pads via multiplexer
+- Read 5 pressure pads via multiplexer
 - Calculate dynamic setpoint
-- Execute 4 PI controllers
+- Execute 5 PI controllers
 - Update motors
 - Write shared variables for logging
 
@@ -201,16 +208,17 @@ These variables are written by Core 0 (servo sweep task) and read by Core 1 (mai
 ```cpp
 // Declared in tof_sensor.cpp
 SemaphoreHandle_t distanceMutex = NULL;
-volatile float shared_min_distance[4] = {999.0f, 999.0f, 999.0f, 999.0f};
-volatile int shared_best_angle[4] = {SERVO_MIN_ANGLE, SERVO_MIN_ANGLE, SERVO_MIN_ANGLE, SERVO_MIN_ANGLE};
+volatile float shared_min_distance[5] = {999.0f, 999.0f, 999.0f, 999.0f, 999.0f};
+volatile int shared_best_angle[5] = {SERVO_MIN_ANGLE, ...};
 volatile bool sweep_active = false;
 ```
 
 **Sector Definitions (from servo_config.h):**
-- Sector 0 (Motor 1): 5° - 45°
-- Sector 1 (Motor 2): 45° - 90°
-- Sector 2 (Motor 3): 90° - 135°
-- Sector 3 (Motor 4): 135° - 175°
+- Sector 1 (Motor 1): 5° - 39° (34° range)
+- Sector 2 (Motor 2): 39° - 73° (34° range)
+- Sector 3 (Motor 3): 73° - 107° (34° range)
+- Sector 4 (Motor 4): 107° - 141° (34° range)
+- Sector 5 (Motor 5): 141° - 175° (34° range)
 
 **Access Pattern:**
 
@@ -244,10 +252,19 @@ These variables are written by Core 1 and read by Core 0 (serial print task):
 
 ```cpp
 // Declared in core0_tasks.cpp
-volatile float shared_setpoint_mv = 0.0f;
-volatile uint16_t shared_pressure_pads_mv[4] = {0};
-volatile float shared_duty_cycles[4] = {0.0f};
-volatile float shared_tof_distance = 0.0f;
+volatile float shared_setpoints_pct[5] = {0.0f, ...};  // Normalized setpoints (0-100%)
+volatile float shared_pressure_pct[5] = {0.0f, ...};   // Normalized pressure (0-100%)
+volatile float shared_duty_cycles[5] = {0.0f, ...};
+volatile float shared_tof_distances[5] = {0.0f, ...};  // One per motor sector
+
+// Potentiometer scale values
+volatile float shared_force_scale = 1.0f;       // Force scale (0.6-1.0)
+volatile float shared_distance_scale = 1.0f;    // Distance scale (0.5-1.5)
+
+// Dynamic distance thresholds
+volatile float shared_dist_close_max = 100.0f;  // CLOSE/MEDIUM boundary
+volatile float shared_dist_medium_max = 200.0f; // MEDIUM/FAR boundary
+volatile float shared_dist_far_max = 300.0f;    // FAR/OUT boundary
 ```
 
 **Why no mutex here?**
@@ -261,24 +278,32 @@ volatile float shared_tof_distance = 0.0f;
 **Core 1 (Writer):**
 ```cpp
 // Main loop - no mutex needed
-shared_setpoint_mv = current_setpoint_mv;
 for (int i = 0; i < NUM_MOTORS; ++i) {
-    shared_pressure_pads_mv[i] = pressure_pads_mv[i];
+    shared_setpoints_pct[i] = setpoints_pct[i];
+    shared_pressure_pct[i] = pressure_pct[i];
     shared_duty_cycles[i] = duty_cycles[i];
+    shared_tof_distances[i] = min_distance_cm[i];
 }
-shared_tof_distance = min_distance_cm;
+// Also write scale values and thresholds
+shared_force_scale = force_scale;
+shared_distance_scale = distance_scale;
 ```
 
 **Core 0 (Reader):**
 ```cpp
 // Serial print task - no mutex needed
-float setpoint = shared_setpoint_mv;
-uint16_t pp_mv[NUM_MOTORS];
+float setpoints[NUM_MOTORS];
+float pp_pct[NUM_MOTORS];
 float duty[NUM_MOTORS];
+float tof_dist[NUM_MOTORS];
 for (int i = 0; i < NUM_MOTORS; ++i) {
-    pp_mv[i] = shared_pressure_pads_mv[i];
+    setpoints[i] = shared_setpoints_pct[i];
+    pp_pct[i] = shared_pressure_pct[i];
     duty[i] = shared_duty_cycles[i];
+    tof_dist[i] = shared_tof_distances[i];
 }
+float force_scale = shared_force_scale;
+float distance_scale = shared_distance_scale;
 ```
 
 ---
@@ -595,17 +620,27 @@ float dist = getMinDistance();  // Clean and safe
 ## Summary
 
 The dual-core architecture provides:
-- **Core 0:** Background tasks (servo sweep, logging) with FreeRTOS scheduling
-- **Core 1:** Real-time PI control at deterministic 50 Hz
+- **Core 0:** Background tasks (servo sweep across 5 sectors, binary/CSV logging) with FreeRTOS scheduling
+- **Core 1:** Real-time PI control at deterministic 50 Hz for 5 independent motors
 
 **Key synchronization mechanisms:**
-- **Mutex** for TOF distance variables (critical data)
-- **Volatile** for logging variables (non-critical, single writer)
+- **Mutex** for TOF distance variables (critical data, 5 sectors)
+- **Volatile** for logging variables (non-critical, single writer):
+  - Normalized pressure values (0-100%)
+  - Sector-based setpoints (0-100%)
+  - Potentiometer scale values
+  - Dynamic distance thresholds
 - **Wrapper functions** for clean, encapsulated access
 
+**Binary Protocol:**
+- 115-byte packets with CRC-16 error detection
+- Includes all 5 motor data, scale values, and dynamic thresholds
+- 3-5x faster parsing than CSV format
+
 This design ensures:
-- Thread-safe data access
+- Thread-safe data access across 5 independent control loops
 - Deterministic control loop timing
 - Efficient resource utilization
+- Real-time adjustability via potentiometers
 
 **Golden Rule:** When in doubt, use a mutex. It's better to be safe than debug race conditions!

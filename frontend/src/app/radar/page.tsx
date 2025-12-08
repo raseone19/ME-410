@@ -12,6 +12,8 @@ import { PerformanceMonitor } from '@/components/debug/PerformanceMonitor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadarChart } from '@/components/radar/RadarChart';
 import { RadarStats } from '@/components/radar/RadarStats';
+import { ActiveSensor, getActiveSensorName } from '@/lib/types';
+import { Badge } from '@/components/ui/badge';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -146,11 +148,22 @@ export default function RadarPage() {
           {/* Page Title */}
           <div className="max-w-7xl mx-auto">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              TOF Radar Visualization
+              Radar Visualization
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground">
               Real-time object detection across 4 sectors ({servoMinAngle}°-{servoMaxAngle}° sweep)
             </p>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-sm text-muted-foreground">Active Sensor:</span>
+              <Badge variant={
+                currentData?.active_sensor === ActiveSensor.TOF ? 'default' :
+                currentData?.active_sensor === ActiveSensor.ULTRASONIC ? 'secondary' :
+                currentData?.active_sensor === ActiveSensor.BOTH_EQUAL ? 'outline' :
+                'destructive'
+              }>
+                {getActiveSensorName(currentData?.active_sensor ?? ActiveSensor.NONE)}
+              </Badge>
+            </div>
           </div>
 
         {/* Header with Controls */}
@@ -195,7 +208,7 @@ export default function RadarPage() {
           {[1, 2, 3, 4].map((motor) => {
             const sector = sectors[motor - 1];
             const distance = currentData?.[`tof${motor}_cm` as keyof typeof currentData] as number ?? 0;
-            const pressure = currentData?.[`pp${motor}_mv` as keyof typeof currentData] as number ?? 0;
+            const pressure = currentData?.[`pp${motor}_pct` as keyof typeof currentData] as number ?? 0;
             const duty = currentData?.[`duty${motor}_pct` as keyof typeof currentData] as number ?? 0;
 
             return (
@@ -215,7 +228,7 @@ export default function RadarPage() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Pressure</span>
                     <span className="font-mono font-bold">
-                      {pressure.toFixed(0)} mV
+                      {pressure.toFixed(1)}%
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">

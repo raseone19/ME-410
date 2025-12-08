@@ -5,7 +5,7 @@ const int ANGLE_INCREMENT = 20;      // Angle increment for servo sweep (degrees
 const int MEASURE_DELAY =10 ;       // Delay at each position for sensor reading (ms)
 const int MOVE_DELAY = 5;           // Delay between servo movements (ms)
 const int SERVO_PIN = 5;             // Servo motor pin
-const int ULTRASONIC_PIN = 32;       // Ultrasonic sensor pin (ADC-capable)
+
 const int TOF_RX_PIN = 16;           // TOF sensor RX pin (adjust as needed)
 const int TOF_TX_PIN = 17;           // TOF sensor TX pin (adjust as needed)
 const unsigned long TOF_BAUDRATE = 921600;  // TOF sensor baudrate
@@ -244,9 +244,9 @@ void performSweep() {
         Serial.println("\n========== SWEEP COMPLETE ==========\n");
     }
     
-    // Regresar explícitamente a 0° al final del ciclo
+    // Explicitly return to 0° at the end of the cycle
     motorServo.write(0);
-    delay(1000);  // Esperar que llegue a 0° antes del siguiente barrido
+    delay(1000);  // Wait for it to reach 0° before the next sweep
 }
 
 // ========== ARDUINO SETUP ==========
@@ -281,9 +281,9 @@ void setup() {
         Serial.println("Moving to initial position (0°)...");
     }
     
-    // Asegurar que el servo esté en 0° antes de empezar
+    // Ensure the servo is at 0° before starting
     motorServo.write(0);
-    delay(2000);  // Esperar 2 segundos para que llegue a 0°
+    delay(2000);  // Wait 2 seconds for it to reach 0°
     
     if (!CSV_MODE) {
         Serial.println("Servo at 0° - Ready to start");

@@ -14,7 +14,7 @@
 **Result:** ✅ PASS
 
 ```
-Device: /dev/cu.usbserial-10
+Device: /dev/cu.usbserial-110
 Manufacturer: Silicon Labs
 Serial Number: faa3c9012872f01196b9fd9e1045c30f
 ```

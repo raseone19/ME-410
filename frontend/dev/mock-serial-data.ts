@@ -6,16 +6,28 @@
 
 export interface MotorData {
   time_ms: number;
-  setpoint_mv: number;
-  pp1_mv: number;
-  pp2_mv: number;
-  pp3_mv: number;
-  pp4_mv: number;
+  sp1_pct: number;
+  sp2_pct: number;
+  sp3_pct: number;
+  sp4_pct: number;
+  sp5_pct: number;
+  pp1_pct: number;
+  pp2_pct: number;
+  pp3_pct: number;
+  pp4_pct: number;
+  pp5_pct: number;
   duty1_pct: number;
   duty2_pct: number;
   duty3_pct: number;
   duty4_pct: number;
-  tof_dist_cm: number;
+  duty5_pct: number;
+  tof1_cm: number;
+  tof2_cm: number;
+  tof3_cm: number;
+  tof4_cm: number;
+  tof5_cm: number;
+  servo_angle: number;
+  tof_current_cm: number;
 }
 
 // Import backend config loader
@@ -128,16 +140,28 @@ export function generateDataPoint(): MotorData {
 
   return {
     time_ms: currentTime,
-    setpoint_mv: parseFloat(setpoint.toFixed(1)),
-    pp1_mv: pressures[0],
-    pp2_mv: pressures[1],
-    pp3_mv: pressures[2],
-    pp4_mv: pressures[3],
+    sp1_pct: parseFloat(setpoint.toFixed(1)),
+    sp2_pct: parseFloat(setpoint.toFixed(1)),
+    sp3_pct: parseFloat(setpoint.toFixed(1)),
+    sp4_pct: parseFloat(setpoint.toFixed(1)),
+    sp5_pct: parseFloat(setpoint.toFixed(1)),
+    pp1_pct: parseFloat(pressures[0].toFixed(1)),
+    pp2_pct: parseFloat(pressures[1].toFixed(1)),
+    pp3_pct: parseFloat(pressures[2].toFixed(1)),
+    pp4_pct: parseFloat(pressures[3].toFixed(1)),
+    pp5_pct: parseFloat(pressures[3].toFixed(1)),
     duty1_pct: parseFloat(dutyCycles[0].toFixed(2)),
     duty2_pct: parseFloat(dutyCycles[1].toFixed(2)),
     duty3_pct: parseFloat(dutyCycles[2].toFixed(2)),
     duty4_pct: parseFloat(dutyCycles[3].toFixed(2)),
-    tof_dist_cm: parseFloat(measuredTOF.toFixed(2)),
+    duty5_pct: parseFloat(dutyCycles[3].toFixed(2)),
+    tof1_cm: parseFloat(measuredTOF.toFixed(2)),
+    tof2_cm: parseFloat(measuredTOF.toFixed(2)),
+    tof3_cm: parseFloat(measuredTOF.toFixed(2)),
+    tof4_cm: parseFloat(measuredTOF.toFixed(2)),
+    tof5_cm: parseFloat(measuredTOF.toFixed(2)),
+    servo_angle: 0,
+    tof_current_cm: parseFloat(measuredTOF.toFixed(2)),
   };
 }
 
@@ -145,7 +169,7 @@ export function generateDataPoint(): MotorData {
  * Convert data point to CSV format (matching ESP32 output)
  */
 export function dataToCSV(data: MotorData): string {
-  return `${data.time_ms},${data.setpoint_mv},${data.pp1_mv},${data.pp2_mv},${data.pp3_mv},${data.pp4_mv},${data.duty1_pct},${data.duty2_pct},${data.duty3_pct},${data.duty4_pct},${data.tof_dist_cm}`;
+  return `${data.time_ms},${data.sp1_pct},${data.pp1_pct},${data.pp2_pct},${data.pp3_pct},${data.pp4_pct},${data.pp5_pct},${data.duty1_pct},${data.duty2_pct},${data.duty3_pct},${data.duty4_pct},${data.duty5_pct},${data.tof_current_cm}`;
 }
 
 /**

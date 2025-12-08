@@ -154,7 +154,7 @@ STATUS:SWEEP:ENABLED:5:175:5
 
 3. **Automatic sweep mode** when enabled:
    - Uses runtime variables (min, max, step, settle, delay)
-   - Maintains sector tracking for 4 motors
+   - Maintains sector tracking for 5 motors
    - Compatible with FORWARD and BIDIRECTIONAL modes
 
 **Pseudocode:**
@@ -385,12 +385,12 @@ void loop() {
    ```
    Output example:
    ```
-   /dev/cu.usbserial-10
+   /dev/cu.usbserial-110
    ```
 
 3. **Set serial port** in `.env.local`:
    ```bash
-   SERIAL_PORT=/dev/cu.usbserial-10
+   SERIAL_PORT=/dev/cu.usbserial-110
    ```
 
 4. **Start full system**:

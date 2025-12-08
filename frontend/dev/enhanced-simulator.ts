@@ -4,7 +4,7 @@
  * Includes multiple test scenarios and realistic PI controller behavior
  */
 
-import { MotorData } from '../src/lib/types';
+import { MotorData, ActiveSensor } from '../src/lib/types';
 import {
   SimulatorConfig,
   DEFAULT_CONFIG,
@@ -45,7 +45,7 @@ export class EnhancedSimulator {
       tofDirection: 1,
       servoAngle: 0,
       servoDirection: 1,
-      currentPressures: [600, 600, 600, 600, 600],
+      currentPressures: [30, 30, 30, 30, 30],  // Now in percentage (0-100%)
       integralErrors: [0, 0, 0, 0, 0],
       sectorDistances: [100, 100, 100, 100, 100],
       stepTimer: 0,
@@ -64,7 +64,7 @@ export class EnhancedSimulator {
       tofDirection: 1,
       servoAngle: 0,
       servoDirection: 1,
-      currentPressures: [600, 600, 600, 600, 600],
+      currentPressures: [30, 30, 30, 30, 30],  // Now in percentage (0-100%)
       integralErrors: [0, 0, 0, 0, 0],
       sectorDistances: [100, 100, 100, 100, 100],
       stepTimer: 0,
@@ -317,19 +317,19 @@ export class EnhancedSimulator {
       Math.min(300, this.state.tofDistance + this.addNoise(tofNoise))
     );
 
-    // Build data point
+    // Build data point - all pressure/setpoint values are now in percentage (0-100%)
     const data: MotorData = {
       time_ms: Math.round(this.state.time_ms),
-      sp1_mv: parseFloat(setpoints[0].toFixed(1)),
-      sp2_mv: parseFloat(setpoints[1].toFixed(1)),
-      sp3_mv: parseFloat(setpoints[2].toFixed(1)),
-      sp4_mv: parseFloat(setpoints[3].toFixed(1)),
-      sp5_mv: parseFloat(setpoints[4].toFixed(1)),
-      pp1_mv: pressures[0],
-      pp2_mv: pressures[1],
-      pp3_mv: pressures[2],
-      pp4_mv: pressures[3],
-      pp5_mv: pressures[4],
+      sp1_pct: parseFloat(setpoints[0].toFixed(1)),
+      sp2_pct: parseFloat(setpoints[1].toFixed(1)),
+      sp3_pct: parseFloat(setpoints[2].toFixed(1)),
+      sp4_pct: parseFloat(setpoints[3].toFixed(1)),
+      sp5_pct: parseFloat(setpoints[4].toFixed(1)),
+      pp1_pct: parseFloat(pressures[0].toFixed(1)),
+      pp2_pct: parseFloat(pressures[1].toFixed(1)),
+      pp3_pct: parseFloat(pressures[2].toFixed(1)),
+      pp4_pct: parseFloat(pressures[3].toFixed(1)),
+      pp5_pct: parseFloat(pressures[4].toFixed(1)),
       duty1_pct: parseFloat(dutyCycles[0].toFixed(2)),
       duty2_pct: parseFloat(dutyCycles[1].toFixed(2)),
       duty3_pct: parseFloat(dutyCycles[2].toFixed(2)),
@@ -342,6 +342,14 @@ export class EnhancedSimulator {
       tof5_cm: parseFloat(this.state.sectorDistances[4].toFixed(2)),
       servo_angle: Math.round(this.state.servoAngle),
       tof_current_cm: parseFloat(tof_current_cm.toFixed(2)),
+      active_sensor: ActiveSensor.TOF,  // Simulator always uses TOF
+      // Simulated potentiometer values (fixed at reference values)
+      force_scale: 1.0,  // 100% force
+      distance_scale: 1.0,  // Reference distance scale
+      // Simulated distance thresholds (at scale = 1.0)
+      dist_close_max: 100,
+      dist_medium_max: 200,
+      dist_far_max: 300,
     };
 
     return data;

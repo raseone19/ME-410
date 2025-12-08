@@ -73,19 +73,20 @@ These are **safe to use** for motors, sensors, and other peripherals:
 
 ## Current Pin Mapping
 
-### Motor System (4 Motors)
+### Motor System (5 Motors)
 
 | Motor | PWM Pin | IN1 Pin | IN2 Pin | Notes |
 |-------|---------|---------|---------|-------|
-| **Motor 1** | GPIO 5 | GPIO 21 | GPIO 14 | Changed from 19/20 for USB compatibility |
-| **Motor 2** | GPIO 35 | GPIO 47 | GPIO 48 | Safe pins |
-| **Motor 3** | GPIO 36 | GPIO 38 | GPIO 37 | Safe pins |
+| **Motor 1** | GPIO 14 | GPIO 13 | GPIO 21 | Changed from 19/20 for USB compatibility |
+| **Motor 2** | GPIO 35 | GPIO 48 | GPIO 47 | Safe pins |
+| **Motor 3** | GPIO 36 | GPIO 37 | GPIO 38 | Safe pins |
 | **Motor 4** | GPIO 41 | GPIO 39 | GPIO 40 | Safe pins |
+| **Motor 5** | GPIO 42 | GPIO 1 | GPIO 2 | IN1/IN2 swapped to correct direction |
 
 **PWM Configuration:**
 - Frequency: 20 kHz
 - Resolution: 10-bit (0-1023)
-- Channels: Auto-assigned (0-3)
+- Channels: Auto-assigned (0-4)
 
 ---
 
@@ -111,19 +112,24 @@ These are **safe to use** for motors, sensors, and other peripherals:
 
 | Function | GPIO | Notes |
 |----------|------|-------|
-| **MUX S0** | GPIO 18 | Channel select bit 0 |
-| **MUX S1** | GPIO 17 | Channel select bit 1 |
-| **MUX S2** | GPIO 16 | Channel select bit 2 |
-| **MUX S3** | GPIO 15 | Channel select bit 3 |
-| **MUX SIG** | GPIO 4 | ADC input (ADC1_CH3) |
+| **MUX S0** | GPIO 17 | Channel select bit 0 |
+| **MUX S1** | GPIO 16 | Channel select bit 1 |
+| **MUX S2** | GPIO 15 | Channel select bit 2 |
+| **MUX S3** | GPIO 7 | Channel select bit 3 |
+| **MUX SIG** | GPIO 4 | ADC input |
 
 **Multiplexer Type:** CD74HC4067 (16-channel analog)
 
 **Pressure Pad Channels:**
-- Pad 1 → Channel 0
-- Pad 2 → Channel 2
-- Pad 3 → Channel 4
-- Pad 4 → Channel 6
+- Pad 1 → Channel 5
+- Pad 2 → Channel 4
+- Pad 3 → Channel 3
+- Pad 4 → Channel 2
+- Pad 5 → Channel 1
+
+**Potentiometer Channels:**
+- Potentiometer 1 (Force Scale) → Channel 12
+- Potentiometer 2 (Distance Scale) → Channel 14
 
 ---
 

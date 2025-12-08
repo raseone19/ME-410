@@ -1,0 +1,605 @@
+#include <Arduino.h>
+
+// ================================================================================
+// FIXED VERSION - Motor now properly stabilizes at setpoint
+//
+// ROOT CAUSE OF "NEVER STABILIZES" BUG:
+// - Kp was 0.08, meaning ANY error > 12.5mV gave FULL output (saturated!)
+// - softFactor reduced motor command, but max(MIN_MOTOR_PWM) forced it back up
+// - Result: motor always ran at high PWM even near target
+//
+// KEY FIXES:
+// 1. Kp: 0.08 -> 0.002 (now 500mV error = full output, 100mV = 20%)
+// 2. Ki: 0.25 -> 0.008 (slower integral prevents overshoot)
+// 3. Removed broken softFactor logic, replaced with OUTPUT_STOP_THRESHOLD
+// 4. Integrator decay in deadband (prevents windup when stopped)
+// 5. Cleaner motor command scaling without the max(MIN_MOTOR_PWM) bug
+// 6. Fixed race condition on modeChanged flag (atomic counter)
+// 7. Optimized sensor reads to control frequency only
+// ================================================================================
+
+// -------------------- PINS --------------------
+
+// MX1616H - Channel 1 pins
+constexpr uint8_t M1_INA = 18;  // H-bridge INA1
+constexpr uint8_t M1_INB = 19;  // H-bridge INB1
+
+// FSR (pressure pad) pin
+constexpr uint8_t PP_PIN = 35;  // ADC input for FSR
+
+// Potentiometer pin
+constexpr uint8_t POT_PIN = 34;  // ADC input for potentiometer
+
+// Button: 1 leg -> 3V3, 1 leg -> BUTTON_PIN
+constexpr uint8_t BUTTON_PIN = 25;
+
+// -------------------- PWM CONFIG (motor speed) --------------------
+
+// One PWM channel per H-bridge input
+constexpr int   PWM_CH_INA     = 0;        // PWM channel for INA
+constexpr int   PWM_CH_INB     = 1;        // PWM channel for INB
+constexpr int   PWM_FREQ       = 20000;    // 20 kHz
+constexpr int   PWM_RESOLUTION = 10;       // 0..1023
+
+// Max global speed factor
+constexpr float MOTOR_SPEED           = 1.0f;  // 0.0-1.0 (1.0 = 100%)
+constexpr float BACKWARD_SPEED_FACTOR = 0.8f;  // 80% of total speed for backward
+
+// -------------------- TIMING --------------------
+
+constexpr uint32_t FSR_PERIOD_MS = 100;   // print every 100 ms (Core 0)
+constexpr uint32_t DEBOUNCE_MS   = 50;    // button debounce (50 ms)
+constexpr uint32_t CTRL_FREQ_HZ  = 50;    // controller frequency (Hz)
+constexpr uint32_t CTRL_DT_MS    = 1000 / CTRL_FREQ_HZ;
+constexpr float    CTRL_DT_S     = 1.0f / CTRL_FREQ_HZ;
+
+// -------------------- TARGETS / SECTORS --------------------
+// Targets (FSR mV)
+constexpr float TARGET_LOW_MV    = 1320.0f;  // Sector 1 target
+constexpr float TARGET_MEDIUM_MV = 1410.0f;  // Sector 2 target
+constexpr float TARGET_HIGH_MV   = 1600.0f;  // Sector 3 target
+
+// Potentiometer sector thresholds (raw 0-4095)
+constexpr uint16_t POT_SECTOR_1_MAX = 1365;  // 0-1365: Sector 1
+constexpr uint16_t POT_SECTOR_2_MAX = 2730;  // 1366-2730: Sector 2
+
+// -------------------- PI CONTROLLER CONFIG (TUNED TO REDUCE VIBRATION) --------------------
+
+// PI gains - PROPERLY TUNED to avoid saturation
+// With error range ~50-500mV, Kp should give output ~0.1-1.0
+float Kp = 0.002f;  // 500mV error → 1.0 output, 100mV error → 0.2 output
+float Ki = 0.008f;  // Slow integral to avoid windup
+
+// Output limits (normalized 0..1 before applying to motor)
+constexpr float OUTPUT_MIN = -1.0f;  // -1 = full backward
+constexpr float OUTPUT_MAX =  1.0f;  // +1 = full forward
+
+// Minimum PWM to overcome static friction (only applied when starting movement)
+constexpr float MIN_MOTOR_PWM = 0.30f;  // 30% minimum to start moving
+
+// Threshold below which we consider output "wanting to stop"
+constexpr float OUTPUT_STOP_THRESHOLD = 0.05f;  // Below 5% output = coast to stop
+
+// Deadband around target - motor stops completely within this range
+constexpr float ERROR_DEADBAND_MV = 40.0f;  // +/- 40 mV = settled
+
+// Output rate limiting - prevents sudden PWM changes
+constexpr float MAX_OUTPUT_CHANGE = 0.05f;  // Max 5% change per 20ms cycle (slower ramp)
+
+// -------------------- MOTOR MODES --------------------
+
+enum class MotorMode : uint8_t {
+  STOP_1 = 0,  // stop "before"
+  PI_CONTROL,  // PI controller active
+  STOP_2,      // stop "after PI"
+  BACKWARD     // manual backward
+};
+
+// -------------------- SHARED STATE (between cores) --------------------
+
+volatile MotorMode currentMode        = MotorMode::STOP_1;
+volatile float     currentFSR_mV      = 0.0f;
+volatile float     currentSetpoint_mV = TARGET_MEDIUM_MV;
+volatile float     currentError       = 0.0f;
+volatile float     currentOutput      = 0.0f;      // PI raw output [-1..1]
+volatile float     currentPWM_percent = 0.0f;      // actual PWM applied
+volatile float     currentIntegral    = 0.0f;      // for debugging
+
+// FIXED: Use atomic counter instead of bool to avoid race condition
+// Core 1 increments, Core 0 compares with its local copy
+volatile uint32_t  modeChangeCounter  = 0;
+
+// PI state (Core 1 only)
+float    integrator     = 0.0f;
+float    lastOutput     = 0.0f;  // NEW: for rate limiting
+uint32_t lastCtrlMs     = 0;
+
+// Button debounce (Core 1 only)
+bool     lastButtonRaw    = false;
+bool     lastButtonStable = false;
+uint32_t lastDebounceMs   = 0;
+
+// -------------------- MOTOR FUNCTIONS (Core 1) --------------------
+
+// Motor OFF
+void motorStop() {
+  ledcWrite(PWM_CH_INA, 0);
+  ledcWrite(PWM_CH_INB, 0);
+  currentPWM_percent = 0.0f;
+}
+
+// "Forward" with proportional speed (0.0-1.0)
+// INA = 0, INB = PWM
+void motorForward(float prop) {
+  prop = constrain(prop, 0.0f, 1.0f);
+  float duty01 = prop * MOTOR_SPEED;
+  duty01 = constrain(duty01, 0.0f, 1.0f);
+
+  uint32_t maxDuty = (1 << PWM_RESOLUTION) - 1;
+  uint32_t duty    = (uint32_t)(duty01 * maxDuty);
+
+  ledcWrite(PWM_CH_INA, 0);
+  ledcWrite(PWM_CH_INB, duty);
+
+  currentPWM_percent = duty01 * 100.0f;  // positive = forward
+}
+
+// "Backward" with proportional speed (0.0-1.0), limited to 80%
+// INA = PWM, INB = 0
+void motorBackward(float prop) {
+  prop = constrain(prop, 0.0f, 1.0f);
+  float duty01 = prop * MOTOR_SPEED * BACKWARD_SPEED_FACTOR;
+  duty01 = constrain(duty01, 0.0f, 1.0f);
+
+  uint32_t maxDuty = (1 << PWM_RESOLUTION) - 1;
+  uint32_t duty    = (uint32_t)(duty01 * maxDuty);
+
+  ledcWrite(PWM_CH_INA, duty);
+  ledcWrite(PWM_CH_INB, 0);
+
+  currentPWM_percent = -duty01 * 100.0f;  // negative = backward
+}
+
+// -------------------- FSR & POT (Core 1 now) --------------------
+
+uint16_t readFSRmv() {
+  uint32_t acc = 0;
+  for (int i = 0; i < 8; i++) {
+    acc += analogReadMilliVolts(PP_PIN);
+    delayMicroseconds(150);
+  }
+  return (uint16_t)(acc / 8);
+}
+
+uint16_t readPotRaw() {
+  uint32_t acc = 0;
+  for (int i = 0; i < 8; i++) {
+    acc += analogRead(POT_PIN);
+    delayMicroseconds(150);
+  }
+  return (uint16_t)(acc / 8);
+}
+
+float getTargetFromPot(uint16_t potRaw) {
+  if (potRaw <= POT_SECTOR_1_MAX) {
+    return TARGET_LOW_MV;
+  } else if (potRaw <= POT_SECTOR_2_MAX) {
+    return TARGET_MEDIUM_MV;
+  } else {
+    return TARGET_HIGH_MV;
+  }
+}
+
+// -------------------- PI CONTROLLER (FIXED) --------------------
+
+void runPIController() {
+  uint32_t now = millis();
+  if (now - lastCtrlMs >= CTRL_DT_MS) {
+    lastCtrlMs = now;
+
+    float pp_mv_f  = currentFSR_mV;
+    float setpoint = currentSetpoint_mV;
+
+    // Error calculation: positive = need more pressure, negative = need less
+    float error = setpoint - pp_mv_f;
+    float absError = fabs(error);
+
+    // --------- DEADBAND: STOP WHEN CLOSE ENOUGH ---------
+    if (absError <= ERROR_DEADBAND_MV) {
+      motorStop();
+      // Decay integrator slowly when in deadband (prevents windup)
+      integrator *= 0.95f;
+      currentError    = error;
+      currentOutput   = 0.0f;
+      currentIntegral = integrator;
+      lastOutput      = 0.0f;
+      return;
+    }
+    // ----------------------------------------------------
+
+    // --------- PI CALCULATION ---------
+    // Proportional term
+    float pTerm = Kp * error;
+
+    // Integral term with anti-windup
+    integrator += error * CTRL_DT_S;
+    float integMax = OUTPUT_MAX / max(Ki, 0.0001f);
+    integrator = constrain(integrator, -integMax, integMax);
+    float iTerm = Ki * integrator;
+
+    // Combined PI output (range: -1 to +1)
+    float output = pTerm + iTerm;
+    output = constrain(output, OUTPUT_MIN, OUTPUT_MAX);
+    // ----------------------------------
+
+    // --------- RATE LIMITING ---------
+    float outputChange = output - lastOutput;
+    if (outputChange > MAX_OUTPUT_CHANGE) {
+      output = lastOutput + MAX_OUTPUT_CHANGE;
+    } else if (outputChange < -MAX_OUTPUT_CHANGE) {
+      output = lastOutput - MAX_OUTPUT_CHANGE;
+    }
+    lastOutput = output;
+    // ---------------------------------
+
+    // --------- MOTOR COMMAND CALCULATION ---------
+    float absOutput = fabs(output);
+
+    // If output is very small, coast to stop (let deadband catch it)
+    if (absOutput < OUTPUT_STOP_THRESHOLD) {
+      motorStop();
+      currentError    = error;
+      currentOutput   = output;
+      currentIntegral = integrator;
+      return;
+    }
+
+    // Scale output to motor command:
+    // - Small outputs (near threshold): start at MIN_MOTOR_PWM
+    // - Large outputs (near 1.0): approach 100%
+    // This creates smooth scaling without the old bug
+    float motorCommand = MIN_MOTOR_PWM + (absOutput - OUTPUT_STOP_THRESHOLD)
+                         * (1.0f - MIN_MOTOR_PWM) / (1.0f - OUTPUT_STOP_THRESHOLD);
+    motorCommand = constrain(motorCommand, MIN_MOTOR_PWM, 1.0f);
+
+    // Apply to motor based on direction
+    if (output > 0.0f) {
+      motorForward(motorCommand);
+    } else {
+      motorBackward(motorCommand);
+    }
+    // ---------------------------------------------
+
+    // Update shared variables for printing
+    currentError    = error;
+    currentOutput   = output;
+    currentIntegral = integrator;
+  }
+}
+
+// -------------------- MODE MANAGEMENT (Core 1) --------------------
+
+void applyMotorMode() {
+  modeChangeCounter++;  // FIXED: Atomic increment, Core 0 will detect the change
+
+  switch (currentMode) {
+    case MotorMode::STOP_1:
+    case MotorMode::STOP_2:
+      motorStop();
+      lastOutput = 0.0f;  // Reset rate limiter
+      break;
+
+    case MotorMode::PI_CONTROL:
+      integrator = 0.0f;  // reset integrator when entering PI mode
+      lastOutput = 0.0f;  // reset rate limiter
+      lastCtrlMs = millis();
+      break;
+
+    case MotorMode::BACKWARD:
+      motorBackward(1.0f);
+      currentOutput = -1.0f;
+      lastOutput = -1.0f;
+      break;
+  }
+}
+
+// -------------------- CORE 0: PRINTING ONLY --------------------
+
+void printTask(void* parameter) {
+  uint32_t  lastPrintMs           = millis();
+  MotorMode lastPrintedMode       = currentMode;
+  float     lastPrintedSetpoint   = currentSetpoint_mV;
+  uint32_t  lastSeenModeCounter   = modeChangeCounter;  // FIXED: Local copy for comparison
+
+  for (;;) {
+    uint32_t now = millis();
+    if (now - lastPrintMs >= FSR_PERIOD_MS) {
+      lastPrintMs = now;
+
+      // Snapshot shared variables (atomic reads on ESP32)
+      MotorMode mode       = currentMode;
+      float fsr_mv         = currentFSR_mV;
+      float setpoint_mv    = currentSetpoint_mV;
+      float err            = currentError;
+      float out            = currentOutput;
+      float integSnapshot  = currentIntegral;
+      float pwmPercent     = currentPWM_percent;
+      uint32_t modeCounter = modeChangeCounter;
+
+      // Mode change banner - FIXED: Compare counters instead of bool
+      if (modeCounter != lastSeenModeCounter || mode != lastPrintedMode) {
+        lastSeenModeCounter = modeCounter;
+        lastPrintedMode     = mode;
+
+        Serial.println("\n--- Mode Change ---");
+        switch (mode) {
+          case MotorMode::STOP_1:
+          case MotorMode::STOP_2:
+            Serial.println("Mode: STOP");
+            break;
+          case MotorMode::PI_CONTROL:
+            Serial.println("Mode: PI CONTROL (Anti-vibration tuning)");
+            break;
+          case MotorMode::BACKWARD:
+            Serial.println("Mode: BACKWARD (manual, 80% max)");
+            break;
+        }
+        Serial.println("-------------------\n");
+      }
+
+      // Setpoint change info
+      if (mode == MotorMode::PI_CONTROL && setpoint_mv != lastPrintedSetpoint) {
+        lastPrintedSetpoint = setpoint_mv;
+        Serial.print(">>> Target changed to: ");
+        Serial.print(setpoint_mv, 0);
+        Serial.println(" mV <<<\n");
+      }
+
+      // ---------- PRINT ----------
+      if (mode == MotorMode::PI_CONTROL) {
+        Serial.print("FSR: ");
+        Serial.print((uint16_t)fsr_mv);
+        Serial.print(" mV | Target: ");
+        Serial.print(setpoint_mv, 0);
+        Serial.print(" mV | Error: ");
+        Serial.print(err, 1);
+        Serial.print(" mV | PI_out: ");
+        Serial.print(out, 3);
+        Serial.print(" | Integ: ");
+        Serial.print(integSnapshot, 2);
+        Serial.print(" | PWM: ");
+        Serial.print(pwmPercent, 1);
+        Serial.println(" %");
+      } else {
+        Serial.print("FSR: ");
+        Serial.print((uint16_t)fsr_mv);
+        Serial.print(" mV | Target: ");
+        Serial.print(setpoint_mv, 0);
+        Serial.print(" mV | Mode: ");
+        switch (mode) {
+          case MotorMode::STOP_1:
+          case MotorMode::STOP_2:
+            Serial.print("STOP");
+            break;
+          case MotorMode::BACKWARD:
+            Serial.print("BACKWARD");
+            break;
+          default:
+            Serial.print("UNKNOWN");
+            break;
+        }
+        Serial.println();
+      }
+      // ----------------------------------------
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(5));
+  }
+}
+
+// -------------------- CORE 1: SENSORS + PI + BUTTON + MOTOR --------------------
+
+void controlTask(void* parameter) {
+  uint32_t lastSensorReadMs = 0;  // FIXED: Track sensor read timing
+
+  for (;;) {
+    uint32_t now = millis();
+
+    // --- Read sensors at control frequency (every CTRL_DT_MS) ---
+    // FIXED: Avoids redundant reads between control cycles
+    if (now - lastSensorReadMs >= CTRL_DT_MS) {
+      lastSensorReadMs = now;
+
+      float fsr_mv = (float)readFSRmv();
+      uint16_t potRaw = readPotRaw();
+      float setpoint = getTargetFromPot(potRaw);
+
+      // Update shared variables
+      currentFSR_mV      = fsr_mv;
+      currentSetpoint_mV = setpoint;
+    }
+
+    // --- PI control loop ---
+    if (currentMode == MotorMode::PI_CONTROL) {
+      runPIController();
+    } else {
+      if (currentMode == MotorMode::STOP_1 || currentMode == MotorMode::STOP_2) {
+        motorStop();
+      }
+    }
+
+    // --- Button with debounce (still checked frequently) ---
+    bool rawState = (digitalRead(BUTTON_PIN) == HIGH);
+
+    if (rawState != lastButtonRaw) {
+      lastDebounceMs = now;
+      lastButtonRaw  = rawState;
+    }
+
+    if ((now - lastDebounceMs) >= DEBOUNCE_MS) {
+      if (rawState != lastButtonStable) {
+        lastButtonStable = rawState;
+
+        // Rising edge
+        if (lastButtonStable) {
+          switch (currentMode) {
+            case MotorMode::STOP_1:
+              currentMode = MotorMode::PI_CONTROL;
+              break;
+            case MotorMode::PI_CONTROL:
+              currentMode = MotorMode::STOP_2;
+              break;
+            case MotorMode::STOP_2:
+              currentMode = MotorMode::BACKWARD;
+              break;
+            case MotorMode::BACKWARD:
+              currentMode = MotorMode::STOP_1;
+              break;
+          }
+          applyMotorMode();
+        }
+      }
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(1));  // Button response stays fast
+  }
+}
+
+// -------------------- SETUP --------------------
+
+void setup() {
+  Serial.begin(115200);
+  delay(200);
+
+  // Motor pins
+  pinMode(M1_INA, OUTPUT);
+  pinMode(M1_INB, OUTPUT);
+
+  // PWM for both H-bridge inputs
+  ledcSetup(PWM_CH_INA, PWM_FREQ, PWM_RESOLUTION);
+  ledcSetup(PWM_CH_INB, PWM_FREQ, PWM_RESOLUTION);
+  ledcAttachPin(M1_INA, PWM_CH_INA);
+  ledcAttachPin(M1_INB, PWM_CH_INB);
+
+  // ADC setup
+  analogReadResolution(12);
+  analogSetPinAttenuation(PP_PIN,  ADC_11db);
+  analogSetPinAttenuation(POT_PIN, ADC_11db);
+
+  // Button: 1 leg -> 3V3, 1 leg -> GPIO25 + INPUT_PULLDOWN
+  pinMode(BUTTON_PIN, INPUT_PULLDOWN);
+
+  motorStop();
+  currentMode = MotorMode::STOP_1;
+
+  Serial.println("=== PI CONTROLLER - ANTI-VIBRATION VERSION ===");
+  Serial.println("Core 0: Serial printing only");
+  Serial.println("Core 1: FSR + POT + Button + Motor + PI controller\n");
+
+  Serial.println("PI Controller (properly tuned to avoid saturation):");
+  Serial.print("  Kp = "); Serial.println(Kp, 4);
+  Serial.print("  Ki = "); Serial.println(Ki, 4);
+  Serial.print("  Min motor PWM = "); Serial.print(MIN_MOTOR_PWM * 100.0f); Serial.println("%");
+  Serial.print("  Stop threshold = "); Serial.print(OUTPUT_STOP_THRESHOLD * 100.0f); Serial.println("% output");
+  Serial.print("  Deadband = +/-"); Serial.print(ERROR_DEADBAND_MV); Serial.println(" mV");
+  Serial.print("  Rate limit = "); Serial.print(MAX_OUTPUT_CHANGE * 100.0f); Serial.println("% per cycle\n");
+
+  Serial.println("Expected behavior:");
+  Serial.println("  100mV error -> ~20% PI output -> ~35% motor PWM");
+  Serial.println("  200mV error -> ~40% PI output -> ~55% motor PWM");
+  Serial.println("  500mV error -> 100% PI output -> 100% motor PWM\n");
+
+  Serial.println("Potentiometer Sectors (targets in mV):");
+  Serial.print("  Sector 1: "); Serial.println(TARGET_LOW_MV, 1);
+  Serial.print("  Sector 2: "); Serial.println(TARGET_MEDIUM_MV, 1);
+  Serial.print("  Sector 3: "); Serial.println(TARGET_HIGH_MV, 1);
+  Serial.println("\nButton: STOP_1 -> PI_CONTROL -> STOP_2 -> BACKWARD -> STOP_1\n");
+
+  // Core 0: PRINT ONLY
+  xTaskCreatePinnedToCore(
+    printTask,
+    "Print_Task",
+    8192,
+    nullptr,
+    1,
+    nullptr,
+    0
+  );
+
+  // Core 1: SENSORS + CONTROL + BUTTON
+  xTaskCreatePinnedToCore(
+    controlTask,
+    "Control_Task",
+    8192,
+    nullptr,
+    2,
+    nullptr,
+    1
+  );
+§
+  vTaskDelete(NULL);
+}
+
+// -------------------- LOOP --------------------
+
+void loop() {
+  // never called
+}
+
+// ================================================================================
+// TUNING TIPS:
+//
+// PROBLEM: Motor never settles / always at high PWM
+//   -> Kp too high (was 0.08, saturated instantly)
+//   -> FIXED: Kp = 0.002 gives proportional response
+//
+// PROBLEM: Motor oscillates near setpoint
+//   -> Reduce Kp further (try 0.001)
+//   -> Increase deadband (try 60 mV)
+//   -> Reduce rate limit (try 0.03)
+//
+// PROBLEM: Motor too slow to reach target
+//   -> Increase Kp (try 0.003)
+//   -> Increase Ki (try 0.012)
+//
+// PROBLEM: Motor overshoots then settles
+//   -> Reduce Ki (try 0.005)
+//   -> Reduce Kp (try 0.0015)
+//
+// PROBLEM: Motor struggles to start moving
+//   -> Increase MIN_MOTOR_PWM (try 0.35)
+//
+// KEY FIXES IN THIS VERSION:
+// 1. Kp reduced from 0.08 to 0.002 (was always saturated!)
+// 2. Ki reduced from 0.25 to 0.008 (slower integral buildup)
+// 3. Removed buggy softFactor + max(MIN_MOTOR_PWM) logic
+// 4. Added OUTPUT_STOP_THRESHOLD for clean coasting to stop
+// 5. Integrator decay in deadband (prevents windup)
+// ================================================================================
+
+// ================================================================================
+// DUAL-CORE ARCHITECTURE NOTES:
+//
+// Core 0 (Print Task - Priority 1):
+//   - Only reads volatile shared variables
+//   - Prints to Serial every 100ms
+//   - No mutex needed (single writer pattern)
+//
+// Core 1 (Control Task - Priority 2):
+//   - Reads FSR and potentiometer sensors
+//   - Runs PI controller at 50Hz
+//   - Handles button debounce
+//   - Controls motor PWM
+//   - ONLY writer to shared variables
+//
+// FIXES APPLIED TO CORE ARCHITECTURE:
+// 1. modeChanged bool -> modeChangeCounter (atomic, no race condition)
+// 2. Sensor reads now synchronized with control frequency (was redundant)
+// 3. Button still polled at 1ms for fast response
+//
+// Thread Safety Pattern Used:
+//   - Single Writer (Core 1) + Multiple Readers (Core 0)
+//   - volatile keyword ensures visibility across cores
+//   - 32-bit operations are atomic on ESP32
+//   - No mutex needed for this pattern
+// ================================================================================

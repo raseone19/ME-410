@@ -1,6 +1,6 @@
 # System Architecture
 
-This document describes the overall system architecture, data flow, and module interactions for the 4-Motor Independent PI Control System with servo sweep TOF sensing.
+This document describes the overall system architecture, data flow, and module interactions for the 5-Motor Independent PI Control System with servo sweep TOF sensing.
 
 ## Table of Contents
 
@@ -15,9 +15,9 @@ This document describes the overall system architecture, data flow, and module i
 ## System Overview
 
 The system uses an ESP32 dual-core microcontroller to manage:
-- **4 independent motors** with PI control
-- **4 pressure pad sensors** for feedback
-- **1 TOF distance sensor** with servo sweep (5°-175° divided into 4 sectors)
+- **5 independent motors** with PI control
+- **5 pressure pad sensors** for feedback
+- **1 TOF distance sensor** with servo sweep (5°-175° divided into 5 sectors)
 - **Configurable sweep modes** (forward-only or bidirectional)
 - **Real-time data logging** via Serial (Binary or CSV protocol)
 - **Web dashboard** with real-time visualization and dynamic configuration loading
@@ -26,25 +26,27 @@ The system uses an ESP32 dual-core microcontroller to manage:
 graph TB
     subgraph Sensors
         TOF[TOF Distance Sensor<br/>UART 921600 baud]
-        Servo[Servo Motor<br/>0°-120° sweep]
+        Servo[Servo Motor<br/>5°-175° sweep]
         PP1[Pressure Pad 1]
         PP2[Pressure Pad 2]
         PP3[Pressure Pad 3]
         PP4[Pressure Pad 4]
+        PP5[Pressure Pad 5]
         MUX[Multiplexer<br/>CD74HC4067]
     end
 
     subgraph "ESP32 - Core 0"
-        SweepTask[Servo Sweep Task<br/>4 Sectors<br/>Priority: 2]
+        SweepTask[Servo Sweep Task<br/>5 Sectors<br/>Priority: 2]
         LogTask[Serial Print Task<br/>Binary/CSV<br/>Priority: 1]
     end
 
     subgraph "ESP32 - Core 1"
         MainLoop[Main Loop<br/>PI Control @ 50 Hz]
-        PI1[PI Controller 1<br/>Sector 0°-30°]
-        PI2[PI Controller 2<br/>Sector 31°-60°]
-        PI3[PI Controller 3<br/>Sector 61°-90°]
-        PI4[PI Controller 4<br/>Sector 91°-120°]
+        PI1[PI Controller 1<br/>Sector 1: 5°-39°]
+        PI2[PI Controller 2<br/>Sector 2: 39°-73°]
+        PI3[PI Controller 3<br/>Sector 3: 73°-107°]
+        PI4[PI Controller 4<br/>Sector 4: 107°-141°]
+        PI5[PI Controller 5<br/>Sector 5: 141°-175°]
     end
 
     subgraph Actuators
@@ -52,6 +54,7 @@ graph TB
         M2[Motor 2]
         M3[Motor 3]
         M4[Motor 4]
+        M5[Motor 5]
     end
 
     TOF --> SweepTask
@@ -62,12 +65,14 @@ graph TB
     PP2 --> MUX
     PP3 --> MUX
     PP4 --> MUX
+    PP5 --> MUX
     MUX --> MainLoop
 
     MainLoop --> PI1 --> M1
     MainLoop --> PI2 --> M2
     MainLoop --> PI3 --> M3
     MainLoop --> PI4 --> M4
+    MainLoop --> PI5 --> M5
 
     MainLoop -.->|Shared Vars| LogTask
     LogTask -.->|Binary/CSV| Serial[WebSocket Bridge<br/>or Serial Monitor]
@@ -88,18 +93,20 @@ The ESP32's dual cores are utilized to separate time-critical control from data 
      - **SWEEP_MODE_FORWARD**: Continuous forward sweep (5°→175°, reset to 5°)
      - **SWEEP_MODE_BIDIRECTIONAL**: Forward and backward sweep (5°→175°→5°)
    - Reads TOF distance at each angle
-   - Tracks minimum distance independently for 4 sectors:
-     - Sector 1 (Motor 1): 5° - 45°
-     - Sector 2 (Motor 2): 45° - 90°
-     - Sector 3 (Motor 3): 90° - 135°
-     - Sector 4 (Motor 4): 135° - 175°
+   - Tracks minimum distance independently for 5 sectors:
+     - Sector 1 (Motor 1): 5° - 39° (34° range)
+     - Sector 2 (Motor 2): 39° - 73° (34° range)
+     - Sector 3 (Motor 3): 73° - 107° (34° range)
+     - Sector 4 (Motor 4): 107° - 141° (34° range)
+     - Sector 5 (Motor 5): 141° - 175° (34° range)
    - Updates shared variables (mutex-protected) when each sector completes
    - Handles sector completion correctly even when SERVO_STEP doesn't align with sector boundaries
    - Runs continuously
 
 2. **Serial Print Task** (Priority 1)
    - Reads shared variables from Core 1
-   - Outputs binary (70 bytes) or CSV data at configurable rate (10-100 Hz)
+   - Outputs binary (115 bytes) or CSV data at configurable rate (10-100 Hz)
+   - Includes potentiometer values and dynamic distance thresholds
    - Lower priority to not interfere with sweep
    - Sends to WebSocket bridge or serial monitor
 
@@ -109,31 +116,33 @@ The ESP32's dual cores are utilized to separate time-critical control from data 
 - Runs at exactly 50 Hz (20 ms period)
 - For each motor independently:
   - Reads minimum distance from its sector (from Core 0)
-  - Reads pressure pad via multiplexer
-  - Classifies distance into range (CLOSE/MEDIUM/FAR)
-  - Calculates dynamic setpoint based on range
+  - Reads pressure pad via multiplexer (normalized to 0-100%)
+  - Reads potentiometer values for force and distance scaling
+  - Classifies distance into range (CLOSE/MEDIUM/FAR) using dynamic thresholds
+  - Calculates dynamic setpoint based on range (normalized percentage)
   - Executes PI controller
   - Manages safety state machine
   - Applies motor command
-- Updates shared variables for logging
+- Updates shared variables for logging (including scale values and thresholds)
 
 ```mermaid
 graph LR
     subgraph "Core 0"
-        A[Servo Sweep<br/>Continuous<br/>4 Sectors]
+        A[Servo Sweep<br/>Continuous<br/>5 Sectors]
         B[Serial Logger<br/>50 Hz<br/>Binary/CSV]
     end
 
     subgraph "Core 1"
-        C[PI Control Loop<br/>50 Hz<br/>4 Motors]
+        C[PI Control Loop<br/>50 Hz<br/>5 Motors]
     end
 
     subgraph "Shared Memory"
-        D[min_distance per sector<br/>Mutex Protected<br/>Array of 4]
-        E[best_angle per sector<br/>Mutex Protected<br/>Array of 4]
-        F[setpoints_mv<br/>volatile array of 4]
-        G[pressure_pads_mv<br/>volatile array of 4]
-        H[duty_cycles<br/>volatile array of 4]
+        D[min_distance per sector<br/>Mutex Protected<br/>Array of 5]
+        E[best_angle per sector<br/>Mutex Protected<br/>Array of 5]
+        F[setpoints_pct<br/>volatile array of 5<br/>Normalized 0-100%]
+        G[pressure_pct<br/>volatile array of 5<br/>Normalized 0-100%]
+        H[duty_cycles<br/>volatile array of 5]
+        I[force_scale<br/>distance_scale<br/>Dynamic thresholds]
     end
 
     A -->|Write| D
@@ -161,7 +170,7 @@ flowchart TD
     InitHW --> StartTasks[Start Core 0 Tasks<br/>Sweep + Logger]
     StartTasks --> LoopStart{Control Loop<br/>Every 20ms}
 
-    LoopStart -->|1| ReadPP[Read 4 Pressure Pads<br/>via Multiplexer]
+    LoopStart -->|1| ReadPP[Read 5 Pressure Pads<br/>via Multiplexer]
 
     ReadPP -->|2| ProcessMotors[Process Each Motor<br/>Independently]
 
@@ -188,7 +197,7 @@ flowchart TD
     Delay --> LoopStart
 
     subgraph "Parallel: Core 0"
-        SweepLoop[Servo Sweep Loop<br/>4 Sectors] -.->|Updates| GetDist
+        SweepLoop[Servo Sweep Loop<br/>5 Sectors] -.->|Updates| GetDist
         LogLoop[Serial Print Loop] -.->|Reads| UpdateShared
     end
 ```
@@ -207,9 +216,9 @@ sequenceDiagram
     Note over MainLoop,Motor: Control Loop Cycle - Every 20 ms at 50 Hz
 
     MainLoop->>PP: readAllPadsMilliVolts()
-    PP-->>MainLoop: pressure_pads_mv array of 4
+    PP-->>MainLoop: pressure_pads_mv array of 5
 
-    loop For each motor i from 0 to 3
+    loop For each motor i from 0 to 4
         MainLoop->>TOF: getMinDistance from motor i sector
         TOF-->>MainLoop: min_distance_cm for sector i
 
@@ -299,15 +308,15 @@ graph TD
 
 | Module | Purpose | Dependencies |
 |--------|---------|--------------|
-| **main.cpp** | System orchestration, 4-motor control loop | All modules |
+| **main.cpp** | System orchestration, 5-motor control loop | All modules |
 | **config/pins.h** | Pin definitions | None (base) |
 | **config/system_config.h** | Protocol and logging configuration | None (base) |
 | **config/servo_config.h** | Servo sweep configuration (NEW) | None (base) |
-| **sensors/tof_sensor** | TOF reading, servo sweep (4 sectors) | pins.h, system_config.h, servo_config.h, ESP32PWM |
-| **sensors/pressure_pads** | Pressure pad reading (4 pads) | pins.h, multiplexer |
+| **sensors/tof_sensor** | TOF reading, servo sweep (5 sectors) | pins.h, system_config.h, servo_config.h, ESP32PWM |
+| **sensors/pressure_pads** | Pressure pad reading (5 pads) | pins.h, multiplexer |
 | **utils/multiplexer** | Analog multiplexer control | pins.h |
-| **actuators/motors** | Motor PWM control (4 motors) | pins.h |
-| **control/pi_controller** | PI algorithm for 4 motors | pins.h, motors |
+| **actuators/motors** | Motor PWM control (5 motors) | pins.h |
+| **control/pi_controller** | PI algorithm for 5 motors | pins.h, motors |
 | **tasks/core0_tasks** | FreeRTOS tasks for Core 0 | pins.h, tof_sensor, binary_protocol |
 | **utils/binary_protocol** | Binary packet encoding/decoding | pins.h |
 
@@ -321,7 +330,7 @@ graph TD
 
 | Time (ms) | Core 1 - Control Loop | Core 0 - Sweep Task | Core 0 - Logger Task |
 |-----------|----------------------|---------------------|----------------------|
-| 0-3 | Read 4 Pressure Pads | TOF Reading | Read Shared Vars |
+| 0-3 | Read 5 Pressure Pads | TOF Reading | Read Shared Vars |
 | 3-5 | Motor 1 Processing | TOF Reading (cont.) | Binary Encode/CSV |
 | 5-7 | Motor 2 Processing | Move Servo | Serial Transmit |
 | 7-9 | Motor 3 Processing | Move Servo (cont.) | Waiting |
@@ -338,12 +347,12 @@ graph TD
 
 | Task | Frequency | Period | Execution Time | Core |
 |------|-----------|--------|----------------|------|
-| PI Control Loop (4 motors) | 50 Hz | 20 ms | ~10-12 ms | Core 1 |
+| PI Control Loop (5 motors) | 50 Hz | 20 ms | ~10-12 ms | Core 1 |
 | Servo Sweep (5°-175°) | Continuous | ~10-12 s per full sweep | Variable | Core 0 |
 | Serial Logger | 10-100 Hz | 10-100 ms | ~3-5 ms | Core 0 |
-| Pressure Pad Read (4 pads) | 50 Hz | 20 ms | ~3-4 ms | Core 1 |
+| Pressure Pad Read (5 pads) | 50 Hz | 20 ms | ~3-4 ms | Core 1 |
 | TOF Single Read | Variable | N/A | ~50-100 ms | Core 0 |
-| Sector Update | ~4× per sweep | ~2.5-3 s | Immediate | Core 0 |
+| Sector Update | ~5× per sweep | ~2.5-3 s | Immediate | Core 0 |
 
 ### Critical Timing Constraints
 
@@ -438,7 +447,7 @@ graph TB
         Store[Zustand Store<br/>Global State]
 
         subgraph "Pages"
-            Main[Main Dashboard<br/>4-motor overview]
+            Main[Main Dashboard<br/>5-motor overview]
             Motor[Motor Detail<br/>Individual analysis]
             Radar[Radar View<br/>TOF sweep visualization]
         end
@@ -467,7 +476,7 @@ graph TB
 ### Dashboard Features
 
 **Main Dashboard (`/`):**
-- Overview of all 4 motors simultaneously
+- Overview of all 5 motors simultaneously
 - Live metrics: pressure (mV), duty cycle (%), distance (cm), setpoint (mV)
 - Connection status and controls (connect, disconnect, record, pause)
 - Real-time updates at logging rate (10-100 Hz)
@@ -486,7 +495,7 @@ graph TB
 
 **Radar Visualization (`/radar`):**
 - Live TOF sweep visualization (5°-175° dynamic range)
-- 4 sectors color-coded by motor (boundaries loaded from backend)
+- 5 sectors color-coded by motor (boundaries loaded from backend)
 - Real-time servo angle indicator
 - Current distance reading per sector
 - Polar coordinate display
@@ -498,44 +507,53 @@ graph TB
 
 ### Data Flow: ESP32 to Frontend
 
-1. **ESP32 Core 0** - Serial Print Task outputs binary packets (70 bytes) at 50 Hz
+1. **ESP32 Core 0** - Serial Print Task outputs binary packets (115 bytes) at configured logging rate
 2. **WebSocket Bridge** - Node.js server reads serial port, parses binary protocol
 3. **WebSocket** - JSON data broadcast to connected clients
 4. **Frontend Store** - Zustand state management updates component data
 5. **React Components** - Re-render with latest values (optimized with useMemo)
 
-### Binary Protocol Structure
+### Binary Protocol Structure (115 bytes)
 
 ```
-[0-1]   Header: 0xAA 0x55
-[2-5]   Timestamp (uint32_t)
-[6-21]  Setpoints: 4× float
-[22-29] Pressure Pads: 4× uint16_t
-[30-45] Duty Cycles: 4× float
-[46-61] TOF Distances: 4× float
-[62]    Servo Angle (uint8_t)
-[63-66] Current TOF Reading: float
-[67]    Mode Byte (always 1)
-[68-69] CRC-16
+[0-1]     Header: 0xAA 0x55 (synchronization)
+[2-5]     Timestamp (uint32_t milliseconds)
+[6-25]    Setpoints: 5× float (percentage 0-100%)
+[26-45]   Pressure Pads: 5× float (normalized 0-100%)
+[46-65]   Duty Cycles: 5× float (-100 to +100%)
+[66-85]   TOF Distances: 5× float (cm per sector)
+[86]      Servo Angle (uint8_t, 0-175°)
+[87-90]   Current TOF Reading: float (live distance at servo angle)
+[91]      Mode Byte (uint8_t, always 1 for sweep mode)
+[92]      Active Sensor (uint8_t: 0=none, 1=TOF, 2=ultrasonic, 3=both)
+[93-96]   Force Scale: float (0.6-1.0 from potentiometer 1)
+[97-100]  Distance Scale: float (0.5-1.5 from potentiometer 2)
+[101-104] CLOSE/MEDIUM boundary: float (75-125 cm)
+[105-108] MEDIUM/FAR boundary: float (125-275 cm)
+[109-112] FAR/OUT boundary: float (150-450 cm)
+[113-114] CRC-16 checksum
 ```
 
-**Advantages:**
-- 35% smaller than CSV (70 bytes vs ~100 bytes)
-- 3-5x faster parsing
-- CRC error detection
-- Structured data for type safety
+**Key Features:**
+- All pressure/setpoint values are **normalized (0-100%)** based on calibration
+- Dynamic distance thresholds adjustable via potentiometers
+- CRC-16 error detection for data integrity
+- 3-5x faster parsing than CSV format
 
 ---
 
 ## Summary
 
 The architecture leverages the ESP32's dual cores to achieve:
-- **Real-time control** at 50 Hz on Core 1 for 4 independent motors
+- **Real-time control** at 50 Hz on Core 1 for 5 independent motors
 - **Parallel data acquisition** on Core 0 with configurable servo sweep modes (forward/bidirectional) and sector-based distance tracking (5°-175° range)
 - **Thread-safe communication** via mutex-protected shared variables
 - **Modular design** for easy maintenance and extension with separate configuration files
 - **Independent motor control** with per-motor state machines and setpoints
-- **Flexible output** supporting both binary (70-byte packets) and CSV protocols
+- **Normalized pressure values** (0-100%) based on calibrated prestress and maxstress
+- **Potentiometer-controlled scaling** for force (0.6-1.0) and distance (0.5-1.5)
+- **Dynamic distance thresholds** adjustable via potentiometers
+- **Flexible output** supporting both binary (115-byte packets) and CSV protocols
 - **Web dashboard** with real-time visualization, historical charts, and adaptive radar display
 - **WebSocket bridge** for seamless ESP32-to-browser communication
 - **Dynamic configuration loading** from ESP32 source files to frontend (no hardcoded values)

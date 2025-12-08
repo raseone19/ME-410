@@ -542,7 +542,7 @@ export default function DiagnosticsPage() {
                 </div>
                 <div>
                   <div className="text-muted-foreground">Protocol</div>
-                  <div className="font-medium">Binary (70 bytes/packet)</div>
+                  <div className="font-medium">Binary (95 bytes/packet)</div>
                 </div>
               </div>
             </CardContent>
@@ -574,8 +574,8 @@ export default function DiagnosticsPage() {
                     <div>
                       <div className="text-xs text-muted-foreground mb-2">MOTOR 1 DATA</div>
                       <div className="space-y-1">
-                        <div>Target: <span className="text-blue-600 font-semibold">{currentData.sp1_mv.toFixed(1)} mV</span></div>
-                        <div>Actual: <span className={currentData.pp1_mv < currentData.sp1_mv ? "text-orange-600" : "text-green-600"}>{currentData.pp1_mv} mV</span></div>
+                        <div>Target: <span className="text-blue-600 font-semibold">{currentData.sp1_pct.toFixed(1)}%</span></div>
+                        <div>Actual: <span className={currentData.pp1_pct < currentData.sp1_pct ? "text-orange-600" : "text-green-600"}>{currentData.pp1_pct.toFixed(1)}%</span></div>
                         <div>Power: <span className="text-purple-600">{currentData.duty1_pct.toFixed(1)}%</span></div>
                         <div>Distance: <span className="text-cyan-600">{currentData.tof1_cm.toFixed(1)} cm</span></div>
                       </div>
@@ -599,20 +599,20 @@ export default function DiagnosticsPage() {
 
                 <div className="space-y-3 text-sm">
                   <div className="flex gap-3">
-                    <div className="w-32 flex-shrink-0 font-medium text-blue-600">Target (mV)</div>
+                    <div className="w-32 flex-shrink-0 font-medium text-blue-600">Target (%)</div>
                     <div className="text-muted-foreground">
-                      Desired pressure for each motor. Calculated based on distance sensor.
+                      Desired pressure for each motor (normalized 0-100%).
                       <br/>
-                      <span className="text-xs">Far away = 500mV (soft), Close = 600mV (firm)</span>
+                      <span className="text-xs">Far away = 30% (soft), Close = 70% (firm)</span>
                     </div>
                   </div>
 
                   <div className="flex gap-3">
-                    <div className="w-32 flex-shrink-0 font-medium text-orange-600">Actual (mV)</div>
+                    <div className="w-32 flex-shrink-0 font-medium text-orange-600">Actual (%)</div>
                     <div className="text-muted-foreground">
-                      Current pressure reading from pressure pad sensor.
+                      Current pressure reading normalized (0-100%).
                       <br/>
-                      <span className="text-xs">0-300 = Deflated, 400-600 = Normal, 700+ = High</span>
+                      <span className="text-xs">0% = Prestress (min), 100% = 95% of max calibrated value</span>
                     </div>
                   </div>
 
@@ -653,7 +653,7 @@ export default function DiagnosticsPage() {
                     <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-xs">1</div>
                     <div>
                       <div className="font-medium">ESP32-S3 Firmware</div>
-                      <div className="text-xs text-muted-foreground">Creates 70-byte binary packet with CRC-16 checksum</div>
+                      <div className="text-xs text-muted-foreground">Creates 95-byte binary packet with CRC-16 checksum (normalized 0-100% values)</div>
                     </div>
                   </div>
 
@@ -704,25 +704,25 @@ export default function DiagnosticsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                   <div className="border rounded p-3 space-y-1">
                     <div className="font-medium text-green-600">✓ Stable</div>
-                    <div className="text-xs text-muted-foreground">Target: 550mV, Actual: 548mV, Power: 2%</div>
+                    <div className="text-xs text-muted-foreground">Target: 50%, Actual: 48%, Power: 2%</div>
                     <div className="text-xs">System maintaining pressure, gentle correction</div>
                   </div>
 
                   <div className="border rounded p-3 space-y-1">
                     <div className="font-medium text-blue-600">⬆ Inflating</div>
-                    <div className="text-xs text-muted-foreground">Target: 650mV, Actual: 540mV, Power: 75%</div>
+                    <div className="text-xs text-muted-foreground">Target: 70%, Actual: 40%, Power: 75%</div>
                     <div className="text-xs">Object detected close, increasing firmness</div>
                   </div>
 
                   <div className="border rounded p-3 space-y-1">
                     <div className="font-medium text-orange-600">⬇ Deflating</div>
-                    <div className="text-xs text-muted-foreground">Target: 500mV, Actual: 650mV, Power: -50%</div>
+                    <div className="text-xs text-muted-foreground">Target: 30%, Actual: 60%, Power: -50%</div>
                     <div className="text-xs">Object moved away, reducing to softer state</div>
                   </div>
 
                   <div className="border rounded p-3 space-y-1">
                     <div className="font-medium text-red-600">⚠ Emergency</div>
-                    <div className="text-xs text-muted-foreground">Target: -1mV, Actual: 850mV, Power: -100%</div>
+                    <div className="text-xs text-muted-foreground">Target: -1%, Actual: 85%, Power: -100%</div>
                     <div className="text-xs">Safety mode: too close, full deflate</div>
                   </div>
                 </div>

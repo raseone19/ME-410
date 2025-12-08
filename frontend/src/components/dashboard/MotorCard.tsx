@@ -1,10 +1,12 @@
 /**
  * MotorCard Component
  * Displays real-time data for a single motor including:
- * - Force chart (setpoint vs actual in Newtons)
- * - Current force gauge
+ * - Pressure chart (setpoint vs actual in normalized % 0-100)
+ * - Current pressure gauge
  * - TOF distance with range classification
  * - PWM duty cycle gauge
+ *
+ * All pressure values are now normalized 0-100% based on calibration
  */
 
 'use client';
@@ -29,7 +31,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { MotorData, getDistanceRange } from '@/lib/types';
-import { millivoltsToNewtons } from '@/lib/utils';
 
 interface MotorCardProps {
   motorNumber: 1 | 2 | 3 | 4;
@@ -64,62 +65,61 @@ export const MotorCard = memo(function MotorCard({
   currentData,
 }: MotorCardProps) {
   // Extract motor-specific data keys (these don't change)
-  const pressureKey = `pp${motorNumber}_mv` as keyof MotorData;
+  // All values now use _pct suffix for normalized percentages (0-100%)
+  const pressureKey = `pp${motorNumber}_pct` as keyof MotorData;
   const dutyKey = `duty${motorNumber}_pct` as keyof MotorData;
-  const setpointKey = `sp${motorNumber}_mv` as keyof MotorData;
+  const setpointKey = `sp${motorNumber}_pct` as keyof MotorData;
   const tofKey = `tof${motorNumber}_cm` as keyof MotorData;
 
   // Memoize chart data transformation (only recalculate when dataHistory changes)
-  // Convert pressure readings from mV to Newtons, setpoints are already in Newtons
+  // All values are already in normalized percentage (0-100%)
   const chartData = useMemo(() => {
-    const padIndex = motorNumber - 1; // Convert motor number (1-4) to pad index (0-3)
     return dataHistory.slice(-100).map((data) => ({
       time: data.time_ms,
-      setpoint: data[setpointKey] as number, // Already in Newtons from ESP32
-      actual: millivoltsToNewtons(padIndex, data[pressureKey] as number), // Convert mV to N
+      setpoint: data[setpointKey] as number, // Already in % from ESP32
+      actual: data[pressureKey] as number, // Already in % from ESP32
     }));
-  }, [dataHistory, pressureKey, setpointKey, motorNumber]);
+  }, [dataHistory, pressureKey, setpointKey]);
 
   // Memoize current values (only recalculate when currentData changes)
-  // Convert pressure from mV to Newtons, setpoints are already in Newtons
+  // All values are already in normalized percentage (0-100%)
   const currentValues = useMemo(() => {
-    const padIndex = motorNumber - 1; // Convert motor number (1-4) to pad index (0-3)
-    const currentPressureMv = currentData ? (currentData[pressureKey] as number) : 0;
-    const currentForce = millivoltsToNewtons(padIndex, currentPressureMv); // Convert to Newtons
+    const currentPressure = currentData ? (currentData[pressureKey] as number) : 0;
     const currentDuty = currentData ? (currentData[dutyKey] as number) : 0;
-    const currentSetpoint = currentData ? (currentData[setpointKey] as number) : 0; // Already in Newtons
+    const currentSetpoint = currentData ? (currentData[setpointKey] as number) : 0;
     const currentDistance = currentData ? (currentData[tofKey] as number) : 0;
 
-    // Calculate percentages (max force ~15N for display purposes)
-    const forcePercent = Math.min((currentForce / 15) * 100, 100);
+    // Pressure is already 0-100%, use directly
+    const pressurePercent = Math.min(Math.max(currentPressure, 0), 100);
+    // Duty cycle is -100 to +100, normalize to 0-100 for progress bar
     const dutyPercent = ((currentDuty + 100) / 200) * 100;
 
-    // Calculate error and status (in Newtons)
-    const error = Math.abs(currentForce - currentSetpoint);
-    const isOnTarget = error < 0.5; // Within 0.5N
+    // Calculate error and status (in percentage points)
+    const error = Math.abs(currentPressure - currentSetpoint);
+    const isOnTarget = error < 5; // Within 5 percentage points
 
     // Get distance range
     const currentRange = getDistanceRange(currentDistance);
 
     return {
-      currentForce,
+      currentPressure,
       currentDuty,
       currentSetpoint,
       currentDistance,
-      forcePercent,
+      pressurePercent,
       dutyPercent,
       error,
       isOnTarget,
       currentRange,
     };
-  }, [currentData, pressureKey, dutyKey, setpointKey, tofKey, motorNumber]);
+  }, [currentData, pressureKey, dutyKey, setpointKey, tofKey]);
 
   const {
-    currentForce,
+    currentPressure,
     currentDuty,
     currentSetpoint,
     currentDistance,
-    forcePercent,
+    pressurePercent,
     dutyPercent,
     error,
     isOnTarget,
@@ -146,7 +146,7 @@ export const MotorCard = memo(function MotorCard({
           </Link>
         </div>
         <CardDescription>
-          Force: {currentForce.toFixed(2)} N / {currentSetpoint.toFixed(2)} N
+          Pressure: {currentPressure.toFixed(1)}% / {currentSetpoint.toFixed(1)}%
         </CardDescription>
       </CardHeader>
 
@@ -190,14 +190,14 @@ export const MotorCard = memo(function MotorCard({
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                domain={[0, 15]}
-                tickFormatter={(value) => `${value}`}
+                domain={[0, 100]}
+                tickFormatter={(value) => `${value}%`}
               />
               <ChartTooltip
                 content={
                   <ChartTooltipContent
                     labelFormatter={(value) => `Time: ${(value / 1000).toFixed(1)}s`}
-                    formatter={(value, name) => [`${Number(value).toFixed(2)} N`, name]}
+                    formatter={(value, name) => [`${Number(value).toFixed(1)}%`, name]}
                   />
                 }
               />
@@ -226,14 +226,14 @@ export const MotorCard = memo(function MotorCard({
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-3 gap-4">
-          {/* Current Force */}
+          {/* Current Pressure */}
           <div className="space-y-2 rounded-lg border bg-muted/50 p-3">
             <div className="text-xs font-medium text-muted-foreground">
-              Current Force
+              Current Pressure
             </div>
-            <div className="text-2xl font-bold">{currentForce.toFixed(2)}</div>
-            <div className="text-xs text-muted-foreground">N</div>
-            <Progress value={forcePercent} className="h-1.5" />
+            <div className="text-2xl font-bold">{currentPressure.toFixed(1)}</div>
+            <div className="text-xs text-muted-foreground">%</div>
+            <Progress value={pressurePercent} className="h-1.5" />
           </div>
 
           {/* TOF Distance */}
@@ -272,16 +272,16 @@ export const MotorCard = memo(function MotorCard({
           <div className="flex items-center gap-2">
             <span
               className={`text-lg font-bold ${
-                error < 0.5
+                error < 5
                   ? 'text-green-600'
-                  : error < 1.0
+                  : error < 10
                   ? 'text-yellow-600'
                   : 'text-red-600'
               }`}
             >
-              {error.toFixed(2)}
+              {error.toFixed(1)}
             </span>
-            <span className="text-sm text-muted-foreground">N</span>
+            <span className="text-sm text-muted-foreground">%</span>
           </div>
         </div>
       </CardContent>

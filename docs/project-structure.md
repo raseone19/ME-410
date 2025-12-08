@@ -213,7 +213,7 @@ Input layer - reads TOF distance and pressure pads.
 
 **Modules:**
 - `tof_sensor` - TOF distance with servo sweep
-- `pressure_pads` - 4 pads via multiplexer
+- `pressure_pads` - 5 pads via multiplexer
 
 See [docs/architecture.md](../docs/architecture.md)
 ```

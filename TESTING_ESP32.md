@@ -29,7 +29,7 @@ cd /Users/miguelmoorcastro/Desktop/EPFL/410/Projects/TEST3/Project/frontend
 pnpm run list-ports
 ```
 
-Expected output should show `/dev/cu.usbserial-10`
+Expected output should show `/dev/cu.usbserial-110`
 
 ---
 
@@ -42,7 +42,7 @@ This tests if the serial bridge can read from the ESP32:
 cd /Users/miguelmoorcastro/Desktop/EPFL/410/Projects/TEST3/Project/frontend
 
 # Run the serial bridge with your port
-SERIAL_PORT=/dev/cu.usbserial-10 pnpm run serial-bridge
+SERIAL_PORT=/dev/cu.usbserial-110 pnpm run serial-bridge
 ```
 
 **Expected Output:**
@@ -50,13 +50,13 @@ SERIAL_PORT=/dev/cu.usbserial-10 pnpm run serial-bridge
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃  Serial → WebSocket Bridge Running       ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃  Serial Port: /dev/cu.usbserial-10        ┃
+┃  Serial Port: /dev/cu.usbserial-110        ┃
 ┃  Baud Rate:   115200                      ┃
 ┃  WS Port:     3001                        ┃
 ┃  WS URL:      ws://localhost:3001         ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-✅ Serial port opened: /dev/cu.usbserial-10 @ 115200 baud
+✅ Serial port opened: /dev/cu.usbserial-110 @ 115200 baud
 🔍 Auto-detecting protocol (CSV or Binary)...
 ✅ Binary protocol detected
 ```
@@ -64,7 +64,7 @@ SERIAL_PORT=/dev/cu.usbserial-10 pnpm run serial-bridge
 If you see errors, check:
 - ESP32 is connected via USB
 - ESP32 is powered on and running (should have uploaded firmware)
-- Serial port is correct (`/dev/cu.usbserial-10`)
+- Serial port is correct (`/dev/cu.usbserial-110`)
 - No other programs are using the serial port
 
 **Stop the bridge:** Press `Ctrl+C`
@@ -78,7 +78,7 @@ In a new terminal, test if the WebSocket is receiving data:
 ```bash
 # Terminal 1: Run serial bridge
 cd /Users/miguelmoorcastro/Desktop/EPFL/410/Projects/TEST3/Project/frontend
-SERIAL_PORT=/dev/cu.usbserial-10 pnpm run serial-bridge
+SERIAL_PORT=/dev/cu.usbserial-110 pnpm run serial-bridge
 
 # Terminal 2: Test WebSocket client
 cd /Users/miguelmoorcastro/Desktop/EPFL/410/Projects/TEST3/Project/frontend
@@ -97,7 +97,7 @@ Run both the serial bridge and the Next.js frontend:
 cd /Users/miguelmoorcastro/Desktop/EPFL/410/Projects/TEST3/Project/frontend
 
 # Option A: Development mode (faster, for testing)
-SERIAL_PORT=/dev/cu.usbserial-10 pnpm run dev:serial
+SERIAL_PORT=/dev/cu.usbserial-110 pnpm run dev:serial
 
 # Option B: Production mode (slower build, more stable)
 pnpm run start:serial
@@ -105,7 +105,7 @@ pnpm run start:serial
 
 **Expected Output:**
 ```
-✅ Serial port opened: /dev/cu.usbserial-10 @ 115200 baud
+✅ Serial port opened: /dev/cu.usbserial-110 @ 115200 baud
 🔍 Auto-detecting protocol (CSV or Binary)...
 ✅ Binary protocol detected
 
@@ -135,7 +135,7 @@ pnpm run start:serial
    import serial
    import time
 
-   ser = serial.Serial('/dev/cu.usbserial-10', 115200, timeout=1)
+   ser = serial.Serial('/dev/cu.usbserial-110', 115200, timeout=1)
    print("Reading for 5 seconds...")
 
    start = time.time()
@@ -171,13 +171,13 @@ pnpm run start:serial
 # Check if port exists
 ls -la /dev/cu.usbserial*
 
-# Should show: crw-rw-rw- ... /dev/cu.usbserial-10
+# Should show: crw-rw-rw- ... /dev/cu.usbserial-110
 ```
 
 **Port in use:**
 ```bash
 # Kill any processes using the port
-lsof /dev/cu.usbserial-10
+lsof /dev/cu.usbserial-110
 # Then kill the PID shown
 ```
 
@@ -186,7 +186,7 @@ lsof /dev/cu.usbserial-10
 **Check serial output manually:**
 ```bash
 # Use screen to see raw serial output
-screen /dev/cu.usbserial-10 115200
+screen /dev/cu.usbserial-110 115200
 
 # You should see:
 # ========================================
@@ -261,20 +261,20 @@ When everything is working:
 pnpm run list-ports
 
 # Test serial bridge only
-SERIAL_PORT=/dev/cu.usbserial-10 pnpm run serial-bridge
+SERIAL_PORT=/dev/cu.usbserial-110 pnpm run serial-bridge
 
 # Test with mock data (no ESP32 needed)
 pnpm run dev:mock
 
 # Full system with real ESP32
-SERIAL_PORT=/dev/cu.usbserial-10 pnpm run dev:serial
+SERIAL_PORT=/dev/cu.usbserial-110 pnpm run dev:serial
 
 # Upload firmware to ESP32
 cd /Users/miguelmoorcastro/Desktop/EPFL/410/Projects/TEST3/Project
 ~/.platformio/penv/bin/pio run --target upload
 
 # Monitor ESP32 serial output directly
-screen /dev/cu.usbserial-10 115200
+screen /dev/cu.usbserial-110 115200
 # (Ctrl+A, K to exit)
 ```
 
@@ -284,7 +284,7 @@ screen /dev/cu.usbserial-10 115200
 
 - [ ] ESP32 firmware uploaded successfully
 - [ ] ESP32 power LED is on
-- [ ] Serial port `/dev/cu.usbserial-10` exists
+- [ ] Serial port `/dev/cu.usbserial-110` exists
 - [ ] Serial bridge starts without errors
 - [ ] Protocol detected (Binary or CSV)
 - [ ] WebSocket server listening on port 3001
@@ -298,7 +298,7 @@ screen /dev/cu.usbserial-10 115200
 
 **Last Updated:** 2025-01-20
 **ESP32:** ESP32-S3-WROOM-1U
-**Serial Port:** /dev/cu.usbserial-10
+**Serial Port:** /dev/cu.usbserial-110
 **Baud Rate:** 115200
 **WebSocket Port:** 3001
 **Frontend Port:** 3000

@@ -4,6 +4,7 @@
  */
 
 #include "tof_sensor.h"
+#include "ultrasonic_sensor.h"
 #include "../config/pins.h"
 #include "../config/system_config.h"
 #include "../config/servo_config.h"
@@ -39,6 +40,12 @@ SemaphoreHandle_t distanceMutex = NULL;
 volatile float shared_min_distance[5] = {999.0f, 999.0f, 999.0f, 999.0f, 999.0f};
 volatile int shared_best_angle[5] = {SERVO_MIN_ANGLE, SERVO_MIN_ANGLE, SERVO_MIN_ANGLE, SERVO_MIN_ANGLE, SERVO_MIN_ANGLE};
 volatile bool sweep_active = false;
+volatile ActiveSensor shared_active_sensor = SENSOR_NONE;
+
+// Dynamic distance thresholds (initialized to base values, updated by potentiometer 2)
+float distance_close_max = DISTANCE_CLOSE_MAX_BASE;    // 100 cm at scale=1.0
+float distance_medium_max = DISTANCE_MEDIUM_MAX_BASE;  // 200 cm at scale=1.0
+float distance_far_max = DISTANCE_FAR_MAX_BASE;        // 300 cm at scale=1.0
 
 // ============================================================================
 // Internal Helper Functions
@@ -237,20 +244,26 @@ float tofGetDistance() {
 }
 
 DistanceRange getDistanceRange(float distance) {
+    // Uses dynamic thresholds updated by potentiometer 2:
+    // - distance_close_max: CLOSE/MEDIUM boundary (75-125 cm)
+    // - distance_medium_max: MEDIUM/FAR boundary (125-275 cm)
+    // - distance_far_max: FAR/OUT boundary (150-450 cm)
+    // - DISTANCE_CLOSE_MIN: Fixed at 50 cm (sensor limitation)
+
     if (distance < 0.0f) {
         return RANGE_UNKNOWN;  // Sensor error
     }
-    else if (distance >= DISTANCE_FAR_MIN && distance <= DISTANCE_FAR_MAX) {
-        return RANGE_FAR;  // Far range: 200-300 cm
+    else if (distance >= distance_medium_max && distance <= distance_far_max) {
+        return RANGE_FAR;  // Far range (e.g., 200-300 cm at scale=1.0)
     }
-    else if (distance >= DISTANCE_MEDIUM_MIN && distance < DISTANCE_FAR_MIN) {
-        return RANGE_MEDIUM;  // Medium range: 100-200 cm
+    else if (distance >= distance_close_max && distance < distance_medium_max) {
+        return RANGE_MEDIUM;  // Medium range (e.g., 100-200 cm at scale=1.0)
     }
-    else if (distance >= DISTANCE_CLOSE_MIN && distance < DISTANCE_MEDIUM_MIN) {
-        return RANGE_CLOSE;  // Close range: 50-100 cm
+    else if (distance >= DISTANCE_CLOSE_MIN && distance < distance_close_max) {
+        return RANGE_CLOSE;  // Close range (e.g., 50-100 cm at scale=1.0)
     }
     else {
-        return RANGE_OUT_OF_BOUNDS;  // Outside valid ranges
+        return RANGE_OUT_OF_BOUNDS;  // Outside valid ranges (<50 cm or >far_max)
     }
 }
 
@@ -345,7 +358,36 @@ void servoSweepTask(void* parameter) {
 
             // Read TOF distance at manual position
             vTaskDelay(pdMS_TO_TICKS(settle_time));
-            float distance = tofGetDistance();
+            float tof_distance = tofGetDistance();
+
+            // Read ultrasonic distance
+            float ultrasonic_distance = ultrasonicGetDistance();
+
+            // Use the smaller valid distance and track which sensor
+            float distance;
+            bool tof_valid = (tof_distance > 0 && tof_distance < 999.0f);
+            bool us_valid = (ultrasonic_distance > 0 && ultrasonic_distance < 999.0f);
+
+            if (!tof_valid && !us_valid) {
+                distance = 999.0f;
+                shared_active_sensor = SENSOR_NONE;
+            } else if (!tof_valid) {
+                distance = ultrasonic_distance;
+                shared_active_sensor = SENSOR_ULTRASONIC;
+            } else if (!us_valid) {
+                distance = tof_distance;
+                shared_active_sensor = SENSOR_TOF;
+            } else if (tof_distance < ultrasonic_distance) {
+                distance = tof_distance;
+                shared_active_sensor = SENSOR_TOF;
+            } else if (ultrasonic_distance < tof_distance) {
+                distance = ultrasonic_distance;
+                shared_active_sensor = SENSOR_ULTRASONIC;
+            } else {
+                distance = tof_distance;  // Equal
+                shared_active_sensor = SENSOR_BOTH_EQUAL;
+            }
+
             shared_tof_current = distance;
 
             // Determine sector for this angle using robust nearest-center algorithm
@@ -400,7 +442,35 @@ void servoSweepTask(void* parameter) {
             vTaskDelay(pdMS_TO_TICKS(settle_time));
 
             // Read TOF distance at this angle
-            float distance = tofGetDistance();
+            float tof_distance = tofGetDistance();
+
+            // Read ultrasonic distance
+            float ultrasonic_distance = ultrasonicGetDistance();
+
+            // Use the smaller valid distance and track which sensor
+            float distance;
+            bool tof_valid = (tof_distance > 0 && tof_distance < 999.0f);
+            bool us_valid = (ultrasonic_distance > 0 && ultrasonic_distance < 999.0f);
+
+            if (!tof_valid && !us_valid) {
+                distance = 999.0f;
+                shared_active_sensor = SENSOR_NONE;
+            } else if (!tof_valid) {
+                distance = ultrasonic_distance;
+                shared_active_sensor = SENSOR_ULTRASONIC;
+            } else if (!us_valid) {
+                distance = tof_distance;
+                shared_active_sensor = SENSOR_TOF;
+            } else if (tof_distance < ultrasonic_distance) {
+                distance = tof_distance;
+                shared_active_sensor = SENSOR_TOF;
+            } else if (ultrasonic_distance < tof_distance) {
+                distance = ultrasonic_distance;
+                shared_active_sensor = SENSOR_ULTRASONIC;
+            } else {
+                distance = tof_distance;  // Equal
+                shared_active_sensor = SENSOR_BOTH_EQUAL;
+            }
 
             // Update live TOF reading for radar display
             shared_tof_current = distance;
@@ -478,7 +548,35 @@ void servoSweepTask(void* parameter) {
             vTaskDelay(pdMS_TO_TICKS(settle_time));
 
             // Read TOF distance at this angle
-            float distance = tofGetDistance();
+            float tof_distance = tofGetDistance();
+
+            // Read ultrasonic distance
+            float ultrasonic_distance = ultrasonicGetDistance();
+
+            // Use the smaller valid distance and track which sensor
+            float distance;
+            bool tof_valid = (tof_distance > 0 && tof_distance < 999.0f);
+            bool us_valid = (ultrasonic_distance > 0 && ultrasonic_distance < 999.0f);
+
+            if (!tof_valid && !us_valid) {
+                distance = 999.0f;
+                shared_active_sensor = SENSOR_NONE;
+            } else if (!tof_valid) {
+                distance = ultrasonic_distance;
+                shared_active_sensor = SENSOR_ULTRASONIC;
+            } else if (!us_valid) {
+                distance = tof_distance;
+                shared_active_sensor = SENSOR_TOF;
+            } else if (tof_distance < ultrasonic_distance) {
+                distance = tof_distance;
+                shared_active_sensor = SENSOR_TOF;
+            } else if (ultrasonic_distance < tof_distance) {
+                distance = ultrasonic_distance;
+                shared_active_sensor = SENSOR_ULTRASONIC;
+            } else {
+                distance = tof_distance;  // Equal
+                shared_active_sensor = SENSOR_BOTH_EQUAL;
+            }
 
             // Update live TOF reading for radar display
             shared_tof_current = distance;
@@ -537,7 +635,35 @@ void servoSweepTask(void* parameter) {
             vTaskDelay(pdMS_TO_TICKS(settle_time));
 
             // Read TOF distance at this angle
-            float distance = tofGetDistance();
+            float tof_distance = tofGetDistance();
+
+            // Read ultrasonic distance
+            float ultrasonic_distance = ultrasonicGetDistance();
+
+            // Use the smaller valid distance and track which sensor
+            float distance;
+            bool tof_valid = (tof_distance > 0 && tof_distance < 999.0f);
+            bool us_valid = (ultrasonic_distance > 0 && ultrasonic_distance < 999.0f);
+
+            if (!tof_valid && !us_valid) {
+                distance = 999.0f;
+                shared_active_sensor = SENSOR_NONE;
+            } else if (!tof_valid) {
+                distance = ultrasonic_distance;
+                shared_active_sensor = SENSOR_ULTRASONIC;
+            } else if (!us_valid) {
+                distance = tof_distance;
+                shared_active_sensor = SENSOR_TOF;
+            } else if (tof_distance < ultrasonic_distance) {
+                distance = tof_distance;
+                shared_active_sensor = SENSOR_TOF;
+            } else if (ultrasonic_distance < tof_distance) {
+                distance = ultrasonic_distance;
+                shared_active_sensor = SENSOR_ULTRASONIC;
+            } else {
+                distance = tof_distance;  // Equal
+                shared_active_sensor = SENSOR_BOTH_EQUAL;
+            }
 
             // Update live TOF reading for radar display
             shared_tof_current = distance;

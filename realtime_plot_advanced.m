@@ -9,7 +9,7 @@
 clear all; close all; clc;
 
 %% CONFIGURACION
-COM_PORT = '/dev/cu.usbserial-10';  % CAMBIAR por tu puerto
+COM_PORT = '/dev/cu.usbserial-110';  % CAMBIAR por tu puerto
 BAUD_RATE = 115200;
 MAX_POINTS = 1000;  % Numero maximo de puntos
 SAVE_DATA = true;   % Guardar datos al finalizar

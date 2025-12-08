@@ -35,6 +35,20 @@ void initPIController();
 void controlStep(const float setpoints_mv[NUM_MOTORS], const uint16_t pressure_pads_mv[NUM_MOTORS], float duty_out[NUM_MOTORS]);
 
 /**
+ * @brief Execute one PI control step for all 5 motors (using normalized 0-100 values)
+ *
+ * Uses normalized pressure values (0-100%) mapped from min/max calibration.
+ * Setpoints are also in percentage (0-100%).
+ *
+ * This function should be called at a fixed frequency (default: 50 Hz).
+ *
+ * @param setpoints_pct Array of 5 target pressure setpoints in percent (0-100)
+ * @param pressure_pct Array of 5 current normalized pressure readings (0-100)
+ * @param duty_out Output array of 5 duty cycles (will be updated, range: -100 to 100)
+ */
+void controlStepNormalized(const float setpoints_pct[NUM_MOTORS], const float pressure_pct[NUM_MOTORS], float duty_out[NUM_MOTORS]);
+
+/**
  * @brief Execute one PI control step for all 5 motors (using Newtons)
  *
  * Same as controlStep but works with force values in Newtons instead of millivolts.

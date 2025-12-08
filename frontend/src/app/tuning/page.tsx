@@ -49,7 +49,7 @@ import {
 } from '@/components/ui/chart';
 
 // Performance thresholds (hardcoded UI constants)
-const SETTLING_THRESHOLD = 50; // mV - within this range is considered settled
+const SETTLING_THRESHOLD = 5; // % - within this range is considered settled (was 50mV)
 const OVERSHOOT_THRESHOLD = 10; // % - acceptable overshoot percentage
 
 export default function TuningPage() {
@@ -162,8 +162,8 @@ export default function TuningPage() {
       };
     }
 
-    const pressureKey = `pp${motorNumber}_mv` as keyof MotorData;
-    const setpointKey = `sp${motorNumber}_mv` as keyof MotorData;
+    const pressureKey = `pp${motorNumber}_pct` as keyof MotorData;
+    const setpointKey = `sp${motorNumber}_pct` as keyof MotorData;
 
     // Get current setpoint
     const currentSetpoint = history[history.length - 1][setpointKey] as number;
@@ -253,8 +253,8 @@ export default function TuningPage() {
   // Prepare motor data for charts
   const prepareMotorChartData = (motorNumber: number) => {
     const history = motorHistory[`motor${motorNumber}` as keyof typeof motorHistory];
-    const pressureKey = `pp${motorNumber}_mv` as keyof MotorData;
-    const setpointKey = `sp${motorNumber}_mv` as keyof MotorData;
+    const pressureKey = `pp${motorNumber}_pct` as keyof MotorData;
+    const setpointKey = `sp${motorNumber}_pct` as keyof MotorData;
 
     return history.map((data) => ({
       time: data.time_ms,
@@ -338,8 +338,8 @@ export default function TuningPage() {
                   <ul className="space-y-1 text-xs list-disc list-inside">
                     <li><strong>Rise Time:</strong> How fast the system reaches the target</li>
                     <li><strong>Overshoot:</strong> How much it exceeds the target (should be &lt;10%)</li>
-                    <li><strong>Settling Time:</strong> Time to stabilize within ±{SETTLING_THRESHOLD}mV</li>
-                    <li><strong>Steady-State Error:</strong> Final error after settling (should be &lt;{SETTLING_THRESHOLD}mV)</li>
+                    <li><strong>Settling Time:</strong> Time to stabilize within ±{SETTLING_THRESHOLD}%</li>
+                    <li><strong>Steady-State Error:</strong> Final error after settling (should be &lt;{SETTLING_THRESHOLD}%)</li>
                   </ul>
                 </div>
               </div>
@@ -590,7 +590,7 @@ export default function TuningPage() {
                           </span>
                         </div>
                         <p className="text-[10px] text-muted-foreground">
-                          Time to stabilize within ±{SETTLING_THRESHOLD}mV.
+                          Time to stabilize within ±{SETTLING_THRESHOLD}%.
                         </p>
                       </div>
                       <Separator />
@@ -599,18 +599,18 @@ export default function TuningPage() {
                           <span className="text-muted-foreground">Steady-State Error</span>
                           <span
                             className={`font-mono font-bold ${
-                              metrics.steadyStateError < 30
+                              metrics.steadyStateError < 3
                                 ? 'text-green-600'
-                                : metrics.steadyStateError < 50
+                                : metrics.steadyStateError < 5
                                 ? 'text-yellow-600'
                                 : 'text-red-600'
                             }`}
                           >
-                            {metrics.steadyStateError.toFixed(0)} mV
+                            {metrics.steadyStateError.toFixed(1)}%
                           </span>
                         </div>
                         <p className="text-[10px] text-muted-foreground">
-                          Should be &lt;50mV. High error = increase Ki.
+                          Should be &lt;5%. High error = increase Ki.
                         </p>
                       </div>
                     </CardContent>
@@ -661,7 +661,7 @@ export default function TuningPage() {
                           axisLine={false}
                           tick={{ fontSize: 11 }}
                         />
-                        <YAxis domain={[0, 1200]} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                        <YAxis domain={[0, 100]} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Area
                           dataKey="pressure"
@@ -715,16 +715,16 @@ export default function TuningPage() {
                           axisLine={false}
                           tick={{ fontSize: 11 }}
                         />
-                        <YAxis domain={[0, 200]} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                        <YAxis domain={[0, 20]} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <ReferenceLine
-                          y={50}
+                          y={5}
                           stroke="#10b981"
                           strokeDasharray="3 3"
-                          label={{ value: 'Good (<50mV)', fontSize: 10, fill: '#10b981' }}
+                          label={{ value: 'Good (<5%)', fontSize: 10, fill: '#10b981' }}
                         />
                         <ReferenceLine
-                          y={100}
+                          y={10}
                           stroke="#f59e0b"
                           strokeDasharray="3 3"
                           label={{ value: 'Acceptable', fontSize: 10, fill: '#f59e0b' }}

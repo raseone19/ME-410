@@ -1,6 +1,6 @@
 # Variables Reference
 
-This document provides a comprehensive reference of all variables used in the 4-Motor Independent PI Control System, organized by module and scope.
+This document provides a comprehensive reference of all variables used in the 5-Motor Independent PI Control System, organized by module and scope.
 
 ## Table of Contents
 
@@ -18,38 +18,41 @@ This document provides a comprehensive reference of all variables used in the 4-
 
 ### Pin Definitions (`src/config/pins.h`)
 
-#### Motor Pins
+#### Motor Pins (ESP32-S3)
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `M1_PWM` | 13 | Motor 1 PWM pin |
-| `M1_IN1` | 14 | Motor 1 direction control 1 |
-| `M1_IN2` | 12 | Motor 1 direction control 2 |
-| `M2_PWM` | 25 | Motor 2 PWM pin |
-| `M2_IN1` | 27 | Motor 2 direction control 1 |
-| `M2_IN2` | 26 | Motor 2 direction control 2 |
-| `M3_PWM` | 5 | Motor 3 PWM pin |
-| `M3_IN1` | 16 | Motor 3 direction control 1 |
-| `M3_IN2` | 17 | Motor 3 direction control 2 |
-| `M4_PWM` | 15 | Motor 4 PWM pin |
-| `M4_IN1` | 4 | Motor 4 direction control 1 |
-| `M4_IN2` | 2 | Motor 4 direction control 2 |
+| `M1_PWM` | 14 | Motor 1 PWM pin |
+| `M1_IN1` | 13 | Motor 1 direction control 1 |
+| `M1_IN2` | 21 | Motor 1 direction control 2 |
+| `M2_PWM` | 35 | Motor 2 PWM pin |
+| `M2_IN1` | 48 | Motor 2 direction control 1 |
+| `M2_IN2` | 47 | Motor 2 direction control 2 |
+| `M3_PWM` | 36 | Motor 3 PWM pin |
+| `M3_IN1` | 37 | Motor 3 direction control 1 |
+| `M3_IN2` | 38 | Motor 3 direction control 2 |
+| `M4_PWM` | 41 | Motor 4 PWM pin |
+| `M4_IN1` | 39 | Motor 4 direction control 1 |
+| `M4_IN2` | 40 | Motor 4 direction control 2 |
+| `M5_PWM` | 42 | Motor 5 PWM pin |
+| `M5_IN1` | 1 | Motor 5 direction control 1 (swapped) |
+| `M5_IN2` | 2 | Motor 5 direction control 2 (swapped) |
 
-#### TOF and Servo Pins
+#### TOF and Servo Pins (ESP32-S3)
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `TOF_RX_PIN` | 34 | TOF sensor RX (input-only pin) |
-| `TOF_TX_PIN` | 18 | TOF sensor TX |
+| `TOF_RX_PIN` | 10 | TOF sensor RX |
+| `TOF_TX_PIN` | 11 | TOF sensor TX |
 | `TOF_BAUDRATE` | 921600 | TOF serial communication baud rate |
-| `SERVO_PIN` | 22 | Servo PWM control pin |
+| `SERVO_PIN` | 6 | Servo PWM control pin |
 
-#### Multiplexer Pins
+#### Multiplexer Pins (ESP32-S3)
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `MUX_S0` | 23 | Multiplexer select bit 0 (LSB) |
-| `MUX_S1` | 33 | Multiplexer select bit 1 |
-| `MUX_S2` | 32 | Multiplexer select bit 2 |
-| `MUX_S3` | 35 | Multiplexer select bit 3 (MSB) |
-| `MUX_SIG` | 36 | Multiplexer signal pin (ADC) |
+| `MUX_S0` | 17 | Multiplexer select bit 0 (LSB) |
+| `MUX_S1` | 16 | Multiplexer select bit 1 |
+| `MUX_S2` | 15 | Multiplexer select bit 2 |
+| `MUX_S3` | 7 | Multiplexer select bit 3 (MSB) |
+| `MUX_SIG` | 4 | Multiplexer signal pin (ADC) |
 
 #### Servo Configuration (from `servo_config.h`)
 | Constant | Value | Description |
@@ -57,7 +60,7 @@ This document provides a comprehensive reference of all variables used in the 4-
 | `SERVO_MIN_ANGLE` | 5 | Minimum sweep angle (degrees) |
 | `SERVO_MAX_ANGLE` | 175 | Maximum sweep angle (degrees) |
 | `SERVO_STEP` | 3 | Angle increment per step (degrees) |
-| `SERVO_SETTLE_MS` | 80 | Settling time per angle (milliseconds) |
+| `SERVO_SETTLE_MS` | 10 | Settling time per angle (milliseconds) |
 | `SERVO_READING_DELAY_MS` | 10 | Delay between TOF readings (milliseconds) |
 
 #### Sweep Mode Configuration
@@ -67,24 +70,24 @@ This document provides a comprehensive reference of all variables used in the 4-
 | `SWEEP_MODE_BIDIRECTIONAL` | Bidirectional sweep (5°→175°→5°) |
 
 #### Sector Definitions (from `servo_config.h`)
-| Constant | Min | Max | Description |
-|----------|-----|-----|-------------|
-| `SECTOR_MOTOR_1_MIN` | 5 | - | Motor 1 sector start |
-| `SECTOR_MOTOR_1_MAX` | 45 | - | Motor 1 sector end |
-| `SECTOR_MOTOR_2_MIN` | 45 | - | Motor 2 sector start |
-| `SECTOR_MOTOR_2_MAX` | 90 | - | Motor 2 sector end |
-| `SECTOR_MOTOR_3_MIN` | 90 | - | Motor 3 sector start |
-| `SECTOR_MOTOR_3_MAX` | 135 | - | Motor 3 sector end |
-| `SECTOR_MOTOR_4_MIN` | 135 | - | Motor 4 sector start |
-| `SECTOR_MOTOR_4_MAX` | 175 | - | Motor 4 sector end |
+| Sector | Motor | Min | Max | Range |
+|--------|-------|-----|-----|-------|
+| Sector 1 | Motor 1 | 5° | 39° | 34° |
+| Sector 2 | Motor 2 | 39° | 73° | 34° |
+| Sector 3 | Motor 3 | 73° | 107° | 34° |
+| Sector 4 | Motor 4 | 107° | 141° | 34° |
+| Sector 5 | Motor 5 | 141° | 175° | 34° |
 
 #### Multiplexer Channels
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `PP1_CHANNEL` | 1 | Pressure pad 1 multiplexer channel |
-| `PP2_CHANNEL` | 2 | Pressure pad 2 multiplexer channel |
-| `PP3_CHANNEL` | 3 | Pressure pad 3 multiplexer channel |
-| `PP4_CHANNEL` | 6 | Pressure pad 4 multiplexer channel |
+| `PP_CHANNELS[0]` | 5 | Pressure pad 1 multiplexer channel |
+| `PP_CHANNELS[1]` | 4 | Pressure pad 2 multiplexer channel |
+| `PP_CHANNELS[2]` | 3 | Pressure pad 3 multiplexer channel |
+| `PP_CHANNELS[3]` | 2 | Pressure pad 4 multiplexer channel |
+| `PP_CHANNELS[4]` | 1 | Pressure pad 5 multiplexer channel |
+| `POT_CHANNELS[0]` | 12 | Potentiometer 1 (Force scale) |
+| `POT_CHANNELS[1]` | 14 | Potentiometer 2 (Distance scale) |
 
 #### Sampling Configuration
 | Constant | Value | Description |
@@ -162,7 +165,7 @@ This document provides a comprehensive reference of all variables used in the 4-
 |----------|-------|-------------|
 | `CTRL_FREQ_HZ` | 50 | Control loop frequency (Hz) |
 | `CTRL_DT_MS` | 20 | Control loop period (milliseconds) |
-| `NUM_MOTORS` | 4 | Number of motors in system |
+| `NUM_MOTORS` | 5 | Number of motors in system |
 
 ### FreeRTOS Task Priorities (`src/tasks/core0_tasks.h`)
 
@@ -184,15 +187,16 @@ Defined in `src/sensors/tof_sensor.cpp`:
 | Variable | Type | Scope | Description |
 |----------|------|-------|-------------|
 | `distanceMutex` | `SemaphoreHandle_t` | Global | Mutex for protecting distance/angle arrays |
-| `shared_min_distance[4]` | `volatile float` | Global | Minimum distance per sector (cm), initialized to 999.0f |
-| `shared_best_angle[4]` | `volatile int` | Global | Angle of minimum distance per sector (degrees) |
+| `shared_min_distance[5]` | `volatile float` | Global | Minimum distance per sector (cm), initialized to 999.0f |
+| `shared_best_angle[5]` | `volatile int` | Global | Angle of minimum distance per sector (degrees) |
 | `sweep_active` | `volatile bool` | Global | Flag indicating if sweep is active (unused in current implementation) |
 
 **Sector Mapping:**
-- Index 0: Motor 1 (5° - 45°)
-- Index 1: Motor 2 (45° - 90°)
-- Index 2: Motor 3 (90° - 135°)
-- Index 3: Motor 4 (135° - 175°)
+- Index 0: Motor 1 (5° - 39°)
+- Index 1: Motor 2 (39° - 73°)
+- Index 2: Motor 3 (73° - 107°)
+- Index 3: Motor 4 (107° - 141°)
+- Index 4: Motor 5 (141° - 175°)
 
 **Access Pattern:**
 - **Written by:** Core 0 (Servo Sweep Task) with mutex
@@ -205,10 +209,10 @@ Defined in `src/tasks/core0_tasks.cpp`:
 
 | Variable | Type | Scope | Description |
 |----------|------|-------|-------------|
-| `shared_setpoints_mv[4]` | `volatile float` | Global | Current setpoints for each motor (mV) |
-| `shared_pressure_pads_mv[4]` | `volatile uint16_t` | Global | Current pressure pad readings (mV) |
-| `shared_duty_cycles[4]` | `volatile float` | Global | Current duty cycles for each motor (%) |
-| `shared_tof_distances[4]` | `volatile float` | Global | TOF distances per sector for logging (cm) |
+| `shared_setpoints_mv[5]` | `volatile float` | Global | Current setpoints for each motor (mV) |
+| `shared_pressure_pads_mv[5]` | `volatile uint16_t` | Global | Current pressure pad readings (mV) |
+| `shared_duty_cycles[5]` | `volatile float` | Global | Current duty cycles for each motor (%) |
+| `shared_tof_distances[5]` | `volatile float` | Global | TOF distances per sector for logging (cm) |
 | `shared_servo_angle` | `volatile int` | Global | Current servo angle (degrees, 0-120) |
 | `shared_tof_current` | `volatile float` | Global | Current TOF reading at current angle (cm) |
 
@@ -227,8 +231,8 @@ These variables are local to the main loop in `src/main.cpp` and are not shared 
 
 | Variable | Type | Scope | Description |
 |----------|------|-------|-------------|
-| `current_state[4]` | `SystemState` | Static | Current state for each motor |
-| `reverse_start_time[4]` | `uint32_t` | Static | Timestamp when reverse period started (ms) |
+| `current_state[5]` | `SystemState` | Static | Current state for each motor |
+| `reverse_start_time[5]` | `uint32_t` | Static | Timestamp when reverse period started (ms) |
 
 **Possible States (SystemState enum):**
 - `NORMAL_OPERATION` - PI control active
@@ -240,8 +244,8 @@ These variables are local to the main loop in `src/main.cpp` and are not shared 
 
 | Variable | Type | Scope | Description |
 |----------|------|-------|-------------|
-| `current_range[4]` | `DistanceRange` | Static | Current distance range classification per motor |
-| `previous_range[4]` | `DistanceRange` | Static | Previous distance range for transition detection |
+| `current_range[5]` | `DistanceRange` | Static | Current distance range classification per motor |
+| `previous_range[5]` | `DistanceRange` | Static | Previous distance range for transition detection |
 
 **Possible Ranges (DistanceRange enum):**
 - `RANGE_CLOSE` - 50-100 cm
@@ -254,16 +258,16 @@ These variables are local to the main loop in `src/main.cpp` and are not shared 
 
 | Variable | Type | Scope | Description |
 |----------|------|-------|-------------|
-| `far_range_baseline_mv[4]` | `float` | Static | Baseline pressure captured when entering FAR range (mV) |
-| `far_range_baseline_captured[4]` | `bool` | Static | Flag indicating if baseline has been captured |
+| `far_range_baseline_mv[5]` | `float` | Static | Baseline pressure captured when entering FAR range (mV) |
+| `far_range_baseline_captured[5]` | `bool` | Static | Flag indicating if baseline has been captured |
 
 ### Control Loop Variables
 
 | Variable | Type | Scope | Description |
 |----------|------|-------|-------------|
-| `pressure_pads_mv[4]` | `uint16_t` | Static | Local copy of pressure pad readings (mV) |
-| `duty_cycles[4]` | `float` | Static | Local copy of duty cycles (%) |
-| `setpoints_mv[4]` | `float` | Static | Local copy of setpoints per motor (mV) |
+| `pressure_pads_mv[5]` | `uint16_t` | Static | Local copy of pressure pad readings (mV) |
+| `duty_cycles[5]` | `float` | Static | Local copy of duty cycles (%) |
+| `setpoints_mv[5]` | `float` | Static | Local copy of setpoints per motor (mV) |
 | `last_control_ms` | `uint32_t` | Static | Timestamp of last control loop execution (ms) |
 
 ---
@@ -306,10 +310,10 @@ These variables are internal to the PI controller module (`src/control/pi_contro
 
 | Variable | Type | Scope | Description |
 |----------|------|-------|-------------|
-| `integrator[4]` | `float` | Static | Integral accumulator for each motor |
-| `last_error[4]` | `float` | Static | Previous error for derivative calculation (unused) |
+| `integrator[5]` | `float` | Static | Integral accumulator for each motor |
+| `last_error[5]` | `float` | Static | Previous error for derivative calculation (unused) |
 
-**Note:** Arrays are sized for 4 motors (NUM_MOTORS = 4)
+**Note:** Arrays are sized for 5 motors (NUM_MOTORS = 5)
 
 ---
 
@@ -362,10 +366,10 @@ Defined in `src/utils/binary_protocol.h`:
 struct DataPacket {
     uint16_t header;           // 0xAA55 sync header
     uint32_t timestamp_ms;     // System timestamp (milliseconds)
-    float setpoints[4];        // Setpoints for 4 motors (mV)
-    uint16_t pressures[4];     // Pressure pad readings (mV)
-    float duties[4];           // Duty cycles (%)
-    float tof_distances[4];    // TOF distances per sector (cm)
+    float setpoints[5];        // Setpoints for 5 motors (mV)
+    uint16_t pressures[5];     // Pressure pad readings (mV)
+    float duties[5];           // Duty cycles (%)
+    float tof_distances[5];    // TOF distances per sector (cm)
     uint8_t servo_angle;       // Current servo angle (0-120)
     float tof_current;         // Current TOF reading (cm)
     uint8_t mode;              // Mode byte (always 1 = sweep mode)
@@ -399,8 +403,8 @@ struct DataPacket {
 
 ### Array Sizes
 
-- `[4]` - Arrays sized for 4 motors (NUM_MOTORS)
-- Motor index: 0 = Motor 1, 1 = Motor 2, 2 = Motor 3, 3 = Motor 4
+- `[5]` - Arrays sized for 5 motors (NUM_MOTORS)
+- Motor index: 0 = Motor 1, 1 = Motor 2, 2 = Motor 3, 3 = Motor 4, 4 = Motor 5
 
 ---
 
@@ -414,10 +418,10 @@ struct DataPacket {
    - `distanceMutex = xSemaphoreCreateMutex()` - Create mutex
 
 2. **Variable initialization:**
-   - `shared_min_distance[4] = {999.0f, 999.0f, 999.0f, 999.0f}` - Invalid/uninitialized
-   - `shared_best_angle[4] = {0, 30, 60, 90}` - Sector minimums
-   - `current_state[4] = {NORMAL_OPERATION, ...}` - All motors start normal
-   - `integrator[4] = {0.0f, ...}` - Zero integrators
+   - `shared_min_distance[5] = {999.0f, 999.0f, 999.0f, 999.0f, 999.0f}` - Invalid/uninitialized
+   - `shared_best_angle[5] = {5, 39, 73, 107, 141}` - Sector minimums
+   - `current_state[5] = {NORMAL_OPERATION, ...}` - All motors start normal
+   - `integrator[5] = {0.0f, ...}` - Zero integrators
 
 ### During Operation
 
@@ -437,12 +441,12 @@ struct DataPacket {
 
 | Variable | Location | Purpose |
 |----------|----------|---------|
-| `shared_min_distance[4]` | Core 0 → Core 1 | Minimum distance per motor sector |
-| `shared_pressure_pads_mv[4]` | Core 1 → Core 0 | Current pressure readings for logging |
-| `shared_duty_cycles[4]` | Core 1 → Core 0 | Current motor duty cycles for logging |
-| `setpoints_mv[4]` | Main loop | Dynamic setpoints calculated per motor |
-| `current_state[4]` | Main loop | State machine state per motor |
-| `integrator[4]` | PI controller | PI integral accumulator per motor |
+| `shared_min_distance[5]` | Core 0 → Core 1 | Minimum distance per motor sector |
+| `shared_pressure_pads_mv[5]` | Core 1 → Core 0 | Current pressure readings for logging |
+| `shared_duty_cycles[5]` | Core 1 → Core 0 | Current motor duty cycles for logging |
+| `setpoints_mv[5]` | Main loop | Dynamic setpoints calculated per motor |
+| `current_state[5]` | Main loop | State machine state per motor |
+| `integrator[5]` | PI controller | PI integral accumulator per motor |
 | `distanceMutex` | Global | Protects distance/angle shared variables |
 
 ---

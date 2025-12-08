@@ -1,7 +1,12 @@
 /**
  * Serial to WebSocket Bridge
  * Reads binary data from ESP32 via USB serial port and broadcasts to WebSocket clients
- * Binary protocol only - 84 bytes per packet with CRC-16 checksum (5 motors)
+ * Binary protocol only - 115 bytes per packet with CRC-16 checksum (5 motors)
+ *
+ * All pressure/setpoint values are now NORMALIZED (0-100%)
+ * based on calibrated prestress (0%) and maxstress*0.95 (100%)
+ *
+ * Includes potentiometer scales and dynamic distance thresholds
  */
 
 import { WebSocketServer, WebSocket } from 'ws';
@@ -11,8 +16,9 @@ import type { MotorData } from '../src/lib/types';
 const WS_PORT = 3001;
 const BAUD_RATE = 115200;
 
-// Binary protocol constants (5 motors)
-const PACKET_SIZE = 84;  // 5 motors: 2+4+20+10+20+20+1+4+1+2 = 84 bytes
+// Binary protocol constants (5 motors + potentiometer data)
+// Packet: 2+4+20+20+20+20+1+4+1+1+8+12+2 = 115 bytes
+const PACKET_SIZE = 115;
 const HEADER_WORD = 0xAA55;  // Combined 16-bit header
 
 // Serial port path - you'll need to update this
@@ -51,33 +57,39 @@ function calculateCRC16(data: Buffer): number {
 
 /**
  * Parse binary packet from ESP32
- * Packet structure (84 bytes) - 5 motors:
+ * Packet structure (115 bytes) - 5 motors with normalized values + potentiometer data:
  *   [0-1]:   Header (0xAA55 as uint16)
  *   [2-5]:   timestamp_ms (uint32)
- *   [6-9]:   setpoint1_mv (float)
- *   [10-13]: setpoint2_mv (float)
- *   [14-17]: setpoint3_mv (float)
- *   [18-21]: setpoint4_mv (float)
- *   [22-25]: setpoint5_mv (float)
- *   [26-27]: pp1_mv (uint16)
- *   [28-29]: pp2_mv (uint16)
- *   [30-31]: pp3_mv (uint16)
- *   [32-33]: pp4_mv (uint16)
- *   [34-35]: pp5_mv (uint16)
- *   [36-39]: duty1_pct (float)
- *   [40-43]: duty2_pct (float)
- *   [44-47]: duty3_pct (float)
- *   [48-51]: duty4_pct (float)
- *   [52-55]: duty5_pct (float)
- *   [56-59]: tof1_cm (float)
- *   [60-63]: tof2_cm (float)
- *   [64-67]: tof3_cm (float)
- *   [68-71]: tof4_cm (float)
- *   [72-75]: tof5_cm (float)
- *   [76]:    servo_angle (uint8)
- *   [77-80]: tof_current_cm (float)
- *   [81]:    current_mode (uint8) - 0=MODE_A, 1=MODE_B
- *   [82-83]: crc (uint16)
+ *   [6-9]:   setpoint1_pct (float) - 0-100%
+ *   [10-13]: setpoint2_pct (float) - 0-100%
+ *   [14-17]: setpoint3_pct (float) - 0-100%
+ *   [18-21]: setpoint4_pct (float) - 0-100%
+ *   [22-25]: setpoint5_pct (float) - 0-100%
+ *   [26-29]: pp1_pct (float) - 0-100%
+ *   [30-33]: pp2_pct (float) - 0-100%
+ *   [34-37]: pp3_pct (float) - 0-100%
+ *   [38-41]: pp4_pct (float) - 0-100%
+ *   [42-45]: pp5_pct (float) - 0-100%
+ *   [46-49]: duty1_pct (float) - -100 to +100%
+ *   [50-53]: duty2_pct (float) - -100 to +100%
+ *   [54-57]: duty3_pct (float) - -100 to +100%
+ *   [58-61]: duty4_pct (float) - -100 to +100%
+ *   [62-65]: duty5_pct (float) - -100 to +100%
+ *   [66-69]: tof1_cm (float)
+ *   [70-73]: tof2_cm (float)
+ *   [74-77]: tof3_cm (float)
+ *   [78-81]: tof4_cm (float)
+ *   [82-85]: tof5_cm (float)
+ *   [86]:    servo_angle (uint8)
+ *   [87-90]: tof_current_cm (float)
+ *   [91]:    current_mode (uint8) - 0=MODE_A, 1=MODE_B
+ *   [92]:    active_sensor (uint8) - 0=none, 1=TOF, 2=ultrasonic, 3=both
+ *   [93-96]: force_scale (float) - 0.6-1.0
+ *   [97-100]: distance_scale (float) - 0.5-1.5
+ *   [101-104]: dist_close_max (float) - CLOSE/MEDIUM boundary (cm)
+ *   [105-108]: dist_medium_max (float) - MEDIUM/FAR boundary (cm)
+ *   [109-112]: dist_far_max (float) - FAR/OUT boundary (cm)
+ *   [113-114]: crc (uint16)
  */
 function parseBinaryPacket(packet: Buffer): MotorData | null {
   if (packet.length !== PACKET_SIZE) {
@@ -103,31 +115,39 @@ function parseBinaryPacket(packet: Buffer): MotorData | null {
   }
 
   try {
-    const currentMode = packet.readUInt8(81); // 0=MODE_A, 1=MODE_B
+    const activeSensor = packet.readUInt8(92); // 0=none, 1=TOF, 2=ultrasonic, 3=both
     return {
       time_ms: packet.readUInt32LE(2),
-      sp1_mv: packet.readFloatLE(6),
-      sp2_mv: packet.readFloatLE(10),
-      sp3_mv: packet.readFloatLE(14),
-      sp4_mv: packet.readFloatLE(18),
-      sp5_mv: packet.readFloatLE(22),
-      pp1_mv: packet.readUInt16LE(26),
-      pp2_mv: packet.readUInt16LE(28),
-      pp3_mv: packet.readUInt16LE(30),
-      pp4_mv: packet.readUInt16LE(32),
-      pp5_mv: packet.readUInt16LE(34),
-      duty1_pct: packet.readFloatLE(36),
-      duty2_pct: packet.readFloatLE(40),
-      duty3_pct: packet.readFloatLE(44),
-      duty4_pct: packet.readFloatLE(48),
-      duty5_pct: packet.readFloatLE(52),
-      tof1_cm: packet.readFloatLE(56),
-      tof2_cm: packet.readFloatLE(60),
-      tof3_cm: packet.readFloatLE(64),
-      tof4_cm: packet.readFloatLE(68),
-      tof5_cm: packet.readFloatLE(72),
-      servo_angle: packet.readUInt8(76),
-      tof_current_cm: packet.readFloatLE(77),
+      sp1_pct: packet.readFloatLE(6),
+      sp2_pct: packet.readFloatLE(10),
+      sp3_pct: packet.readFloatLE(14),
+      sp4_pct: packet.readFloatLE(18),
+      sp5_pct: packet.readFloatLE(22),
+      pp1_pct: packet.readFloatLE(26),
+      pp2_pct: packet.readFloatLE(30),
+      pp3_pct: packet.readFloatLE(34),
+      pp4_pct: packet.readFloatLE(38),
+      pp5_pct: packet.readFloatLE(42),
+      duty1_pct: packet.readFloatLE(46),
+      duty2_pct: packet.readFloatLE(50),
+      duty3_pct: packet.readFloatLE(54),
+      duty4_pct: packet.readFloatLE(58),
+      duty5_pct: packet.readFloatLE(62),
+      tof1_cm: packet.readFloatLE(66),
+      tof2_cm: packet.readFloatLE(70),
+      tof3_cm: packet.readFloatLE(74),
+      tof4_cm: packet.readFloatLE(78),
+      tof5_cm: packet.readFloatLE(82),
+      servo_angle: packet.readUInt8(86),
+      tof_current_cm: packet.readFloatLE(87),
+      active_sensor: activeSensor,
+      // Potentiometer scales
+      force_scale: packet.readFloatLE(93),
+      distance_scale: packet.readFloatLE(97),
+      // Dynamic distance thresholds
+      dist_close_max: packet.readFloatLE(101),
+      dist_medium_max: packet.readFloatLE(105),
+      dist_far_max: packet.readFloatLE(109),
     };
   } catch (error) {
     console.error('❌ Error parsing binary packet:', error);
@@ -194,7 +214,7 @@ function initSerial() {
 
     serialPort.on('open', () => {
       console.log(`✅ Serial port opened: ${SERIAL_PORT} @ ${BAUD_RATE} baud`);
-      console.log('📡 Binary protocol mode (70-byte packets with CRC-16)');
+      console.log('📡 Binary protocol mode (115-byte packets with normalized values + potentiometer data)');
     });
 
     serialPort.on('error', (err) => {
