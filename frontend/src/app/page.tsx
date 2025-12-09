@@ -8,6 +8,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { X } from 'lucide-react';
 import { useWebSocketStore, TRANSITION_PAUSE_MS } from '@/lib/websocket-store';
+import { useCSVRecording } from '@/hooks/use-csv-recording';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { ModeBMotorCard } from '@/components/mode-b/ModeBMotorCard';
 import { PotentiometerPanel } from '@/components/dashboard/PotentiometerPanel';
@@ -50,6 +51,14 @@ export default function DashboardPage() {
   const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fullscreenRef = useRef<HTMLDivElement>(null);
+
+  // CSV Recording hook
+  const {
+    isRecording,
+    recordedPoints,
+    toggleRecording,
+    recordDataPoint,
+  } = useCSVRecording();
 
   // Load sector configuration from ESP32 source (NO FALLBACKS - show ERR if missing)
   const [espConfig, setEspConfig] = useState<any>(null);
@@ -119,6 +128,13 @@ export default function DashboardPage() {
   useEffect(() => {
     connect();
   }, [connect]);
+
+  // Record data points when recording is active
+  useEffect(() => {
+    if (isRecording && currentData) {
+      recordDataPoint(currentData);
+    }
+  }, [isRecording, currentData, recordDataPoint]);
 
   // Handle tab visibility - pause when hidden to prevent freezing
   useEffect(() => {
@@ -283,6 +299,9 @@ export default function DashboardPage() {
           onReset={handleReset}
           onSnapshot={handleSnapshot}
           onFullscreen={handleFullscreen}
+          isRecording={isRecording}
+          recordedPoints={recordedPoints}
+          onToggleRecording={toggleRecording}
         />
 
         {/* Sector Visualization */}

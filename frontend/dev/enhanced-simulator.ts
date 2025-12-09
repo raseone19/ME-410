@@ -343,6 +343,9 @@ export class EnhancedSimulator {
       servo_angle: Math.round(this.state.servoAngle),
       tof_current_cm: parseFloat(tof_current_cm.toFixed(2)),
       active_sensor: ActiveSensor.TOF,  // Simulator always uses TOF
+      // Raw sensor readings (simulated - TOF provides the reading, ultrasonic slightly higher)
+      ultrasonic_cm: parseFloat((tof_current_cm + 5 + this.addNoise(2)).toFixed(2)),  // Ultrasonic slightly higher
+      tof_raw_cm: parseFloat(tof_current_cm.toFixed(2)),  // Same as tof_current since TOF is active
       // Simulated potentiometer values (fixed at reference values)
       force_scale: 1.0,  // 100% force
       distance_scale: 1.0,  // Reference distance scale

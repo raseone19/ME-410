@@ -42,6 +42,10 @@ volatile int shared_best_angle[5] = {SERVO_MIN_ANGLE, SERVO_MIN_ANGLE, SERVO_MIN
 volatile bool sweep_active = false;
 volatile ActiveSensor shared_active_sensor = SENSOR_NONE;
 
+// Raw sensor readings (for CSV logging - both sensors independently)
+volatile float shared_tof_raw_cm = 999.0f;
+volatile float shared_ultrasonic_raw_cm = 999.0f;
+
 // Dynamic distance thresholds (initialized to base values, updated by potentiometer 2)
 float distance_close_max = DISTANCE_CLOSE_MAX_BASE;    // 100 cm at scale=1.0
 float distance_medium_max = DISTANCE_MEDIUM_MAX_BASE;  // 200 cm at scale=1.0
@@ -363,6 +367,10 @@ void servoSweepTask(void* parameter) {
             // Read ultrasonic distance
             float ultrasonic_distance = ultrasonicGetDistance();
 
+            // Store raw sensor readings for CSV logging
+            shared_tof_raw_cm = tof_distance;
+            shared_ultrasonic_raw_cm = ultrasonic_distance;
+
             // Use the smaller valid distance and track which sensor
             float distance;
             bool tof_valid = (tof_distance > 0 && tof_distance < 999.0f);
@@ -446,6 +454,10 @@ void servoSweepTask(void* parameter) {
 
             // Read ultrasonic distance
             float ultrasonic_distance = ultrasonicGetDistance();
+
+            // Store raw sensor readings for CSV logging
+            shared_tof_raw_cm = tof_distance;
+            shared_ultrasonic_raw_cm = ultrasonic_distance;
 
             // Use the smaller valid distance and track which sensor
             float distance;
@@ -553,6 +565,10 @@ void servoSweepTask(void* parameter) {
             // Read ultrasonic distance
             float ultrasonic_distance = ultrasonicGetDistance();
 
+            // Store raw sensor readings for CSV logging
+            shared_tof_raw_cm = tof_distance;
+            shared_ultrasonic_raw_cm = ultrasonic_distance;
+
             // Use the smaller valid distance and track which sensor
             float distance;
             bool tof_valid = (tof_distance > 0 && tof_distance < 999.0f);
@@ -639,6 +655,10 @@ void servoSweepTask(void* parameter) {
 
             // Read ultrasonic distance
             float ultrasonic_distance = ultrasonicGetDistance();
+
+            // Store raw sensor readings for CSV logging
+            shared_tof_raw_cm = tof_distance;
+            shared_ultrasonic_raw_cm = ultrasonic_distance;
 
             // Use the smaller valid distance and track which sensor
             float distance;

@@ -5,11 +5,12 @@
 
 'use client';
 
-import { memo, useMemo } from 'react';
-import { Wifi, WifiOff, Radio, Pause, Play, Camera, Maximize2, Gauge } from 'lucide-react';
+import { memo, useMemo, useState } from 'react';
+import { Wifi, WifiOff, Radio, Pause, Play, Camera, Maximize2, Gauge, Circle, Square } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   ConnectionStatus,
   DistanceRange,
@@ -28,6 +29,10 @@ interface DashboardHeaderProps {
   onReset: () => void;
   onSnapshot?: () => void; // Optional snapshot handler
   onFullscreen?: () => void; // Optional fullscreen handler
+  // CSV Recording
+  isRecording?: boolean;
+  recordedPoints?: number;
+  onToggleRecording?: (filename?: string) => void;
 }
 
 export const DashboardHeader = memo(function DashboardHeader({
@@ -40,9 +45,15 @@ export const DashboardHeader = memo(function DashboardHeader({
   onReset,
   onSnapshot,
   onFullscreen,
+  isRecording,
+  recordedPoints,
+  onToggleRecording,
 }: DashboardHeaderProps) {
   // Get control mode from context
   const controlMode = useControlMode();
+
+  // CSV filename state
+  const [csvFilename, setCsvFilename] = useState('');
 
   // Memoize distance calculations (only if tofDistance is provided)
   const { distanceRange, rangeColor } = useMemo(() => {
@@ -135,6 +146,52 @@ export const DashboardHeader = memo(function DashboardHeader({
 
         {/* Right: Controls */}
         <div className="flex flex-wrap items-center justify-center md:justify-end gap-2">
+          {/* CSV Recording Controls */}
+          {onToggleRecording && (
+            <div className="flex items-center gap-2">
+              {/* Filename Input - shown when not recording */}
+              {!isRecording && (
+                <Input
+                  type="text"
+                  placeholder="Filename (optional)"
+                  value={csvFilename}
+                  onChange={(e) => setCsvFilename(e.target.value)}
+                  disabled={!isConnected}
+                  className="w-32 md:w-40 h-8 text-sm"
+                />
+              )}
+              {/* Recording Button */}
+              <Button
+                variant={isRecording ? 'destructive' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  if (isRecording) {
+                    onToggleRecording(csvFilename || undefined);
+                    setCsvFilename(''); // Clear after saving
+                  } else {
+                    onToggleRecording();
+                  }
+                }}
+                disabled={!isConnected}
+                title={isRecording ? `Recording... ${recordedPoints} points` : 'Start CSV recording'}
+                className="flex-shrink-0"
+              >
+                {isRecording ? (
+                  <>
+                    <Square className="h-4 w-4 md:mr-2 fill-current" />
+                    <span className="hidden md:inline">Stop ({recordedPoints})</span>
+                    <span className="md:hidden">{recordedPoints}</span>
+                  </>
+                ) : (
+                  <>
+                    <Circle className="h-4 w-4 md:mr-2 text-red-500 fill-red-500" />
+                    <span className="hidden md:inline">Record CSV</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
           {/* Pause Button */}
           <Button
             variant={isPaused ? 'default' : 'outline'}

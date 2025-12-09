@@ -29,7 +29,7 @@ cd /Users/miguelmoorcastro/Desktop/EPFL/410/Projects/TEST3/Project/frontend
 pnpm run list-ports
 ```
 
-Expected output should show `/dev/cu.usbserial-110`
+Expected output should show `/dev/cu.usbserial-10`
 
 ---
 
@@ -42,7 +42,7 @@ This tests if the serial bridge can read from the ESP32:
 cd /Users/miguelmoorcastro/Desktop/EPFL/410/Projects/TEST3/Project/frontend
 
 # Run the serial bridge with your port
-SERIAL_PORT=/dev/cu.usbserial-110 pnpm run serial-bridge
+SERIAL_PORT=/dev/cu.usbserial-10 pnpm run serial-bridge
 ```
 
 **Expected Output:**
@@ -50,13 +50,13 @@ SERIAL_PORT=/dev/cu.usbserial-110 pnpm run serial-bridge
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃  Serial → WebSocket Bridge Running       ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃  Serial Port: /dev/cu.usbserial-110        ┃
+┃  Serial Port: /dev/cu.usbserial-10        ┃
 ┃  Baud Rate:   115200                      ┃
 ┃  WS Port:     3001                        ┃
 ┃  WS URL:      ws://localhost:3001         ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-✅ Serial port opened: /dev/cu.usbserial-110 @ 115200 baud
+✅ Serial port opened: /dev/cu.usbserial-10 @ 115200 baud
 🔍 Auto-detecting protocol (CSV or Binary)...
 ✅ Binary protocol detected
 ```

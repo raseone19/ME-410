@@ -93,6 +93,10 @@ struct __attribute__((packed)) DataPacket {
     // Active sensor (1 byte)
     uint8_t active_sensor;       // Which sensor: 0=none, 1=TOF, 2=ultrasonic, 3=both
 
+    // Raw sensor readings (8 bytes: 2x float)
+    float ultrasonic_cm;         // Raw ultrasonic sensor reading in cm
+    float tof_raw_cm;            // Raw TOF sensor reading at current servo angle in cm
+
     // Potentiometer values (8 bytes: 2x float)
     float force_scale;           // Force scale from pot 1 (0.6-1.0)
     float distance_scale;        // Distance scale from pot 2 (0.5-1.5)
@@ -107,8 +111,8 @@ struct __attribute__((packed)) DataPacket {
 };
 
 // Compile-time size verification
-// 95 bytes + 8 bytes (2 floats for scales) + 12 bytes (3 floats for thresholds) = 115 bytes
-static_assert(sizeof(DataPacket) == 115, "DataPacket must be exactly 115 bytes");
+// 115 bytes + 8 bytes (2 floats for raw sensor readings) = 123 bytes
+static_assert(sizeof(DataPacket) == 123, "DataPacket must be exactly 123 bytes");
 
 // ============================================================================
 // CRC-16 Calculation
@@ -161,6 +165,8 @@ inline uint16_t calculateCRC16(const uint8_t* data, size_t length) {
  * @param tof_current_cm TOF distance at current servo angle
  * @param current_mode Current operation mode (0=MODE_A, 1=MODE_B)
  * @param active_sensor Which sensor provided min distance (0=none, 1=TOF, 2=ultrasonic, 3=both)
+ * @param ultrasonic_cm Raw ultrasonic sensor distance in cm
+ * @param tof_raw_cm Raw TOF sensor distance at current servo angle in cm
  * @param force_scale Force scale from potentiometer 1 (0.6-1.0)
  * @param distance_scale Distance scale from potentiometer 2 (0.5-1.5)
  * @param dist_close_max CLOSE/MEDIUM distance boundary in cm
@@ -178,6 +184,8 @@ inline void buildDataPacket(
     float tof_current_cm,
     uint8_t current_mode,
     uint8_t active_sensor,
+    float ultrasonic_cm,
+    float tof_raw_cm,
     float force_scale,
     float distance_scale,
     float dist_close_max,
@@ -219,6 +227,10 @@ inline void buildDataPacket(
     packet->tof_current_cm = tof_current_cm;
     packet->current_mode = current_mode;
     packet->active_sensor = active_sensor;
+
+    // Set raw sensor readings
+    packet->ultrasonic_cm = ultrasonic_cm;
+    packet->tof_raw_cm = tof_raw_cm;
 
     // Set potentiometer scale values
     packet->force_scale = force_scale;

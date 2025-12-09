@@ -32,8 +32,8 @@ export function getActiveSensorName(sensor: ActiveSensor): string {
 
 /**
  * Motor control data point from ESP32
- * Binary protocol: 115 bytes including servo_angle, tof_current_cm, active_sensor,
- * potentiometer scales, and dynamic distance thresholds
+ * Binary protocol: 123 bytes including servo_angle, tof_current_cm, active_sensor,
+ * raw sensor readings, potentiometer scales, and dynamic distance thresholds
  *
  * All pressure/setpoint values are now NORMALIZED (0-100%)
  * based on calibrated prestress (0%) and maxstress*0.95 (100%)
@@ -61,8 +61,11 @@ export interface MotorData {
   tof4_cm: number;  // Motor 4 sector distance (107°-141°)
   tof5_cm: number;  // Motor 5 sector distance (141°-175°)
   servo_angle: number;  // Current servo position in degrees
-  tof_current_cm: number;  // TOF distance at current servo angle (real-time)
+  tof_current_cm: number;  // Fused distance (min of TOF and ultrasonic) at current servo angle
   active_sensor: ActiveSensor;  // Which sensor provided the minimum distance (0=none, 1=TOF, 2=ultrasonic, 3=both)
+  // Raw sensor readings (for CSV logging - both sensors independently)
+  ultrasonic_cm: number;  // Raw ultrasonic sensor reading in cm
+  tof_raw_cm: number;  // Raw TOF laser reading at current servo angle in cm
   // Potentiometer scale values
   force_scale: number;  // Force scale from pot 1 (0.6-1.0)
   distance_scale: number;  // Distance scale from pot 2 (0.5-1.5)

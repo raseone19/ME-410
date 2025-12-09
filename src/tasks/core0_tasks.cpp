@@ -5,6 +5,7 @@
 
 #include "core0_tasks.h"
 #include "../sensors/tof_sensor.h"
+#include "../sensors/ultrasonic_sensor.h"
 #include "../config/pins.h"
 #include "../config/system_config.h"
 #include "../utils/binary_protocol.h"
@@ -65,6 +66,10 @@ void serialPrintTask(void* parameter) {
         float dist_medium_max = shared_dist_medium_max;
         float dist_far_max = shared_dist_far_max;
 
+        // Read raw sensor values (for CSV logging)
+        float ultrasonic_cm = shared_ultrasonic_raw_cm;
+        float tof_raw_cm = shared_tof_raw_cm;
+
 #ifdef PROTOCOL_BINARY
         // ====================================================================
         // Binary Protocol Output (for frontend)
@@ -75,6 +80,7 @@ void serialPrintTask(void* parameter) {
         uint8_t active_sensor = (uint8_t)shared_active_sensor;
         buildDataPacket(&packet, time_ms, setpoints, pp_pct, duty, tof_dist,
                         (uint8_t)servo_angle, tof_current, mode_byte, active_sensor,
+                        ultrasonic_cm, tof_raw_cm,
                         force_scale, distance_scale,
                         dist_close_max, dist_medium_max, dist_far_max);
         sendBinaryPacket(&packet);

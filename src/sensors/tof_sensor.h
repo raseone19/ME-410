@@ -127,6 +127,10 @@ extern volatile bool sweep_active;
 // Active sensor tracking (which sensor provided the minimum distance)
 extern volatile ActiveSensor shared_active_sensor;  // Current sensor providing min distance
 
+// Raw sensor readings (for CSV logging - both sensors independently)
+extern volatile float shared_tof_raw_cm;         // Raw TOF reading at current servo angle
+extern volatile float shared_ultrasonic_raw_cm;  // Raw ultrasonic reading
+
 // ============================================================================
 // Public Functions
 // ============================================================================

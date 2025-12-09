@@ -16,9 +16,9 @@ import type { MotorData } from '../src/lib/types';
 const WS_PORT = 3001;
 const BAUD_RATE = 115200;
 
-// Binary protocol constants (5 motors + potentiometer data)
-// Packet: 2+4+20+20+20+20+1+4+1+1+8+12+2 = 115 bytes
-const PACKET_SIZE = 115;
+// Binary protocol constants (5 motors + potentiometer data + raw sensor readings)
+// Packet: 2+4+20+20+20+20+1+4+1+1+8+8+12+2 = 123 bytes
+const PACKET_SIZE = 123;
 const HEADER_WORD = 0xAA55;  // Combined 16-bit header
 
 // Serial port path - you'll need to update this
@@ -57,7 +57,7 @@ function calculateCRC16(data: Buffer): number {
 
 /**
  * Parse binary packet from ESP32
- * Packet structure (115 bytes) - 5 motors with normalized values + potentiometer data:
+ * Packet structure (123 bytes) - 5 motors with normalized values + raw sensor readings + potentiometer data:
  *   [0-1]:   Header (0xAA55 as uint16)
  *   [2-5]:   timestamp_ms (uint32)
  *   [6-9]:   setpoint1_pct (float) - 0-100%
@@ -84,12 +84,14 @@ function calculateCRC16(data: Buffer): number {
  *   [87-90]: tof_current_cm (float)
  *   [91]:    current_mode (uint8) - 0=MODE_A, 1=MODE_B
  *   [92]:    active_sensor (uint8) - 0=none, 1=TOF, 2=ultrasonic, 3=both
- *   [93-96]: force_scale (float) - 0.6-1.0
- *   [97-100]: distance_scale (float) - 0.5-1.5
- *   [101-104]: dist_close_max (float) - CLOSE/MEDIUM boundary (cm)
- *   [105-108]: dist_medium_max (float) - MEDIUM/FAR boundary (cm)
- *   [109-112]: dist_far_max (float) - FAR/OUT boundary (cm)
- *   [113-114]: crc (uint16)
+ *   [93-96]: ultrasonic_cm (float) - raw ultrasonic reading
+ *   [97-100]: tof_raw_cm (float) - raw TOF reading at current servo angle
+ *   [101-104]: force_scale (float) - 0.6-1.0
+ *   [105-108]: distance_scale (float) - 0.5-1.5
+ *   [109-112]: dist_close_max (float) - CLOSE/MEDIUM boundary (cm)
+ *   [113-116]: dist_medium_max (float) - MEDIUM/FAR boundary (cm)
+ *   [117-120]: dist_far_max (float) - FAR/OUT boundary (cm)
+ *   [121-122]: crc (uint16)
  */
 function parseBinaryPacket(packet: Buffer): MotorData | null {
   if (packet.length !== PACKET_SIZE) {
@@ -141,13 +143,16 @@ function parseBinaryPacket(packet: Buffer): MotorData | null {
       servo_angle: packet.readUInt8(86),
       tof_current_cm: packet.readFloatLE(87),
       active_sensor: activeSensor,
+      // Raw sensor readings (for CSV logging)
+      ultrasonic_cm: packet.readFloatLE(93),
+      tof_raw_cm: packet.readFloatLE(97),
       // Potentiometer scales
-      force_scale: packet.readFloatLE(93),
-      distance_scale: packet.readFloatLE(97),
+      force_scale: packet.readFloatLE(101),
+      distance_scale: packet.readFloatLE(105),
       // Dynamic distance thresholds
-      dist_close_max: packet.readFloatLE(101),
-      dist_medium_max: packet.readFloatLE(105),
-      dist_far_max: packet.readFloatLE(109),
+      dist_close_max: packet.readFloatLE(109),
+      dist_medium_max: packet.readFloatLE(113),
+      dist_far_max: packet.readFloatLE(117),
     };
   } catch (error) {
     console.error('❌ Error parsing binary packet:', error);
@@ -214,7 +219,7 @@ function initSerial() {
 
     serialPort.on('open', () => {
       console.log(`✅ Serial port opened: ${SERIAL_PORT} @ ${BAUD_RATE} baud`);
-      console.log('📡 Binary protocol mode (115-byte packets with normalized values + potentiometer data)');
+      console.log('📡 Binary protocol mode (123-byte packets with normalized values + raw sensor readings + potentiometer data)');
     });
 
     serialPort.on('error', (err) => {
